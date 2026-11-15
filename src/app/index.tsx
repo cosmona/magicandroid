@@ -1,32 +1,28 @@
 import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDragToggle, useOpenProgress } from '@/components/Collapsible';
-import { DeckConstructorBar, DeckPanel, type ViewMode } from '@/components/DeckConstructor';
-import { FilterBar } from '@/components/filters/FilterBar';
-import { Header } from '@/components/Header';
+import { BottomSheet } from '@/components/BottomSheet';
+import { DeckBar } from '@/components/deck/DeckBar';
+import { DeckSheet } from '@/components/deck/DeckSheet';
+import { FilterPanel } from '@/components/filters/FilterPanel';
+import { SettingsSheet } from '@/components/SettingsSheet';
 import { SwipeArea } from '@/components/SwipeArea';
+import { TopBar } from '@/components/TopBar';
+import { useAppState } from '@/context/AppState';
 import { colors } from '@/theme';
 
 /**
- * Single screen, same top-to-bottom layout as the web app (App.tsx):
- * Header → Filtros → card stack → MazoConstructor (deck picker + deck, slides up over the stack).
- * The web's separate Mazos bar lives inside the constructor panel (DeckPicker).
+ * Main screen: top bar (filters) → card stack → active deck bar.
+ * Filters and the deck open in bottom sheets (RN Modal) over this screen, which stays
+ * mounted so the card stack keeps its position.
  */
 export default function MainScreen() {
-  const [constructorOpen, setConstructorOpen] = useState(false);
-  const [mode, setMode] = useState<ViewMode>('list');
+  const { filters, setFilters } = useAppState();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [deckOpen, setDeckOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  // Bottom sheet: progress 0 = hidden below the content area, 1 = covering it.
-  const sheetProgress = useOpenProgress(constructorOpen);
-  const sheetHeight = useSharedValue(0);
-  const sheetDrag = useDragToggle(sheetProgress, sheetHeight, setConstructorOpen, 'up');
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - sheetProgress.get()) * sheetHeight.get() }],
-  }));
 
   const showToast = (msg: string) => {
     clearTimeout(toastTimer.current);
@@ -36,37 +32,41 @@ export default function MainScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <Header />
-      <FilterBar />
-
-      <View style={styles.content} onLayout={(e) => sheetHeight.set(e.nativeEvent.layout.height)}>
-        {/* Kept mounted under the panel so the card queue isn't lost. */}
+      <TopBar onOpenFilters={() => setFiltersOpen(true)} onOpenSettings={() => setSettingsOpen(true)} />
+      <View style={styles.content}>
         <SwipeArea onToast={showToast} />
-        {/* Deck panel slides up from the bar, following the finger while dragging. */}
-        <Animated.View style={[StyleSheet.absoluteFill, sheetStyle]}>
-          <DeckPanel mode={mode} />
-        </Animated.View>
         {toast && (
           <View style={styles.toast} pointerEvents="none">
             <Text style={styles.toastText}>{toast}</Text>
           </View>
         )}
       </View>
+      <DeckBar onOpen={() => setDeckOpen(true)} />
 
-      <DeckConstructorBar
-        open={constructorOpen}
-        onToggleOpen={() => setConstructorOpen((o) => !o)}
-        mode={mode}
-        onToggleMode={() => setMode((m) => (m === 'list' ? 'gallery' : 'list'))}
-        dragGesture={sheetDrag}
-      />
+      <BottomSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} heightRatio={0.92}>
+        <FilterPanel
+          applied={filters}
+          onApply={(f) => {
+            setFilters(f);
+            setFiltersOpen(false);
+          }}
+        />
+      </BottomSheet>
+
+      <BottomSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} heightRatio={0.75}>
+        <SettingsSheet />
+      </BottomSheet>
+
+      <BottomSheet visible={deckOpen} onClose={() => setDeckOpen(false)} heightRatio={0.85}>
+        <DeckSheet />
+      </BottomSheet>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { flex: 1, overflow: 'hidden' },
+  content: { flex: 1 },
   toast: {
     position: 'absolute',
     top: 12,

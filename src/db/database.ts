@@ -1,9 +1,8 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Card } from '@/api/scryfall';
-import { SINGLETON_FORMATS } from '@/theme';
 
 export const DATABASE_NAME = 'magicswipe.db';
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 /** Runs on every app start (SQLiteProvider onInit). Schema changes = bump version + add a step. */
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
@@ -48,6 +47,16 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
       ALTER TABLE deck_cards ADD COLUMN rarity TEXT;
     `);
     version = 2;
+  }
+  if (version === 2) {
+    // Data for deck validation. Existing rows get NULLs and are backfilled from Scryfall
+    // (`getCardsMissingData` + `updateCardData`) when the deck is opened.
+    await db.execAsync(`
+      ALTER TABLE deck_cards ADD COLUMN color_identity TEXT;
+      ALTER TABLE deck_cards ADD COLUMN legalities TEXT;
+      ALTER TABLE deck_cards ADD COLUMN is_commander INTEGER NOT NULL DEFAULT 0;
+    `);
+    version = 3;
   }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
@@ -111,72 +120,90 @@ export interface DeckCard {
   oracleText: string | null;
   rarity: string | null;
   quantity: number;
+  /** Color identity letters, e.g. "WU"; "" = colorless; null = not loaded yet. */
+  colorIdentity: string | null;
+  /** JSON of Scryfall legalities; null = not loaded yet. */
+  legalities: string | null;
+  /** 1 = chosen as commander (Commander-style formats). */
+  isCommander: number;
 }
 
 export const getDeckCards = (db: SQLiteDatabase, deckId: number) =>
   db.getAllAsync<DeckCard>(
     `SELECT oracle_id AS oracleId, name, printed_name AS printedName, type_line AS typeLine,
             mana_cost AS manaCost, cmc, image_url AS imageUrl,
-            oracle_text AS oracleText, rarity, quantity
-     FROM deck_cards WHERE deck_id = ? ORDER BY cmc, name`,
+            oracle_text AS oracleText, rarity, quantity, color_identity AS colorIdentity,
+            legalities, is_commander AS isCommander
+     FROM deck_cards WHERE deck_id = ? ORDER BY is_commander DESC, cmc, name`,
     deckId,
   );
 
-/** Max copies of a card allowed in a deck of `format`; Infinity for basic lands & similar. */
-export function copyLimit(
-  card: { typeLine: string; oracleText?: string | null },
-  format: string | null,
-): number {
-  if (/\bBasic\b/.test(card.typeLine)) return Infinity;
-  if (card.oracleText && /any number of cards named/i.test(card.oracleText)) return Infinity;
-  return format && SINGLETON_FORMATS.includes(format) ? 1 : 4;
-}
-
-export type AddResult = { added: true; quantity: number } | { added: false; limit: number };
-
-/** Adds one copy of `card`, respecting the deck format's copy limit. */
-export async function addCardToDeck(
-  db: SQLiteDatabase,
-  deckId: number,
-  format: string | null,
-  card: Card,
-): Promise<AddResult> {
-  const limit = copyLimit(card, format);
+/** Adds one copy of `card`. There is no limit here: rules are checked by `validateDeck`. */
+export async function addCardToDeck(db: SQLiteDatabase, deckId: number, card: Card): Promise<number> {
   const existing = await db.getFirstAsync<{ quantity: number }>(
     'SELECT quantity FROM deck_cards WHERE deck_id = ? AND oracle_id = ?',
     deckId,
     card.oracleId,
   );
-  const current = existing?.quantity ?? 0;
-  if (current >= limit) return { added: false, limit };
-
   if (existing) {
     await db.runAsync(
       'UPDATE deck_cards SET quantity = quantity + 1 WHERE deck_id = ? AND oracle_id = ?',
       deckId,
       card.oracleId,
     );
-  } else {
-    await db.runAsync(
-      `INSERT INTO deck_cards (deck_id, oracle_id, scryfall_id, name, printed_name, type_line,
-         mana_cost, cmc, image_url, oracle_text, rarity, quantity, added_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-      deckId,
-      card.oracleId,
-      card.id,
-      card.name,
-      card.printedName,
-      card.typeLine,
-      card.manaCost,
-      card.cmc,
-      card.imageUrl,
-      card.oracleText,
-      card.rarity,
-      Date.now(),
-    );
+    return existing.quantity + 1;
   }
-  return { added: true, quantity: current + 1 };
+  await db.runAsync(
+    `INSERT INTO deck_cards (deck_id, oracle_id, scryfall_id, name, printed_name, type_line,
+       mana_cost, cmc, image_url, oracle_text, rarity, color_identity, legalities, quantity, added_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+    deckId,
+    card.oracleId,
+    card.id,
+    card.name,
+    card.printedName,
+    card.typeLine,
+    card.manaCost,
+    card.cmc,
+    card.imageUrl,
+    card.oracleText,
+    card.rarity,
+    card.colorIdentity.join(''),
+    JSON.stringify(card.legalities),
+    Date.now(),
+  );
+  return 1;
 }
+
+/** Marks/unmarks a card as (one of) the deck's commander(s). */
+export const setCommander = (db: SQLiteDatabase, deckId: number, oracleId: string, on: boolean) =>
+  db.runAsync(
+    'UPDATE deck_cards SET is_commander = ? WHERE deck_id = ? AND oracle_id = ?',
+    on ? 1 : 0,
+    deckId,
+    oracleId,
+  );
+
+/** Scryfall ids of cards added before validation data was stored (DB < v3). */
+export const getCardsMissingData = (db: SQLiteDatabase, deckId: number) =>
+  db.getAllAsync<{ scryfallId: string }>(
+    `SELECT scryfall_id AS scryfallId FROM deck_cards
+     WHERE deck_id = ? AND (legalities IS NULL OR color_identity IS NULL)`,
+    deckId,
+  );
+
+/** Stores validation data (and fills older missing columns) for every row of that card. */
+export const updateCardData = (db: SQLiteDatabase, card: Card) =>
+  db.runAsync(
+    `UPDATE deck_cards SET color_identity = ?, legalities = ?,
+       oracle_text = COALESCE(oracle_text, ?), rarity = COALESCE(rarity, ?)
+     WHERE oracle_id = ?`,
+    card.colorIdentity.join(''),
+    JSON.stringify(card.legalities),
+    card.oracleText,
+    card.rarity,
+    card.oracleId,
+  );
 
 export const removeCardFromDeck = (db: SQLiteDatabase, deckId: number, oracleId: string) =>
   db.runAsync('DELETE FROM deck_cards WHERE deck_id = ? AND oracle_id = ?', deckId, oracleId);

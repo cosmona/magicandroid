@@ -11,7 +11,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import type { Card } from '@/api/scryfall';
+import { smallImageUrl, type Card } from '@/api/scryfall';
 import { colors } from '@/theme';
 
 export type SwipeDirection = 'left' | 'right';
@@ -95,7 +95,15 @@ export function SwipeCard({ card, showBack, onSwiped, ref }: Props) {
   return (
     <GestureDetector gesture={pan}>
       <Animated.View style={[styles.card, cardStyle]}>
-        <Image source={{ uri: uri ?? undefined }} style={styles.image} contentFit="contain" transition={150} />
+        <Image
+          source={{ uri: uri ?? undefined }}
+          // ~15 KB thumbnail shows almost instantly while the full image loads.
+          placeholder={uri ? { uri: smallImageUrl(uri) } : undefined}
+          placeholderContentFit="contain"
+          style={styles.image}
+          contentFit="contain"
+          transition={150}
+        />
         <Animated.View style={[styles.stamp, styles.addStamp, addStampStyle]}>
           <Text style={[styles.stampText, { color: colors.add }]}>AÑADIR</Text>
         </Animated.View>

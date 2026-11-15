@@ -1,9 +1,13 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useSQLiteContext } from 'expo-sqlite';
 import { displayName, type Card } from '@/api/scryfall';
+import { BottomSheet } from '@/components/BottomSheet';
 import { Button } from '@/components/Button';
+import { HistorySheet, type Decision } from '@/components/HistorySheet';
+import { LanguagePicker } from '@/components/LanguagePicker';
 import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
 import { addCardToDeck, changeQuantity } from '@/db/database';
@@ -21,9 +25,16 @@ const MAX_HISTORY = 50;
 /** Card stack in the middle of the screen (the web's Deck view): right = add, left = discard. */
 export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const db = useSQLiteContext();
-  const { ready, filters, ensureActiveDeck, refresh } = useAppState();
-  const queue = useCardQueue(filters, ready);
+  const { ready, filters, ensureActiveDeck, refresh, prefs } = useAppState();
+  const queue = useCardQueue(filters, ready, prefs.language);
+  const buzz = (kind: 'add' | 'discard') => {
+    if (!prefs.haptics) return;
+    Haptics.impactAsync(kind === 'add' ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);
+  };
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  // Decision for every swiped card of this search (the undo history above is capped).
+  const [decisions, setDecisions] = useState<Record<string, Decision>>({});
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [showBack, setShowBack] = useState(false);
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
   const cardRef = useRef<SwipeCardHandle>(null);
@@ -33,7 +44,16 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   if (historyFilters !== filters) {
     setHistoryFilters(filters);
     setHistory([]);
+    setDecisions({});
   }
+
+  const decide = (cardId: string, decision: Decision | null) =>
+    setDecisions((d) => {
+      const next = { ...d };
+      if (decision) next[cardId] = decision;
+      else delete next[cardId];
+      return next;
+    });
 
   const onSwiped = async (dir: SwipeDirection) => {
     const card = queue.current;
@@ -44,14 +64,16 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     let addedTo: number | null = null;
     if (dir === 'right') {
       const deck = await ensureActiveDeck();
-      const res = await addCardToDeck(db, deck.id, deck.format, card);
-      if (res.added) {
-        addedTo = deck.id;
-        onToast(`+1 ${displayName(card)} (${res.quantity} en el mazo)`);
-        refresh(deck.id);
-      } else {
-        onToast(`Límite alcanzado: máximo ${res.limit} ${res.limit === 1 ? 'copia' : 'copias'}`);
-      }
+      // Always added: format rules are checked inside the deck, not here.
+      const quantity = await addCardToDeck(db, deck.id, card);
+      addedTo = deck.id;
+      buzz('add');
+      decide(card.id, 'added');
+      onToast(`+1 ${displayName(card)} (${quantity} en el mazo)`);
+      refresh(deck.id);
+    } else {
+      buzz('discard');
+      decide(card.id, 'discarded');
     }
     setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), { card, addedTo }]);
   };
@@ -60,6 +82,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     const last = history.at(-1);
     if (!last) return;
     setHistory((h) => h.slice(0, -1));
+    decide(last.card.id, null);
     queue.back();
     setShowBack(false);
     if (last.addedTo !== null) {
@@ -106,6 +129,17 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
 
   return (
     <View style={styles.container}>
+      {card && (
+        <View style={styles.languageRow}>
+          <LanguagePicker
+            card={card}
+            onChange={(c) => {
+              setShowBack(false);
+              queue.replaceCurrent(c);
+            }}
+          />
+        </View>
+      )}
       <View style={styles.cardArea} onLayout={onLayout}>
         {cardSize.width > 0 && body}
       </View>
@@ -113,15 +147,28 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
         <View style={styles.actions}>
           <RoundButton symbol="✕" color={colors.discard} onPress={() => cardRef.current?.swipe('left')} />
           <RoundButton symbol="↶" color={colors.undo} small disabled={!history.length} onPress={undo} />
-          <Text style={styles.counter}>
-            {queue.position}/{queue.total}
-          </Text>
+          <Pressable style={styles.historyButton} onPress={() => setHistoryOpen(true)} hitSlop={6}>
+            <Text style={styles.historyIcon}>▤</Text>
+            <Text style={styles.counter}>
+              {queue.position}/{queue.total.toLocaleString('es-ES')}
+            </Text>
+          </Pressable>
           {card.backImageUrl && (
             <RoundButton symbol="⟳" color={colors.textMuted} small onPress={() => setShowBack((b) => !b)} />
           )}
           <RoundButton symbol="✓" color={colors.add} onPress={() => cardRef.current?.swipe('right')} />
         </View>
       )}
+
+      <BottomSheet visible={historyOpen} onClose={() => setHistoryOpen(false)} heightRatio={0.85}>
+        <HistorySheet
+          cards={queue.cards}
+          index={queue.index}
+          decisions={decisions}
+          hasMore={queue.hasMore}
+          onNeedMore={queue.loadUpTo}
+        />
+      </BottomSheet>
     </View>
   );
 }
@@ -145,10 +192,21 @@ function RoundButton(props: { symbol: string; color: string; onPress: () => void
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  languageRow: { paddingTop: 8 },
   cardArea: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 10 },
   upcoming: { borderRadius: 16, transform: [{ scale: 0.94 }], opacity: 0.6 },
   actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 14, paddingVertical: 10 },
-  counter: { color: colors.textMuted, fontSize: 12, minWidth: 44, textAlign: 'center' },
+  historyButton: {
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  historyIcon: { color: colors.accent, fontSize: 18, fontWeight: '900' },
+  counter: { color: colors.textMuted, fontSize: 11, minWidth: 44, textAlign: 'center' },
   round: {
     borderRadius: 999,
     borderWidth: 3,

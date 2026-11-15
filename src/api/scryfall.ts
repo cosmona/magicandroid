@@ -40,8 +40,6 @@ export interface Filters {
   format: string | null;
   /** Set code (`e:`), null = any. */
   set: string | null;
-  /** Only Spanish printings (Spanish name + image). */
-  spanish: boolean;
   order: SortOrder;
   dir: SortDir;
 }
@@ -61,7 +59,6 @@ export const DEFAULT_FILTERS: Filters = {
   keywords: [],
   format: null,
   set: null,
-  spanish: true,
   order: 'edhrec',
   dir: 'auto',
 };
@@ -82,6 +79,13 @@ export interface Card {
   imageUrl: string | null;
   /** Back face image for double-faced cards. */
   backImageUrl: string | null;
+  /** Scryfall language code of this printing (en, es, fr, de, it, pt, ja, ko, ru, zhs, zht…). */
+  lang: string;
+  set: string;
+  /** Color identity letters, e.g. ['W', 'U']; [] = colorless. */
+  colorIdentity: string[];
+  /** Scryfall format key → 'legal' | 'not_legal' | 'banned' | 'restricted'. */
+  legalities: Record<string, string>;
 }
 
 export interface SearchPage {
@@ -92,14 +96,22 @@ export interface SearchPage {
 
 let lastRequest = 0;
 
-async function scryfallFetch(url: string): Promise<Response> {
+async function scryfallFetch(url: string, init?: { method: 'POST'; body: string }): Promise<Response> {
   const wait = lastRequest + MIN_INTERVAL_MS - Date.now();
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   lastRequest = Date.now();
-  return fetch(url, { headers: HEADERS });
+  if (!init) return fetch(url, { headers: HEADERS });
+  return fetch(url, { ...init, headers: { ...HEADERS, 'Content-Type': 'application/json' } });
 }
 
 const clean = (s: string) => s.replace(/"/g, '').trim();
+
+/** Lowercase without accents ("Relámpago" → "relampago"). */
+const fold = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
 
 const anyOf = (terms: string[]) => (terms.length === 1 ? terms[0] : `(${terms.join(' or ')})`);
 
@@ -119,12 +131,20 @@ function colorTerm(f: Filters): string | null {
   }
 }
 
-/** Translates the filters into a Scryfall search query (https://scryfall.com/docs/syntax). */
-export function buildQuery(f: Filters): string {
+/**
+ * Translates the filters into a Scryfall search query (https://scryfall.com/docs/syntax).
+ * Results come in English; `anyLanguage` also matches foreign printed names (used as a
+ * fallback when a name search finds nothing, e.g. a Spanish name).
+ */
+export function buildQuery(f: Filters, anyLanguage = false): string {
   const parts: (string | null)[] = ['game:paper'];
-  // Scryfall folds accents in card names but not in the query: "dragon" finds "Dragón", "dragón" finds nothing.
-  const name = clean(f.name).normalize('NFD').replace(/[̀-ͯ]/g, '');
-  if (name) parts.push(`name:"${name}"`);
+  // One unquoted `name:` per word: unquoted terms ignore accents on the card side
+  // ("relampago" finds "Relámpago", a quoted "relampago" doesn't), but accents in the
+  // query itself never match, so strip them too.
+  const nameWords = fold(clean(f.name))
+    .split(/[^\p{L}\p{N}'-]+/u)
+    .filter(Boolean);
+  for (const word of nameWords) parts.push(`name:${word}`);
   if (clean(f.text)) parts.push(`o:"${clean(f.text)}"`);
   parts.push(colorTerm(f));
   if (f.types.length) parts.push(anyOf(f.types.map((t) => `t:${t.toLowerCase()}`)));
@@ -136,13 +156,13 @@ export function buildQuery(f: Filters): string {
   for (const k of f.keywords) parts.push(`keyword:"${k}"`);
   if (f.format) parts.push(`f:${f.format}`);
   if (f.set) parts.push(`e:${f.set}`);
-  if (f.spanish) parts.push('lang:es');
+  if (anyLanguage) parts.push('lang:any');
   return parts.filter(Boolean).join(' ');
 }
 
 /** Number of filters that differ from the defaults (ignoring sort), for the status bar badge. */
 export function activeFilterCount(f: Filters): number {
-  const ignore: (keyof Filters)[] = ['order', 'dir', 'colorMode', 'spanish'];
+  const ignore: (keyof Filters)[] = ['order', 'dir', 'colorMode'];
   return (Object.keys(DEFAULT_FILTERS) as (keyof Filters)[]).filter(
     (k) => !ignore.includes(k) && JSON.stringify(f[k]) !== JSON.stringify(DEFAULT_FILTERS[k]),
   ).length;
@@ -163,6 +183,10 @@ interface ScryfallCard extends ScryfallFace {
   printed_type_line?: string;
   cmc?: number;
   rarity: string;
+  lang: string;
+  set: string;
+  color_identity?: string[];
+  legalities?: Record<string, string>;
   card_faces?: ScryfallFace[];
 }
 
@@ -180,28 +204,141 @@ function toCard(c: ScryfallCard): Card {
     oracleText: c.oracle_text ?? faces.map((f) => f.oracle_text ?? '').join('\n'),
     imageUrl: c.image_uris?.normal ?? faces[0]?.image_uris?.normal ?? null,
     backImageUrl: c.image_uris ? null : faces[1]?.image_uris?.normal ?? null,
+    lang: c.lang,
+    set: c.set,
+    colorIdentity: c.color_identity ?? [],
+    legalities: c.legalities ?? {},
   };
 }
 
-/** Fetch the first page for `filters`, or a follow-up page via its `nextPage` URL. */
-export async function searchCards(filters: Filters, nextPage?: string): Promise<SearchPage> {
-  const url =
-    nextPage ??
-    `${BASE_URL}/cards/search?` +
-      new URLSearchParams({ q: buildQuery(filters), order: filters.order, dir: filters.dir }).toString();
-
+async function fetchPage(url: string): Promise<SearchPage> {
   const res = await scryfallFetch(url);
   const body = await res.json();
   if (res.status === 404 && body.code === 'not_found') {
     return { cards: [], nextPage: null, total: 0 };
   }
   if (!res.ok) throw new Error(body.details ?? `Error ${res.status} de Scryfall`);
-
   return {
     cards: (body.data as ScryfallCard[]).map(toCard).filter((c) => c.imageUrl),
     nextPage: body.has_more ? body.next_page : null,
     total: body.total_cards ?? 0,
   };
+}
+
+const searchUrl = (filters: Filters, anyLanguage: boolean) =>
+  `${BASE_URL}/cards/search?` +
+  new URLSearchParams({ q: buildQuery(filters, anyLanguage), order: filters.order, dir: filters.dir }).toString();
+
+/** Fetch the first page for `filters`, or a follow-up page via its `nextPage` URL. */
+export async function searchCards(filters: Filters, nextPage?: string): Promise<SearchPage> {
+  if (nextPage) return fetchPage(nextPage);
+  const page = await fetchPage(searchUrl(filters, false));
+  // A name typed in another language (e.g. "relámpago") only matches foreign printings:
+  // if no English name contains the words, search every language instead.
+  const words = fold(filters.name).split(/[^\p{L}\p{N}'-]+/u).filter(Boolean);
+  const englishHit = page.cards.some((c) => words.every((w) => fold(c.name).includes(w)));
+  if (words.length && !englishHit) return fetchPage(searchUrl(filters, true));
+  return page;
+}
+
+/** Cards by Scryfall id, 75 per request (POST /cards/collection). Unknown ids are skipped. */
+export async function getCardsByIds(ids: string[]): Promise<Card[]> {
+  const out: Card[] = [];
+  for (let i = 0; i < ids.length; i += 75) {
+    const res = await scryfallFetch(`${BASE_URL}/cards/collection`, {
+      method: 'POST',
+      body: JSON.stringify({ identifiers: ids.slice(i, i + 75).map((id) => ({ id })) }),
+    });
+    if (!res.ok) throw new Error(`Error ${res.status} de Scryfall`);
+    out.push(...((await res.json()).data as ScryfallCard[]).map(toCard));
+  }
+  return out;
+}
+
+/** Spanish-facing names of Scryfall language codes. */
+export const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  es: 'Español',
+  fr: 'Français',
+  de: 'Deutsch',
+  it: 'Italiano',
+  pt: 'Português',
+  ja: '日本語',
+  ko: '한국어',
+  ru: 'Русский',
+  zhs: '简体中文',
+  zht: '繁體中文',
+  he: 'עברית',
+  la: 'Latina',
+  grc: 'Ἑλληνική',
+  ar: 'العربية',
+  sa: 'संस्कृतम्',
+  ph: 'Phyrexian',
+};
+
+const languageCache = new Map<string, Promise<Card[]>>();
+
+/**
+ * One printing per language available for `card` (Scryfall `oracleid:` + `lang:any`).
+ * Prefers the same set as `card`, otherwise the most recent printing in that language.
+ * Cached per card for the app's lifetime.
+ */
+export function getCardLanguages(card: Card): Promise<Card[]> {
+  const key = `${card.oracleId}|${card.set}`;
+  let promise = languageCache.get(key);
+  if (!promise) {
+    const url =
+      `${BASE_URL}/cards/search?` +
+      new URLSearchParams({
+        q: `oracleid:${card.oracleId} lang:any`,
+        unique: 'prints',
+        include_multilingual: 'true',
+        order: 'released',
+      }).toString();
+    promise = fetchPage(url).then(({ cards }) => {
+      const byLang = new Map<string, Card>();
+      for (const c of cards) {
+        const prev = byLang.get(c.lang);
+        if (!prev || (c.set === card.set && prev.set !== card.set)) byLang.set(c.lang, c);
+      }
+      byLang.set(card.lang, card);
+      const order = Object.keys(LANGUAGE_NAMES);
+      return [...byLang.values()].sort((a, b) => order.indexOf(a.lang) - order.indexOf(b.lang));
+    });
+    promise.catch(() => languageCache.delete(key));
+    languageCache.set(key, promise);
+  }
+  return promise;
+}
+
+/** Languages offered as the default card language in settings. */
+export const MAIN_LANGUAGES = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'ru', 'zhs', 'zht'];
+
+const localizedCache = new Map<string, Promise<Card | null>>();
+
+const printsUrl = (q: string) =>
+  `${BASE_URL}/cards/search?` +
+  new URLSearchParams({ q, unique: 'prints', include_multilingual: 'true', order: 'released' }).toString();
+
+/**
+ * `card` printed in `lang`, or null if Scryfall has none. Tries the same set first
+ * (a one-result query) and only then any set, to keep responses small. Cached.
+ */
+export function getCardInLanguage(card: Card, lang: string): Promise<Card | null> {
+  if (card.lang === lang) return Promise.resolve(card);
+  const key = `${card.oracleId}|${card.set}|${lang}`;
+  let promise = localizedCache.get(key);
+  if (!promise) {
+    promise = (async () => {
+      const sameSet = await fetchPage(printsUrl(`oracleid:${card.oracleId} lang:${lang} e:${card.set}`));
+      if (sameSet.cards[0]) return sameSet.cards[0];
+      const anySet = await fetchPage(printsUrl(`oracleid:${card.oracleId} lang:${lang}`));
+      return anySet.cards[0] ?? null;
+    })();
+    promise.catch(() => localizedCache.delete(key));
+    localizedCache.set(key, promise);
+  }
+  return promise;
 }
 
 /** Memoizes a fetch for the app's lifetime; a failed attempt can be retried. */
@@ -268,6 +405,9 @@ export const getSets = cached(async (): Promise<MtgSet[]> => {
 
 /** Scryfall CDN: the `art_crop` version of a `normal` image URL (illustration only). */
 export const artCropUrl = (imageUrl: string) => imageUrl.replace('/normal/', '/art_crop/');
+
+/** Scryfall CDN: ~15 KB thumbnail (146×204) of a `normal` image URL (~105 KB). */
+export const smallImageUrl = (imageUrl: string) => imageUrl.replace('/normal/', '/small/');
 
 export const displayName = (c: { name: string; printedName: string | null }) =>
   c.printedName ?? c.name;

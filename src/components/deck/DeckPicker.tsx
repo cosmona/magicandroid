@@ -8,7 +8,7 @@ import { useAppState } from '@/context/AppState';
 import { createDeck } from '@/db/database';
 import { colors, formatLabel } from '@/theme';
 
-/** Horizontal row of saved decks (the web's Mazos list) at the top of the deck panel; tap one to load it. */
+/** Horizontal row of saved decks (the web's Mazos list) in the deck sheet; tap one to load it. */
 export function DeckPicker() {
   const db = useSQLiteContext();
   const { decks, activeDeck, setActiveDeckId } = useAppState();
@@ -57,12 +57,7 @@ export function DeckPicker() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingTop: 8,
-  },
+  container: { paddingTop: 4, borderBottomWidth: 1, borderBottomColor: colors.border },
   title: { color: colors.textMuted, fontWeight: '700', fontSize: 12, paddingHorizontal: 10 },
   list: { padding: 8, gap: 8 },
   tile: {

@@ -3,10 +3,8 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -70,23 +68,33 @@ interface Props {
 }
 
 /**
- * Search form. Edits a draft and applies it with "Buscar", so the card stack isn't
- * reloaded on every tap. Mount with a key that changes when `applied` changes.
+ * Search form shown in the filters sheet. Edits a draft and applies it with "Buscar",
+ * so the card stack isn't reloaded on every tap. Actions sit at the top so they stay
+ * visible whatever the sheet height.
  */
 export function FilterPanel({ applied, onApply }: Props) {
-  const { height } = useWindowDimensions();
   const [draft, setDraft] = useState<Filters>(applied);
   const set = (patch: Partial<Filters>) => setDraft((d) => ({ ...d, ...patch }));
   const dirty = JSON.stringify(draft) !== JSON.stringify(applied);
 
   return (
-    <View style={[styles.panel, { maxHeight: height * 0.62 }]}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+    <View style={styles.panel}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Filtros</Text>
+        <Button label="Limpiar" variant="secondary" onPress={() => setDraft(DEFAULT_FILTERS)} style={styles.headerButton} />
+        <Button label={dirty ? 'Buscar' : 'Buscar de nuevo'} onPress={() => onApply(draft)} style={styles.headerButton} />
+      </View>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
+      >
         <Section title="Nombre">
           <Input
             value={draft.name}
             onChangeText={(name) => set({ name })}
-            placeholder="Parte del nombre (español o inglés)"
+            placeholder="Parte del nombre (inglés o español)"
             onSubmit={() => onApply(draft)}
           />
         </Section>
@@ -200,24 +208,7 @@ export function FilterPanel({ applied, onApply }: Props) {
             onChange={(dir) => set({ dir })}
           />
         </Section>
-
-        <View style={styles.switchRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>Solo cartas en español</Text>
-            <Text style={styles.hint}>Desactívalo si echas en falta cartas sin edición en español.</Text>
-          </View>
-          <Switch
-            value={draft.spanish}
-            onValueChange={(spanish) => set({ spanish })}
-            trackColor={{ true: colors.accent, false: colors.border }}
-          />
-        </View>
       </ScrollView>
-
-      <View style={styles.footer}>
-        <Button label="Limpiar" variant="secondary" onPress={() => setDraft(DEFAULT_FILTERS)} style={{ flex: 1 }} />
-        <Button label={dirty ? 'Buscar' : 'Buscar de nuevo'} onPress={() => onApply(draft)} style={{ flex: 2 }} />
-      </View>
     </View>
   );
 }
@@ -350,7 +341,18 @@ function SetPicker({ value, onChange }: { value: string | null; onChange: (code:
 }
 
 const styles = StyleSheet.create({
-  panel: { backgroundColor: colors.bg, borderBottomWidth: 1, borderBottomColor: colors.border },
+  panel: { flex: 1, backgroundColor: colors.surface },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  headerTitle: { flex: 1, color: colors.text, fontSize: 20, fontWeight: '900' },
+  headerButton: { paddingVertical: 9, paddingHorizontal: 14 },
   content: { padding: 12, gap: 18 },
   sectionTitle: { color: colors.text, fontWeight: '800', fontSize: 15 },
   hint: { color: colors.textMuted, fontSize: 12 },
@@ -417,13 +419,4 @@ const styles = StyleSheet.create({
   rarityItem: { alignItems: 'center', paddingHorizontal: 4 },
   rarityIcon: { width: 36, height: 30 },
   rarityLabel: { color: colors.text, fontSize: 11 },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  footer: {
-    flexDirection: 'row',
-    gap: 10,
-    padding: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-  },
 });

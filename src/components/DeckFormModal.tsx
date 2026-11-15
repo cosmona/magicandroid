@@ -41,9 +41,11 @@ export function DeckFormModal({ title, initialName = '', initialFormat = null, o
             options={FORMATS.map((f) => ({ value: f.key, label: f.label, icon: f.icon, tint: true }))}
           />
           <Text style={styles.hint}>
-            {format && SINGLETON_FORMATS.includes(format)
-              ? 'Máximo 1 copia por carta.'
-              : 'Máximo 4 copias por carta (tierras básicas sin límite).'}
+            {!format
+              ? 'Sin comprobaciones de formato.'
+              : SINGLETON_FORMATS.includes(format)
+                ? 'Se comprobará: comandante, tamaño, 1 copia por carta, identidad de color y legalidad.'
+                : 'Se comprobará: mínimo 60 cartas, máximo 4 copias y legalidad.'}
           </Text>
           <View style={styles.row}>
             <Button label="Cancelar" variant="secondary" onPress={onCancel} style={{ flex: 1 }} />

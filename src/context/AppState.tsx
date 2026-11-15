@@ -21,7 +21,22 @@ import {
 /** Name given to a deck auto-created by the first right swipe (like the web's "(Not Saved)"). */
 export const UNNAMED_DECK = 'Mazo sin nombre';
 // Bumped whenever the Filters shape changes incompatibly; older saved filters are ignored.
-const FILTERS_KEY = 'filters.v3';
+const FILTERS_KEY = 'filters.v4';
+const PREFS_KEY = 'prefs';
+
+export type DeckView = 'list' | 'gallery' | 'big';
+
+/** User settings (Ajustes). New fields need a default here; saved prefs are merged over it. */
+export interface Prefs {
+  /** Scryfall language code cards are shown in when available ('en' = as returned). */
+  language: string;
+  /** Vibrate on add/discard. */
+  haptics: boolean;
+  /** View the deck sheet opens with. */
+  deckView: DeckView;
+}
+
+export const DEFAULT_PREFS: Prefs = { language: 'en', haptics: true, deckView: 'list' };
 
 interface AppState {
   ready: boolean;
@@ -36,6 +51,8 @@ interface AppState {
   ensureActiveDeck: () => Promise<Deck>;
   filters: Filters;
   setFilters: (f: Filters) => void;
+  prefs: Prefs;
+  setPrefs: (p: Prefs) => void;
 }
 
 const AppStateContext = createContext<AppState | null>(null);
@@ -48,6 +65,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [activeDeckId, setActiveDeckIdState] = useState<number | null>(null);
   const [activeCards, setActiveCards] = useState<DeckCard[]>([]);
   const [filters, setFiltersState] = useState<Filters>(DEFAULT_FILTERS);
+  const [prefs, setPrefsState] = useState<Prefs>(DEFAULT_PREFS);
 
   const load = useCallback(
     async (deckId: number | null) => {
@@ -67,9 +85,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     (async () => {
       const savedDeck = await getSetting(db, 'activeDeckId');
       const savedFilters = await getSetting(db, FILTERS_KEY);
+      const savedPrefs = await getSetting(db, PREFS_KEY);
       const deckId = savedDeck ? Number(savedDeck) : null;
       setActiveDeckIdState(deckId);
       if (savedFilters) setFiltersState({ ...DEFAULT_FILTERS, ...JSON.parse(savedFilters) });
+      if (savedPrefs) setPrefsState({ ...DEFAULT_PREFS, ...JSON.parse(savedPrefs) });
       await load(deckId);
       setReady(true);
     })();
@@ -107,6 +127,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [db],
   );
 
+  const setPrefs = useCallback(
+    (p: Prefs) => {
+      setPrefsState(p);
+      setSetting(db, PREFS_KEY, JSON.stringify(p));
+    },
+    [db],
+  );
+
   return (
     <AppStateContext.Provider
       value={{
@@ -119,6 +147,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         ensureActiveDeck,
         filters,
         setFilters,
+        prefs,
+        setPrefs,
       }}
     >
       {children}
