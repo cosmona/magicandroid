@@ -17,11 +17,13 @@ export function DeckBar({ onOpen }: { onOpen: () => void }) {
   const validation = validateDeck(activeDeck?.format ?? null, activeCards);
   const status = !validation.checked || !activeCards.length ? '' : validation.valid ? ' · ✓ válido' : ' · ⚠ revisar';
 
+  // Opens as soon as the finger starts moving up (not on release), so the sheet
+  // slides in while you're still dragging.
   const swipeUp = usePanGesture({
-    activeOffsetY: [-12, 12],
+    activeOffsetY: -10,
     failOffsetX: [-25, 25],
-    onDeactivate: (e) => {
-      if (!e.canceled && (e.translationY < -25 || e.velocityY < -400)) scheduleOnRN(onOpen);
+    onActivate: () => {
+      scheduleOnRN(onOpen);
     },
   });
   const tap = useTapGesture({

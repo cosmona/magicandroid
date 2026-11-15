@@ -8,12 +8,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   DEFAULT_FILTERS,
   displayName,
+  fold,
   getCardInLanguage,
   LANGUAGE_NAMES,
   searchCards,
   smallImageUrl,
   type Card,
 } from '@/api/scryfall';
+import { CardScanner } from '@/components/collection/CardScanner';
 import { SwipeToDelete } from '@/components/deck/SwipeToDelete';
 import { useAppState } from '@/context/AppState';
 import {
@@ -30,12 +32,6 @@ type CollectionView = 'list' | 'gallery';
 const MIN_QUERY = 2;
 const DEBOUNCE_MS = 450;
 const MAX_RESULTS = 20;
-
-const fold = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
 
 /**
  * "Colección" tab: the cards the user owns, one row per printing (edition + language).
@@ -55,6 +51,7 @@ export function CollectionScreen() {
   });
   const [preview, setPreview] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const load = useCallback(async () => setCards(await getCollection(db)), [db]);
@@ -129,21 +126,26 @@ export function CollectionScreen() {
         </Text>
       </View>
 
-      <View style={styles.searchBox}>
-        <TextInput
-          style={styles.searchInput}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Busca en tu colección o añade cartas…"
-          placeholderTextColor={colors.textMuted}
-          autoCorrect={false}
-          returnKeyType="search"
-        />
-        {!!query && (
-          <Pressable hitSlop={10} onPress={() => setQuery('')}>
-            <Text style={styles.clear}>✕</Text>
-          </Pressable>
-        )}
+      <View style={styles.searchRow}>
+        <View style={styles.searchBox}>
+          <TextInput
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Busca en tu colección o añade cartas…"
+            placeholderTextColor={colors.textMuted}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {!!query && (
+            <Pressable hitSlop={10} onPress={() => setQuery('')}>
+              <Text style={styles.clear}>✕</Text>
+            </Pressable>
+          )}
+        </View>
+        <Pressable style={styles.scanButton} onPress={() => setScanning(true)} hitSlop={6}>
+          <Text style={styles.scanIcon}>📷</Text>
+        </Pressable>
       </View>
 
       {searching && (
@@ -262,6 +264,19 @@ export function CollectionScreen() {
         }
       />
 
+      <CardScanner
+        visible={scanning}
+        onClose={() => {
+          setScanning(false);
+          load();
+        }}
+        onAdded={() => load()}
+        onSearch={(text) => {
+          setScanning(false);
+          setQuery(text);
+        }}
+      />
+
       {toast && (
         <View style={styles.toast} pointerEvents="none">
           <Text style={styles.toastText}>{toast}</Text>
@@ -297,11 +312,21 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', padding: 14 },
   title: { color: colors.accent, fontSize: 20, fontWeight: '900' },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 14 },
+  scanButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+  },
+  scanIcon: { fontSize: 22 },
   stats: { color: colors.textMuted, fontWeight: '700' },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 12,
+    flex: 1,
     paddingRight: 12,
     borderRadius: 10,
     backgroundColor: colors.surface,

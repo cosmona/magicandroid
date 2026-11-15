@@ -3,6 +3,7 @@ import { NavigationBar } from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
 import { SQLiteProvider } from 'expo-sqlite';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { AppStateProvider, useAppState } from '@/context/AppState';
 import { DATABASE_NAME, migrateDbIfNeeded } from '@/db/database';
 import { colors } from '@/theme';
@@ -21,6 +22,7 @@ export default function RootLayout() {
           <StatusBar style="light" />
           <SystemNavigationBar />
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }} />
+          <LoadingScreen />
         </AppStateProvider>
       </SQLiteProvider>
     </GestureHandlerRootView>

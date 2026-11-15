@@ -3,6 +3,10 @@
 import type { IconSource } from '@/theme';
 import type { Color, Rarity } from '@/api/scryfall';
 
+/** App logo with a transparent background (assets/logo-mark.png, 480×416), for dark UI. */
+export const LOGO_MARK: IconSource = require('../assets/logo-mark.png');
+export const LOGO_MARK_RATIO = 480 / 416;
+
 /** Simple mana symbols (color filter and filter status bar). */
 export const MANA_ICONS: Record<Color, IconSource> = {
   R: require('../assets/mtg/mana/red.png'),

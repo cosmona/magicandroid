@@ -32,6 +32,13 @@
           "enforceContrast": false,
           "style": "light"
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Magic Swipe usa la cámara para reconocer tus cartas.",
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "experiments": {

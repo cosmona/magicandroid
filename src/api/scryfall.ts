@@ -112,7 +112,7 @@ async function scryfallFetch(url: string, init?: { method: 'POST'; body: string 
 const clean = (s: string) => s.replace(/"/g, '').trim();
 
 /** Lowercase without accents ("Relámpago" → "relampago"). */
-const fold = (s: string) =>
+export const fold = (s: string) =>
   s
     .toLowerCase()
     .normalize('NFD')
@@ -264,6 +264,35 @@ export async function getCardsByIds(ids: string[]): Promise<Card[]> {
     out.push(...((await res.json()).data as ScryfallCard[]).map(toCard));
   }
   return out;
+}
+
+/** One card from a Scryfall endpoint that returns a single card; null on 404. */
+async function getSingleCard(path: string): Promise<Card | null> {
+  const res = await scryfallFetch(`${BASE_URL}${path}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Error ${res.status} de Scryfall`);
+  return toCard(await res.json());
+}
+
+/** A printing by set code + collector number, optionally in a language (`/cards/:set/:number/:lang`). */
+export const getCardBySetNumber = (set: string, number: string, lang?: string) =>
+  getSingleCard(
+    `/cards/${encodeURIComponent(set.toLowerCase())}/${encodeURIComponent(number)}` +
+      (lang ? `/${encodeURIComponent(lang)}` : ''),
+  );
+
+/** Best match for a possibly misspelled English name (`/cards/named?fuzzy=`). */
+export const getCardByFuzzyName = (name: string) =>
+  getSingleCard(`/cards/named?${new URLSearchParams({ fuzzy: name }).toString()}`);
+
+/** `card` printed in `set` (in `lang` if there is one), or null. */
+export async function getCardInSet(card: Card, set: string, lang?: string): Promise<Card | null> {
+  const q = `oracleid:${card.oracleId} e:${set.toLowerCase()}`;
+  if (lang) {
+    const inLang = await fetchPage(printsUrl(`${q} lang:${lang}`));
+    if (inLang.cards[0]) return inLang.cards[0];
+  }
+  return (await fetchPage(printsUrl(q))).cards[0] ?? null;
 }
 
 /** Spanish-facing names of Scryfall language codes. */
