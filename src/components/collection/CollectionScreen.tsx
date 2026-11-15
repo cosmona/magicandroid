@@ -1,34 +1,77 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { FlatList } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
   DEFAULT_FILTERS,
   displayName,
   fold,
+  getAllSets,
+  getCardsByIds,
   getCardInLanguage,
   LANGUAGE_NAMES,
   searchCards,
   smallImageUrl,
   type Card,
+  type MtgSet,
 } from '@/api/scryfall';
+import { BottomSheet } from '@/components/BottomSheet';
 import { CardScanner } from '@/components/collection/CardScanner';
-import { SwipeToDelete } from '@/components/deck/SwipeToDelete';
+import { CollectionFilterPanel } from '@/components/collection/CollectionFilterPanel';
+import { ManaCost } from '@/components/ManaCost';
+import {
+  activeFilterCount,
+  applyFilter,
+  EMPTY_FILTER,
+  GROUP_LABELS,
+  groupCards,
+  type CardGroup,
+  type CollectionFilter,
+  type GroupBy,
+} from '@/collection/organize';
+import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
+import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/components/CardControls';
 import { useAppState } from '@/context/AppState';
 import {
   addToCollection,
   changeCollectionQuantity,
   getCollection,
+  addCardToDeck,
+  getDeckOracleIds,
   removeFromCollection,
+  restoreCollectionRow,
+  snapshotCollectionCard,
+  type Row,
   type CollectionCard,
 } from '@/db/database';
 import { RARITY_LABELS } from '@/icons';
-import { colors } from '@/theme';
+import { priceTotal, useCardDetails } from '@/hooks/useCardDetails';
+import { colors, formatEur } from '@/theme';
 
 type CollectionView = 'list' | 'gallery';
+const GROUPINGS: GroupBy[] = ['none', 'color', 'type', 'set', 'rarity', 'cost', 'price'];
+const GALLERY_COLUMNS = 3;
+
+/** Flat list items: group headers + cards (list view) or rows of 3 cards (gallery). */
+type Item =
+  | { type: 'header'; key: string; group: CardGroup; collapsed: boolean }
+  | { type: 'card'; key: string; card: CollectionCard }
+  | { type: 'row'; key: string; cards: CollectionCard[] };
 const MIN_QUERY = 2;
 const DEBOUNCE_MS = 450;
 const MAX_RESULTS = 20;
@@ -40,7 +83,7 @@ const MAX_RESULTS = 20;
  */
 export function CollectionScreen() {
   const db = useSQLiteContext();
-  const { prefs } = useAppState();
+  const { prefs, ensureActiveDeck, refresh } = useAppState();
   const [cards, setCards] = useState<CollectionCard[]>([]);
   const [query, setQuery] = useState('');
   const [view, setView] = useState<CollectionView>('list');
@@ -54,7 +97,24 @@ export function CollectionScreen() {
   const [scanning, setScanning] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const load = useCallback(async () => setCards(await getCollection(db)), [db]);
+  const [filter, setFilter] = useState<CollectionFilter>(EMPTY_FILTER);
+  const [filtering, setFiltering] = useState(false);
+  const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [inDecks, setInDecks] = useState<Set<string>>(new Set());
+  const [sets, setSets] = useState<Record<string, MtgSet>>({});
+
+  const load = useCallback(async () => {
+    setCards(await getCollection(db));
+    setInDecks(await getDeckOracleIds(db));
+  }, [db]);
+
+  // Set names and dates, for the edition grouping/filter (cached for the app run).
+  useEffect(() => {
+    getAllSets()
+      .then(setSets)
+      .catch(() => {});
+  }, []);
   // Reload whenever the tab is shown (cards can be added from the swipe tab with 📦).
   useFocusEffect(
     useCallback(() => {
@@ -80,14 +140,62 @@ export function CollectionScreen() {
   const results = remote.q === q ? remote.cards : [];
   const loadingResults = searching && (remote.q !== q || remote.loading);
 
+  // Collection value on Cardmarket (live prices from Scryfall; hidden offline).
+  const details = useCardDetails(cards.map((c) => c.scryfallId));
+  const value = priceTotal(cards, details);
+
   const owned = useMemo(() => {
-    if (!q) return cards;
+    const ctx = { details, inDecks, sets };
+    const filtered = applyFilter(cards, filter, ctx);
+    if (!q) return filtered;
     const words = fold(q).split(/\s+/);
-    return cards.filter((c) => {
+    return filtered.filter((c) => {
       const text = fold(`${c.name} ${c.printedName ?? ''}`);
       return words.every((w) => text.includes(w));
     });
-  }, [cards, q]);
+  }, [cards, q, filter, details, inDecks, sets]);
+
+  const groups = useMemo(
+    () => groupCards(owned, groupBy, { details, inDecks, sets }),
+    [owned, groupBy, details, inDecks, sets],
+  );
+
+  const items = useMemo(() => {
+    const out: Item[] = [];
+    for (const group of groups) {
+      const isCollapsed = groupBy !== 'none' && collapsed.has(group.key);
+      if (groupBy !== 'none') out.push({ type: 'header', key: `h:${group.key}`, group, collapsed: isCollapsed });
+      if (isCollapsed) continue;
+      if (view === 'list') {
+        for (const card of group.cards) out.push({ type: 'card', key: card.scryfallId, card });
+      } else {
+        for (let i = 0; i < group.cards.length; i += GALLERY_COLUMNS) {
+          const row = group.cards.slice(i, i + GALLERY_COLUMNS);
+          out.push({ type: 'row', key: `r:${group.key}:${row[0].scryfallId}`, cards: row });
+        }
+      }
+    }
+    return out;
+  }, [groups, groupBy, collapsed, view]);
+
+  const toggleGroup = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  // Options of the set/language filters: only what the collection has.
+  const setCodes = useMemo(
+    () =>
+      [...new Set(cards.map((c) => c.setCode))].sort((a, b) =>
+        (sets[b]?.releasedAt ?? '').localeCompare(sets[a]?.releasedAt ?? ''),
+      ),
+    [cards, sets],
+  );
+  const langs = useMemo(() => [...new Set(cards.map((c) => c.lang))], [cards]);
+  const filterCount = activeFilterCount(filter);
 
   const stats = useMemo(
     () => ({ total: cards.reduce((n, c) => n + c.quantity, 0), unique: new Set(cards.map((c) => c.oracleId)).size }),
@@ -108,13 +216,55 @@ export function CollectionScreen() {
     load();
   };
 
+  // Last removal, undoable for a few seconds.
+  const [undo, setUndo] = useState<{ label: string; row: Row } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(undoTimer.current), []);
+  const runUndo = async () => {
+    if (!undo) return;
+    clearTimeout(undoTimer.current);
+    setUndo(null);
+    await restoreCollectionRow(db, undo.row);
+    load();
+  };
+
+  const remove = async (card: CollectionCard) => {
+    const row = await snapshotCollectionCard(db, card.scryfallId);
+    await removeFromCollection(db, card.scryfallId);
+    load();
+    if (row) {
+      clearTimeout(undoTimer.current);
+      setUndo({ label: `${displayName(card)} quitada`, row });
+      undoTimer.current = setTimeout(() => setUndo(null), 6000);
+    }
+  };
+  const confirmRemove = (card: CollectionCard) =>
+    Alert.alert('Quitar de la colección', `¿Quitar ${displayName(card)} (${card.quantity}) de tu colección?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Sí', style: 'destructive', onPress: () => remove(card) },
+    ]);
+  // Going below 1 copy removes it: undoable like the trash button.
   const change = async (card: CollectionCard, delta: number) => {
+    if (card.quantity + delta <= 0) return remove(card);
     await changeCollectionQuantity(db, card.scryfallId, delta);
     load();
   };
-  const remove = async (card: CollectionCard) => {
-    await removeFromCollection(db, card.scryfallId);
-    load();
+
+  const [infoId, setInfoId] = useState<string | null>(null);
+
+  /** Adds this printing to the active deck (creating "Mazo sin nombre" if there's none). */
+  const addToDeck = async (card: CollectionCard) => {
+    try {
+      const [full] = await getCardsByIds([card.scryfallId]);
+      if (!full) throw new Error('not found');
+      const deck = await ensureActiveDeck();
+      const quantity = await addCardToDeck(db, deck.id, full);
+      await refresh(deck.id);
+      setInDecks(await getDeckOracleIds(db));
+      showToast(`＋ ${displayName(card)} en «${deck.name}» (${quantity})`);
+    } catch {
+      showToast('No se pudo añadir: comprueba la conexión');
+    }
   };
 
   const header = (
@@ -123,6 +273,7 @@ export function CollectionScreen() {
         <Text style={styles.title}>📦 Mi colección</Text>
         <Text style={styles.stats}>
           {stats.total} cartas · {stats.unique} distintas
+          {value.priced > 0 && <Text style={styles.value}> · ≈ {formatEur(value.eur)}</Text>}
         </Text>
       </View>
 
@@ -146,6 +297,38 @@ export function CollectionScreen() {
         <Pressable style={styles.scanButton} onPress={() => setScanning(true)} hitSlop={6}>
           <Text style={styles.scanIcon}>📷</Text>
         </Pressable>
+      </View>
+
+      <View style={styles.toolbar}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.filterButton,
+            filterCount > 0 && styles.filterButtonOn,
+            pressed && { opacity: 0.6 },
+          ]}
+          onPress={() => setFiltering(true)}
+          accessibilityRole="button"
+        >
+          <MaterialCommunityIcons name="filter-variant" size={18} color={filterCount ? colors.bg : colors.accent} />
+          <Text style={[styles.filterText, filterCount > 0 && { color: colors.bg }]}>
+            Filtros{filterCount ? ` · ${filterCount}` : ''}
+          </Text>
+        </Pressable>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupChips}>
+          <MaterialCommunityIcons name="format-list-group" size={18} color={colors.textMuted} />
+          {GROUPINGS.map((g) => (
+            <Pressable
+              key={g}
+              style={[styles.groupChip, groupBy === g && styles.groupChipOn]}
+              onPress={() => {
+                setGroupBy(g);
+                setCollapsed(new Set());
+              }}
+            >
+              <Text style={[styles.groupChipText, groupBy === g && { color: colors.bg }]}>{GROUP_LABELS[g]}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
 
       {searching && (
@@ -180,10 +363,16 @@ export function CollectionScreen() {
       )}
 
       <View style={styles.listHeader}>
-        <Text style={styles.sectionTitle}>{searching ? `En tu colección (${owned.length})` : 'Tus cartas'}</Text>
+        <Text style={styles.sectionTitle}>
+          {searching || filterCount ? `En tu colección (${owned.length})` : 'Tus cartas'}
+        </Text>
         <View style={styles.viewSwitch}>
           {(['list', 'gallery'] as const).map((v) => (
-            <Pressable key={v} style={[styles.viewOption, view === v && styles.viewOptionSelected]} onPress={() => setView(v)}>
+            <Pressable
+              key={v}
+              style={[styles.viewOption, view === v && styles.viewOptionSelected]}
+              onPress={() => setView(v)}
+            >
               <Text style={[styles.viewOptionText, view === v && { color: colors.bg }]}>
                 {v === 'list' ? '☰' : '▦'}
               </Text>
@@ -195,74 +384,134 @@ export function CollectionScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <SafeAreaView style={styles.screen} edges={['bottom']}>
       <FlatList
-        key={view}
-        data={owned}
-        keyExtractor={(c) => c.scryfallId}
-        numColumns={view === 'gallery' ? 3 : 1}
-        columnWrapperStyle={view === 'gallery' ? styles.galleryRow : undefined}
+        data={items}
+        keyExtractor={(item) => item.key}
         ListHeaderComponent={header}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 24 }}
         initialNumToRender={12}
         windowSize={7}
         ListEmptyComponent={
-          searching ? undefined : (
+          searching ? undefined : filterCount ? (
+            <Text style={styles.empty}>Ninguna carta cumple los filtros.</Text>
+          ) : (
             <Text style={styles.empty}>
-              Tu colección está vacía.{'\n'}Busca cartas arriba, o pulsa 📦 en «Construir» para añadir la carta que tienes
-              delante.
+              Tu colección está vacía.{'\n'}Busca cartas arriba, o pulsa 📦 en «Construir» para añadir la carta que
+              tienes delante.
             </Text>
           )
         }
-        renderItem={({ item }) =>
-          view === 'list' ? (
-            <SwipeToDelete onDelete={() => remove(item)}>
-              <View style={styles.row}>
-                <Pressable onPress={() => setPreview(item.imageUrl)}>
-                  {item.imageUrl && (
+        renderItem={({ item }) => {
+          if (item.type === 'header') {
+            const { group } = item;
+            return (
+              <Pressable style={styles.groupHeader} onPress={() => toggleGroup(group.key)}>
+                <MaterialCommunityIcons
+                  name={item.collapsed ? 'chevron-right' : 'chevron-down'}
+                  size={22}
+                  color={colors.textMuted}
+                />
+                {group.symbols && <ManaCost cost={group.symbols} size={18} />}
+                <Text style={styles.groupTitle} numberOfLines={1}>
+                  {group.title}
+                </Text>
+                <Text style={styles.groupMeta}>
+                  {group.copies}
+                  {group.value > 0 && <Text style={styles.value}> · {formatEur(group.value)}</Text>}
+                </Text>
+              </Pressable>
+            );
+          }
+          if (item.type === 'row') {
+            return (
+              <View style={styles.galleryRow}>
+                {item.cards.map((card) => (
+                  <Pressable key={card.scryfallId} style={styles.galleryItem} onPress={() => setPreview(card.imageUrl)}>
+                    {card.imageUrl && (
+                      <Image
+                        source={{ uri: smallImageUrl(card.imageUrl) }}
+                        style={styles.galleryImage}
+                        contentFit="contain"
+                        recyclingKey={card.scryfallId}
+                      />
+                    )}
+                    <Text style={styles.badge}>x{card.quantity}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            );
+          }
+          const card = item.card;
+          const price = details[card.scryfallId]?.eur;
+          return (
+            <View style={styles.row}>
+              <View style={styles.rowTop}>
+                <Pressable onPress={() => setPreview(card.imageUrl)}>
+                  {card.imageUrl && (
                     <Image
-                      source={{ uri: smallImageUrl(item.imageUrl) }}
+                      source={{ uri: smallImageUrl(card.imageUrl) }}
                       style={styles.thumb}
                       contentFit="cover"
-                      recyclingKey={item.scryfallId}
+                      recyclingKey={card.scryfallId}
                     />
                   )}
                 </Pressable>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.name} numberOfLines={1}>
-                    {displayName(item)}
+                    {displayName(card)}
                   </Text>
                   <Text style={styles.meta} numberOfLines={1}>
-                    {item.setCode.toUpperCase()} · {LANGUAGE_NAMES[item.lang] ?? item.lang}
-                    {item.rarity ? ` · ${RARITY_LABELS[item.rarity] ?? item.rarity}` : ''}
+                    {card.setCode.toUpperCase()} · {LANGUAGE_NAMES[card.lang] ?? card.lang}
+                    {card.rarity ? ` · ${RARITY_LABELS[card.rarity] ?? card.rarity}` : ''}
+                    {price != null && <Text style={styles.value}> · {formatEur(price)}</Text>}
                   </Text>
                   <Text style={styles.meta} numberOfLines={1}>
-                    {item.typeLine}
+                    {card.typeLine}
                   </Text>
-                </View>
-                <View style={styles.qty}>
-                  <QtyButton label="−" onPress={() => change(item, -1)} />
-                  <Text style={styles.qtyText}>{item.quantity}</Text>
-                  <QtyButton label="+" onPress={() => change(item, 1)} />
+                  {inDecks.has(card.oracleId) && <Text style={styles.inDeck}>En algún mazo</Text>}
                 </View>
               </View>
-            </SwipeToDelete>
-          ) : (
-            <Pressable style={styles.galleryItem} onPress={() => setPreview(item.imageUrl)}>
-              {item.imageUrl && (
-                <Image
-                  source={{ uri: smallImageUrl(item.imageUrl) }}
-                  style={styles.galleryImage}
-                  contentFit="contain"
-                  recyclingKey={item.scryfallId}
+              <CardControlsRow>
+                <QuantityStepper value={card.quantity} onSub={() => change(card, -1)} onAdd={() => change(card, 1)} />
+                <CardIconButton
+                  icon="information-outline"
+                  hint="Ficha completa"
+                  onPress={() => setInfoId(card.scryfallId)}
                 />
-              )}
-              <Text style={styles.badge}>x{item.quantity}</Text>
-            </Pressable>
-          )
-        }
+                <CardIconButton
+                  icon="cards-playing-outline"
+                  hint="Añadir al mazo activo"
+                  onPress={() => addToDeck(card)}
+                />
+                <CardIconButton
+                  icon="share-variant-outline"
+                  hint="Compartir"
+                  onPress={() => Share.share({ message: `${displayName(card)}\n${card.imageUrl ?? ''}` })}
+                />
+                <CardIconButton
+                  icon="trash-can-outline"
+                  hint="Quitar de la colección"
+                  danger
+                  onPress={() => confirmRemove(card)}
+                />
+              </CardControlsRow>
+            </View>
+          );
+        }}
       />
+
+      <BottomSheet visible={filtering} onClose={() => setFiltering(false)} heightRatio={0.85}>
+        <CollectionFilterPanel
+          filter={filter}
+          onChange={setFilter}
+          setCodes={setCodes}
+          langs={langs}
+          sets={sets}
+          shown={owned.length}
+        />
+      </BottomSheet>
 
       <CardScanner
         visible={scanning}
@@ -276,6 +525,9 @@ export function CollectionScreen() {
           setQuery(text);
         }}
       />
+
+      {undo && <UndoBar label={undo.label} onUndo={runUndo} />}
+      {infoId && <CardInfoScreen id={infoId} onClose={() => setInfoId(null)} />}
 
       {toast && (
         <View style={styles.toast} pointerEvents="none">
@@ -300,14 +552,6 @@ export function CollectionScreen() {
   );
 }
 
-function QtyButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} hitSlop={4} style={styles.qtyButton}>
-      <Text style={styles.qtyButtonText}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', padding: 14 },
@@ -323,6 +567,7 @@ const styles = StyleSheet.create({
   },
   scanIcon: { fontSize: 22 },
   stats: { color: colors.textMuted, fontWeight: '700' },
+  value: { color: colors.accent, fontWeight: '800' },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -363,8 +608,6 @@ const styles = StyleSheet.create({
   viewOptionText: { color: colors.text, fontWeight: '800' },
   empty: { color: colors.textMuted, textAlign: 'center', padding: 32, lineHeight: 20 },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
     marginHorizontal: 10,
     marginTop: 8,
@@ -374,21 +617,50 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  inDeck: { color: colors.add, fontSize: 12, fontWeight: '700' },
   thumb: { width: 46, height: 64, borderRadius: 5 },
   name: { color: colors.text, fontWeight: '800', fontSize: 15 },
   meta: { color: colors.textMuted, fontSize: 12 },
-  qty: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  qtyText: { color: colors.text, fontWeight: '900', minWidth: 20, textAlign: 'center' },
-  qtyButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceAlt,
+  galleryRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 8, marginTop: 6 },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, marginTop: 10 },
+  filterButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    height: 34,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.accent,
   },
-  qtyButtonText: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  galleryRow: { gap: 6, paddingHorizontal: 8, marginTop: 6 },
+  filterButtonOn: { backgroundColor: colors.accent },
+  filterText: { color: colors.accent, fontWeight: '800' },
+  groupChips: { alignItems: 'center', gap: 6, paddingRight: 14 },
+  groupChip: {
+    height: 34,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  groupChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  groupChipText: { color: colors.text, fontWeight: '700' },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 10,
+    marginTop: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  groupTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '900' },
+  groupMeta: { color: colors.textMuted, fontWeight: '700' },
   galleryItem: { width: '31.5%', aspectRatio: 488 / 680 },
   galleryImage: { flex: 1, borderRadius: 8 },
   badge: {

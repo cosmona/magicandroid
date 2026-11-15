@@ -133,6 +133,8 @@ export const deleteDeck = (db: SQLiteDatabase, id: number) =>
 
 export interface DeckCard {
   oracleId: string;
+  /** The printing (edition + language) that was added. */
+  scryfallId: string;
   name: string;
   printedName: string | null;
   typeLine: string;
@@ -152,8 +154,8 @@ export interface DeckCard {
 
 export const getDeckCards = (db: SQLiteDatabase, deckId: number) =>
   db.getAllAsync<DeckCard>(
-    `SELECT oracle_id AS oracleId, name, printed_name AS printedName, type_line AS typeLine,
-            mana_cost AS manaCost, cmc, image_url AS imageUrl,
+    `SELECT oracle_id AS oracleId, scryfall_id AS scryfallId, name, printed_name AS printedName,
+            type_line AS typeLine, mana_cost AS manaCost, cmc, image_url AS imageUrl,
             oracle_text AS oracleText, rarity, quantity, color_identity AS colorIdentity,
             legalities, is_commander AS isCommander
      FROM deck_cards WHERE deck_id = ? ORDER BY is_commander DESC, cmc, name`,
@@ -226,6 +228,43 @@ export const updateCardData = (db: SQLiteDatabase, card: Card) =>
     card.rarity,
     card.oracleId,
   );
+
+// ---------- Undo ----------
+
+export type Row = Record<string, string | number | null>;
+
+/** Raw rows of a deck (when `withDeck`) and its cards (or one card), to put back with `restoreSnapshot`. */
+export interface DeckSnapshot {
+  deck: Row | null;
+  cards: Row[];
+}
+
+export async function snapshotDeck(
+  db: SQLiteDatabase,
+  deckId: number,
+  opts: { oracleId?: string; withDeck?: boolean } = {},
+): Promise<DeckSnapshot> {
+  const deck = opts.withDeck ? await db.getFirstAsync<Row>('SELECT * FROM decks WHERE id = ?', deckId) : null;
+  const cards = opts.oracleId
+    ? await db.getAllAsync<Row>('SELECT * FROM deck_cards WHERE deck_id = ? AND oracle_id = ?', deckId, opts.oracleId)
+    : await db.getAllAsync<Row>('SELECT * FROM deck_cards WHERE deck_id = ?', deckId);
+  return { deck, cards };
+}
+
+/** Puts the rows back as they were (same deck id, quantities, commander…). */
+export async function restoreSnapshot(db: SQLiteDatabase, snap: DeckSnapshot): Promise<void> {
+  const insert = (table: string, row: Row, verb: string) => {
+    const cols = Object.keys(row);
+    return db.runAsync(
+      `${verb} INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+      ...cols.map((c) => row[c]),
+    );
+  };
+  await db.withTransactionAsync(async () => {
+    if (snap.deck) await insert('decks', snap.deck, 'INSERT OR IGNORE');
+    for (const card of snap.cards) await insert('deck_cards', card, 'INSERT OR REPLACE');
+  });
+}
 
 export const removeCardFromDeck = (db: SQLiteDatabase, deckId: number, oracleId: string) =>
   db.runAsync('DELETE FROM deck_cards WHERE deck_id = ? AND oracle_id = ?', deckId, oracleId);
@@ -312,8 +351,26 @@ export async function changeCollectionQuantity(db: SQLiteDatabase, scryfallId: s
   });
 }
 
+/** Raw collection row, to put back with `restoreCollectionRow` (undo). */
+export const snapshotCollectionCard = (db: SQLiteDatabase, scryfallId: string) =>
+  db.getFirstAsync<Row>('SELECT * FROM collection_cards WHERE scryfall_id = ?', scryfallId);
+
+export async function restoreCollectionRow(db: SQLiteDatabase, row: Row): Promise<void> {
+  const cols = Object.keys(row);
+  await db.runAsync(
+    `INSERT OR REPLACE INTO collection_cards (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+    ...cols.map((c) => row[c]),
+  );
+}
+
 export const removeFromCollection = (db: SQLiteDatabase, scryfallId: string) =>
   db.runAsync('DELETE FROM collection_cards WHERE scryfall_id = ?', scryfallId);
+
+/** Oracle ids of every card in any deck (for the collection's "in a deck / free" filter). */
+export async function getDeckOracleIds(db: SQLiteDatabase): Promise<Set<string>> {
+  const rows = await db.getAllAsync<{ oracleId: string }>('SELECT DISTINCT oracle_id AS oracleId FROM deck_cards');
+  return new Set(rows.map((r) => r.oracleId));
+}
 
 /** Copies owned of each card (any printing/language), by oracle id. */
 export async function getOwnedCounts(db: SQLiteDatabase, oracleIds: string[]): Promise<Record<string, number>> {

@@ -36,9 +36,17 @@ export interface Prefs {
   deckView: DeckView;
   /** Hide Android's navigation buttons (swipe up from the bottom edge to show them). */
   hideNavBar: boolean;
+  /** Deck sheet's action buttons and deck picker hidden (more room for the cards). */
+  deckToolsHidden: boolean;
 }
 
-export const DEFAULT_PREFS: Prefs = { language: 'en', haptics: true, deckView: 'list', hideNavBar: false };
+export const DEFAULT_PREFS: Prefs = {
+  language: 'en',
+  haptics: true,
+  deckView: 'list',
+  hideNavBar: false,
+  deckToolsHidden: false,
+};
 
 interface AppState {
   ready: boolean;

@@ -32,13 +32,18 @@ son siempre las cartas.
 | | |
 |---|---|
 | 🃏 **Cartas en la mano** | Las cartas llegan de [Scryfall](https://scryfall.com) una a una. Derecha para quedártela, izquierda para descartarla, flechas ‹ › para pasar sin decidir y **deshacer** ↶. |
-| ▤ **Historial** | Miniaturas de las cartas que has visto, las que te quedaste o descartaste, la actual destacada y las siguientes, con scroll infinito. Toca una para volver a ella. |
-| 🔍 **Buscador completo** | Nombre (en español o inglés, sin importar tildes), texto de reglas, colores (*jugables en* / *exactamente* / *incluye*, incolora), varios tipos, legendaria, subtipo, coste de maná mín–máx, rareza, habilidades (224, en español), formato, edición y orden. |
-| 🌐 **Idiomas y artes** | Elige el idioma por defecto y las cartas aparecen traducidas si existen. En cada carta puedes cambiar de idioma y elegir entre sus **artes alternativos** 🎨. |
-| 📚 **Mazos** | Varios mazos con formato, portada y vista **lista**, **galería** o **grande**. Compartir lista y deslizar para quitar cartas. Todo se guarda en el móvil. |
-| ✅ **Validación por formato** | Nada impide añadir cartas: el mazo se comprueba y marca los errores (tamaño, copias, legalidad, comandante 👑 e identidad de color) carta por carta. |
-| 📦 **Colección** | Tus cartas reales, por edición e idioma. Búscalas y añádelas o pulsa **📦 La tengo** mientras las pasas. Cada mazo te dice qué cartas tienes y cuáles te faltan. |
+| ▤ **Historial** | Miniaturas de las cartas que has visto y su decisión, la actual destacada y las siguientes. Toca una para volver a ella. |
+| 🔍 **Buscador completo** | Nombre (en español o inglés, sin importar tildes), texto de reglas, colores (*jugables en* / *exactamente* / *incluye*), tipos, subtipo, coste, rareza, habilidades en español, formato, edición y orden. |
+| 🌐 **Idiomas y artes** | Las cartas aparecen en tu idioma si existen, y en cada una puedes cambiar de idioma o elegir entre sus **artes alternativos** 🎨. |
+| 📚 **Mazos** | Varios mazos con formato y portada, en vista **lista**, **galería** o **grande**. La hoja del mazo se arrastra y se amplía a pantalla completa; quitar, vaciar o borrar se puede **deshacer**. |
+| ✅ **Validación por formato** | Nada impide añadir cartas: el mazo se comprueba y marca los errores (tamaño, copias, legalidad, comandante 👑 e identidad de color). |
+| 💶 **Precios y Cardmarket** | Precio del mazo, de cada carta y de tu colección. El carrito 🛒 te enseña lo que te falta con su coste y te lleva a Cardmarket o copia la lista para comprarlo todo de una vez. |
+| ⓘ **Ficha completa** | Todo lo que Scryfall sabe de una carta (reglas, legalidad, precios, rankings, impresión, aclaraciones oficiales…) con la explicación de cada dato. |
+| 🪙 **Fichas** | Las fichas y emblemas que crean las cartas de tu mazo, con su imagen. |
+| 📦 **Colección** | Tus cartas reales por edición e idioma: añádelas buscando, con **📷 el escáner** (reconoce la carta con la cámara) o con **📦 La tengo**. Filtros (color, tipo, coste, rareza, edición, idioma, precio, uso en mazos, repetidas) y agrupaciones (color, tipo, edición, rareza, coste, precio). Cada mazo te dice cuántas cartas te faltan. |
 | ⚙ **Ajustes** | Idioma de las cartas, vista del mazo por defecto, vibración, pantalla completa y restablecer filtros. |
+
+👉 Todo explicado paso a paso en el **[manual de usuario](docs/MANUAL.md)**.
 
 ## ✅ Reglas que se comprueban
 
@@ -71,8 +76,8 @@ Necesitas [Node.js](https://nodejs.org) y la app **Expo Go** en el móvil.
 git clone https://github.com/cosmona/magicandroid.git
 cd magicandroid
 npm install
-npx expo start                  # escanea el QR con Expo Go (misma Wi-Fi)
-npx expo start --tunnel ngrok   # desde fuera de casa
+npx expo start --go                  # escanea el QR con Expo Go (misma Wi-Fi)
+npx expo start --go --tunnel ngrok   # desde fuera de casa
 ```
 
 ```bash
@@ -86,24 +91,26 @@ npx expo export --platform android --output-dir <tmp>   # comprobar que compila
 
 ## 🧱 Cómo está hecha
 
-- **Expo Router** con una pestaña por herramienta: **Construir** (las cartas en la mano, donde se abre la app) y **Colección**; aquí irán las próximas (contador de vidas…). Filtros, mazo, historial y ajustes se abren en hojas inferiores.
+- **Expo Router** con las herramientas en pestañas arriba: **Construir** (las cartas en la mano, donde se abre la app) y **Colección**; aquí irán las próximas (contador de vidas…). Filtros, mazo, historial y ajustes se abren en hojas inferiores arrastrables.
 - **Gestos y animación** con Gesture Handler 3 y Reanimated 4.
-- **expo-sqlite** con migraciones versionadas para mazos, colección y ajustes.
-- **expo-image** con miniaturas de Scryfall (~15 KB) y precarga de las siguientes cartas para que todo vaya fluido.
-- **Cliente de Scryfall** con las cabeceras que exige y un mínimo de 100 ms entre peticiones.
+- **expo-sqlite** con migraciones versionadas para mazos, colección y ajustes. Sin cuentas ni servidor.
+- **Scryfall** para cartas, imágenes, precios, símbolos y aclaraciones, con las cabeceras que exige y 100 ms entre peticiones.
+- **Google ML Kit** en el móvil para leer las cartas con la cámara.
 
 ```
 src/
 ├── app/            # pantallas y pestañas (Expo Router)
 ├── api/            # cliente de Scryfall
-├── components/     # cartas, hojas, filtros, mazo, colección, historial, ajustes
+├── collection/     # filtros y agrupaciones de la colección
+├── components/     # cartas, hojas, mazo, colección, ficha completa, filtros, ajustes
 ├── context/        # estado global (mazo activo, filtros, ajustes)
 ├── db/             # SQLite: esquema, migraciones y consultas
-├── hooks/          # cola de cartas paginada
+├── hooks/          # cola de cartas, precios y datos vivos
+├── scan/           # reconocimiento de cartas por OCR
 └── validation.ts   # reglas de cada formato
 ```
 
-Más detalles para quien desarrolle: [`CLAUDE.md`](CLAUDE.md).
+📐 La explicación completa está en **[docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)**; las notas para desarrollar con IA, en [`CLAUDE.md`](CLAUDE.md).
 
 ## 🙏 Créditos
 

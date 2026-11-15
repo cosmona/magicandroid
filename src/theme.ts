@@ -59,3 +59,8 @@ export const formatLabel = (key: string | null) => formatOption(key).label;
 
 /** Formats where a deck may only hold one copy of each card. */
 export const SINGLETON_FORMATS = ['commander', 'duel', 'oathbreaker', 'paupercommander', 'predh'];
+
+/** "0,45 €" / "12,30 €" / "143 €" (no cents from 100 up). */
+export function formatEur(n: number): string {
+  return n >= 100 ? `${Math.round(n)} €` : `${n.toFixed(2).replace('.', ',')} €`;
+}

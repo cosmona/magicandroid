@@ -8,8 +8,11 @@ import { useAppState } from '@/context/AppState';
 import { createDeck } from '@/db/database';
 import { colors, formatLabel } from '@/theme';
 
-/** Horizontal row of saved decks (the web's Mazos list) in the deck sheet; tap one to load it. */
-export function DeckPicker() {
+/**
+ * Row of saved decks (the web's Mazos list) that drops down under the deck's cover in the
+ * deck sheet; tap one to load it, ＋ to create one. `onPicked` closes the dropdown.
+ */
+export function DeckPicker({ onPicked }: { onPicked?: () => void }) {
   const db = useSQLiteContext();
   const { decks, activeDeck, setActiveDeckId } = useAppState();
   const [creating, setCreating] = useState(false);
@@ -18,13 +21,11 @@ export function DeckPicker() {
     const id = await createDeck(db, name, format);
     setCreating(false);
     setActiveDeckId(id);
+    onPicked?.();
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>
-        Mis mazos ({decks.length})
-      </Text>
       <ScrollView horizontal contentContainerStyle={styles.list} showsHorizontalScrollIndicator={false}>
         <Pressable style={[styles.tile, styles.newTile]} onPress={() => setCreating(true)}>
           <Text style={styles.newPlus}>＋</Text>
@@ -34,11 +35,18 @@ export function DeckPicker() {
           <Pressable
             key={deck.id}
             style={[styles.tile, deck.id === activeDeck?.id && styles.tileActive]}
-            onPress={() => setActiveDeckId(deck.id)}
+            onPress={() => {
+              setActiveDeckId(deck.id);
+              onPicked?.();
+            }}
           >
             <View style={styles.cover}>
               {deck.coverImage && (
-                <Image source={{ uri: artCropUrl(deck.coverImage) }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                <Image
+                  source={{ uri: artCropUrl(deck.coverImage) }}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                />
               )}
             </View>
             <Text style={styles.tileName} numberOfLines={1}>
@@ -57,8 +65,13 @@ export function DeckPicker() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingTop: 4, borderBottomWidth: 1, borderBottomColor: colors.border },
-  title: { color: colors.textMuted, fontWeight: '700', fontSize: 12, paddingHorizontal: 10 },
+  container: {
+    marginTop: 8,
+    backgroundColor: colors.surfaceAlt,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
   list: { padding: 8, gap: 8 },
   tile: {
     width: 86,
@@ -73,7 +86,13 @@ const styles = StyleSheet.create({
   tileActive: { borderColor: colors.accent, borderWidth: 2 },
   newTile: { justifyContent: 'center', borderStyle: 'dashed' },
   newPlus: { color: colors.accent, fontSize: 30, fontWeight: '800' },
-  cover: { width: 73, height: 73, borderRadius: 6, overflow: 'hidden', backgroundColor: colors.surfaceAlt },
+  cover: {
+    width: 73,
+    height: 73,
+    borderRadius: 6,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceAlt,
+  },
   tileName: { color: colors.text, fontSize: 12, fontWeight: '700' },
   tileMeta: { color: colors.textMuted, fontSize: 10 },
 });

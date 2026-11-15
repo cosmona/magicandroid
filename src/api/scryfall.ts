@@ -462,21 +462,32 @@ const PLAYABLE_SET_TYPES = new Set([
   'duel_deck',
 ]);
 
+interface RawSet {
+  code: string;
+  name: string;
+  released_at?: string;
+  set_type: string;
+  digital: boolean;
+  icon_svg_uri: string;
+}
+const toSet = (s: RawSet): MtgSet => ({
+  code: s.code,
+  name: s.name,
+  releasedAt: s.released_at ?? '',
+  iconUrl: s.icon_svg_uri,
+});
+const getSetCatalog = cached(async (): Promise<RawSet[]> => (await getJson('/sets')).data as RawSet[]);
+
+/** Every set (promos, tokens… included) by code: names and dates for the collection. */
+export const getAllSets = cached(async (): Promise<Record<string, MtgSet>> =>
+  Object.fromEntries((await getSetCatalog()).map((s) => [s.code, toSet(s)])),
+);
+
 /** Paper sets for the set filter, newest first. */
 export const getSets = cached(async (): Promise<MtgSet[]> => {
-  const body = await getJson('/sets');
-  return (
-    body.data as {
-      code: string;
-      name: string;
-      released_at?: string;
-      set_type: string;
-      digital: boolean;
-      icon_svg_uri: string;
-    }[]
-  )
+  return (await getSetCatalog())
     .filter((s) => !s.digital && PLAYABLE_SET_TYPES.has(s.set_type))
-    .map((s) => ({ code: s.code, name: s.name, releasedAt: s.released_at ?? '', iconUrl: s.icon_svg_uri }))
+    .map(toSet)
     .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt));
 });
 
@@ -488,3 +499,142 @@ export const smallImageUrl = (imageUrl: string) => imageUrl.replace('/normal/', 
 
 export const displayName = (c: { name: string; printedName: string | null }) =>
   c.printedName ?? c.name;
+
+// ---------- Prices, stats and tokens of saved cards ----------
+
+/** Live data of a printing that isn't stored locally (prices change daily). */
+export interface CardDetails {
+  /** Cardmarket trend price in €, non-foil (foil if that's the only one); null = unknown. */
+  eur: number | null;
+  /** The card's product page on Cardmarket (Spanish site). */
+  cardmarketUrl: string | null;
+  power?: string;
+  toughness?: string;
+  loyalty?: string;
+  defense?: string;
+  /** Tokens/emblems the card makes (`all_parts` with component "token"). */
+  tokens: { id: string; name: string; typeLine: string }[];
+}
+
+interface ScryfallStats {
+  power?: string;
+  toughness?: string;
+  loyalty?: string;
+  defense?: string;
+}
+interface ScryfallDetailsCard extends ScryfallStats {
+  id: string;
+  lang: string;
+  set: string;
+  collector_number: string;
+  prices?: { eur?: string | null; eur_foil?: string | null };
+  purchase_uris?: { cardmarket?: string };
+  card_faces?: ScryfallStats[];
+  all_parts?: { id: string; component: string; name: string; type_line: string }[];
+}
+
+const priceOf = (c: ScryfallDetailsCard) => {
+  const raw = c.prices?.eur ?? c.prices?.eur_foil;
+  return raw ? Number(raw) : null;
+};
+const spanishSite = (url?: string) => (url ? url.replace('cardmarket.com/en/', 'cardmarket.com/es/') : null);
+
+async function postCollection(identifiers: object[]): Promise<ScryfallDetailsCard[]> {
+  const out: ScryfallDetailsCard[] = [];
+  for (let i = 0; i < identifiers.length; i += 75) {
+    const res = await scryfallFetch(`${BASE_URL}/cards/collection`, {
+      method: 'POST',
+      body: JSON.stringify({ identifiers: identifiers.slice(i, i + 75) }),
+    });
+    if (!res.ok) throw new Error(`Error ${res.status} de Scryfall`);
+    out.push(...((await res.json()).data as ScryfallDetailsCard[]));
+  }
+  return out;
+}
+
+async function loadDetails(ids: string[]): Promise<Record<string, CardDetails>> {
+  const cards = await postCollection(ids.map((id) => ({ id })));
+  // Scryfall only prices English printings (and a few others): price the rest with the
+  // English printing of the same set + number.
+  const unpriced = cards.filter((c) => priceOf(c) === null && c.lang !== 'en');
+  const english = new Map<string, ScryfallDetailsCard>();
+  if (unpriced.length) {
+    const found = await postCollection(
+      unpriced.map((c) => ({ set: c.set, collector_number: c.collector_number })),
+    ).catch(() => []);
+    for (const e of found) english.set(`${e.set}/${e.collector_number}`, e);
+  }
+  const out: Record<string, CardDetails> = {};
+  for (const c of cards) {
+    const en = english.get(`${c.set}/${c.collector_number}`);
+    const face = c.card_faces?.[0] ?? {};
+    out[c.id] = {
+      eur: priceOf(c) ?? (en ? priceOf(en) : null),
+      cardmarketUrl: spanishSite(en?.purchase_uris?.cardmarket ?? c.purchase_uris?.cardmarket),
+      power: c.power ?? face.power,
+      toughness: c.toughness ?? face.toughness,
+      loyalty: c.loyalty ?? face.loyalty,
+      defense: c.defense ?? face.defense,
+      tokens: (c.all_parts ?? [])
+        .filter((p) => p.component === 'token' && p.id !== c.id)
+        .map((p) => ({ id: p.id, name: p.name, typeLine: p.type_line })),
+    };
+  }
+  return out;
+}
+
+const detailsCache = new Map<string, Promise<CardDetails | null>>();
+
+/** Prices, stats and tokens for these printings; fetched once per app run and shared. */
+export async function getCardDetails(ids: string[]): Promise<Record<string, CardDetails>> {
+  const missing = [...new Set(ids)].filter((id) => !detailsCache.has(id));
+  if (missing.length) {
+    const batch = loadDetails(missing);
+    for (const id of missing) {
+      detailsCache.set(
+        id,
+        batch.then(
+          (all) => all[id] ?? null,
+          () => {
+            detailsCache.delete(id); // retry next time
+            return null;
+          },
+        ),
+      );
+    }
+  }
+  const entries = await Promise.all(ids.map(async (id) => [id, await detailsCache.get(id)] as const));
+  const out: Record<string, CardDetails> = {};
+  for (const [id, d] of entries) if (d) out[id] = d;
+  return out;
+}
+
+/** Mana/tap symbols ("{2}", "{W/U}", "{T}") → SVG URL. */
+export const getSymbols = cached(async (): Promise<Record<string, string>> => {
+  const body = await getJson('/symbology');
+  const out: Record<string, string> = {};
+  for (const s of body.data as { symbol: string; svg_uri?: string }[]) if (s.svg_uri) out[s.symbol] = s.svg_uri;
+  return out;
+});
+
+// ---------- Full card data (card info screen) ----------
+
+/** The complete Scryfall card object, as returned (`/cards/:id`). */
+export type RawCard = Record<string, unknown>;
+
+export async function getRawCard(id: string): Promise<RawCard> {
+  return getJson(`/cards/${encodeURIComponent(id)}`);
+}
+
+export interface Ruling {
+  source: string;
+  published_at: string;
+  comment: string;
+}
+
+/** Official rulings/clarifications of a card (its `rulings_uri`). */
+export async function getRulings(rulingsUri: string): Promise<Ruling[]> {
+  const res = await scryfallFetch(rulingsUri);
+  if (!res.ok) throw new Error(`Error ${res.status} de Scryfall`);
+  return (await res.json()).data as Ruling[];
+}

@@ -1,37 +1,31 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { activeFilterCount, type Filters } from '@/api/scryfall';
 import { OptionIcon } from '@/components/Select';
 import { useAppState } from '@/context/AppState';
 import { COLOR_ORDER, KEYWORD_LABELS, MANA_ICONS, RARITY_ICONS, TYPE_LABELS, typeIcon } from '@/icons';
 import { colors, formatOption } from '@/theme';
 
-/** App title + "Filtros" and settings buttons, with a one-line summary of the active filters (tap = edit). */
-export function TopBar({ onOpenFilters, onOpenSettings }: { onOpenFilters: () => void; onOpenSettings: () => void }) {
+/** "Filtros" button + a one-line summary of the active filters (tap = edit), above the cards. */
+export function TopBar({ onOpenFilters }: { onOpenFilters: () => void }) {
   const { filters } = useAppState();
   const count = activeFilterCount(filters);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.row}>
-        <Text style={styles.title}>Magic Swipe</Text>
-        <View style={styles.buttons}>
-          <Pressable style={[styles.filterButton, count > 0 && styles.filterButtonActive]} onPress={onOpenFilters}>
-            <Text style={[styles.filterText, count > 0 && { color: colors.bg }]}>
-              🔍 Filtros{count ? ` · ${count}` : ''}
-            </Text>
-          </Pressable>
-          <Pressable style={styles.settingsButton} onPress={onOpenSettings} hitSlop={6}>
-            <Text style={styles.settingsText}>⚙</Text>
-          </Pressable>
-        </View>
+    <Pressable style={styles.container} onPress={onOpenFilters} accessibilityRole="button">
+      <View style={[styles.filterButton, count > 0 && styles.filterButtonActive]}>
+        <MaterialCommunityIcons name="filter-variant" size={18} color={count > 0 ? colors.bg : colors.accent} />
+        <Text style={[styles.filterText, count > 0 && { color: colors.bg }]}>Filtros{count ? ` · ${count}` : ''}</Text>
       </View>
-      {count > 0 && (
-        <Pressable onPress={onOpenFilters}>
-          <Summary filters={filters} />
-        </Pressable>
+      {count > 0 ? (
+        <Summary filters={filters} />
+      ) : (
+        <Text style={styles.summaryText} numberOfLines={1}>
+          Todas las cartas
+        </Text>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -71,36 +65,25 @@ function Summary({ filters: f }: { filters: Filters }) {
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    gap: 6,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { color: colors.accent, fontSize: 20, fontWeight: '900', letterSpacing: 1 },
   filterButton: {
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 34,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.accent,
   },
   filterButtonActive: { backgroundColor: colors.accent },
-  buttons: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  settingsButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  settingsText: { color: colors.text, fontSize: 18 },
   filterText: { color: colors.accent, fontWeight: '800' },
-  summary: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  summary: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
   icon: { width: 16, height: 16 },
   summaryText: { flex: 1, color: colors.textMuted, fontSize: 12 },
 });

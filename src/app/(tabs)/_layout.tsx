@@ -1,31 +1,37 @@
+import type { ComponentProps } from 'react';
+import type { ColorValue } from 'react-native';
 import { Tabs } from 'expo-router';
-import { Text, type ColorValue } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { AppTabBar } from '@/components/AppTabBar';
 import { colors } from '@/theme';
 
-const icon = (symbol: string) =>
-  function TabIcon({ color, focused }: { color: ColorValue; focused: boolean }) {
-    return <Text style={{ color, fontSize: focused ? 22 : 20 }}>{symbol}</Text>;
+type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+const icon = (name: IconName, focusedName: IconName = name) =>
+  function TabIcon({ color, size, focused }: { color: ColorValue; size: number; focused: boolean }) {
+    return <MaterialCommunityIcons name={focused ? focusedName : name} size={size} color={color as string} />;
   };
 
 /**
- * App tools as bottom tabs. "Construir" (the card swipe) is first and is where the app
- * opens, so you always start with cards in your hands. New tools (life counter…) are
- * added here as another <Tabs.Screen> + a file in this folder.
+ * App tools as tabs at the top, under the app header (`AppTabBar`). "Construir" (the card
+ * swipe) is first and is where the app opens, so you always start with cards in your hands.
+ * New tools (life counter…) are added here as another <Tabs.Screen> + a file in this folder.
  */
 export default function TabsLayout() {
   return (
     <Tabs
+      tabBar={(props) => <AppTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: { fontWeight: '700' },
+        tabBarPosition: 'top',
         sceneStyle: { backgroundColor: colors.bg },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Construir', tabBarIcon: icon('🃏') }} />
-      <Tabs.Screen name="collection" options={{ title: 'Colección', tabBarIcon: icon('📦') }} />
+      <Tabs.Screen
+        name="index"
+        options={{ title: 'Construir', tabBarIcon: icon('cards-playing-outline', 'cards-playing') }}
+      />
+      <Tabs.Screen name="collection" options={{ title: 'Colección', tabBarIcon: icon('bookshelf') }} />
     </Tabs>
   );
 }

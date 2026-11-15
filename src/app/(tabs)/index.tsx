@@ -1,11 +1,9 @@
 import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { BottomSheet } from '@/components/BottomSheet';
 import { DeckBar } from '@/components/deck/DeckBar';
 import { DeckSheet } from '@/components/deck/DeckSheet';
 import { FilterPanel } from '@/components/filters/FilterPanel';
-import { SettingsSheet } from '@/components/SettingsSheet';
 import { SwipeArea } from '@/components/SwipeArea';
 import { TopBar } from '@/components/TopBar';
 import { useAppState } from '@/context/AppState';
@@ -13,7 +11,7 @@ import { colors } from '@/theme';
 
 /**
  * "Construir" tab — the app opens here: cards in your hands.
- * Top bar (filters) → card stack → active deck bar.
+ * Filter bar → card stack → active deck bar (the app header and tabs are above, in `AppTabBar`).
  * Filters and the deck open in bottom sheets (RN Modal) over this screen, which stays
  * mounted so the card stack keeps its position.
  */
@@ -21,7 +19,6 @@ export default function MainScreen() {
   const { filters, setFilters } = useAppState();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [deckOpen, setDeckOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -32,8 +29,8 @@ export default function MainScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      <TopBar onOpenFilters={() => setFiltersOpen(true)} onOpenSettings={() => setSettingsOpen(true)} />
+    <View style={styles.screen}>
+      <TopBar onOpenFilters={() => setFiltersOpen(true)} />
       <View style={styles.content}>
         <SwipeArea onToast={showToast} />
         {toast && (
@@ -54,14 +51,10 @@ export default function MainScreen() {
         />
       </BottomSheet>
 
-      <BottomSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} heightRatio={0.75}>
-        <SettingsSheet />
-      </BottomSheet>
-
-      <BottomSheet visible={deckOpen} onClose={() => setDeckOpen(false)} heightRatio={0.85}>
+      <BottomSheet visible={deckOpen} onClose={() => setDeckOpen(false)} heightRatio={0.85} expandable>
         <DeckSheet />
       </BottomSheet>
-    </SafeAreaView>
+    </View>
   );
 }
 
