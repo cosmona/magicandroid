@@ -1,0 +1,125 @@
+import { useImperativeHandle, type Ref } from 'react';
+import { StyleSheet, Text, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
+import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+import type { Card } from '@/api/scryfall';
+import { colors } from '@/theme';
+
+export type SwipeDirection = 'left' | 'right';
+
+export interface SwipeCardHandle {
+  /** Animate the card out as if swiped (used by the on-screen buttons). */
+  swipe: (dir: SwipeDirection) => void;
+}
+
+interface Props {
+  card: Card;
+  showBack: boolean;
+  onSwiped: (dir: SwipeDirection) => void;
+  ref?: Ref<SwipeCardHandle>;
+}
+
+export const CARD_RATIO = 680 / 488; // height / width of a Magic card image
+const FLING_VELOCITY = 800;
+
+/**
+ * Top card of the stack. Drag right = add to deck, left = discard.
+ * Gesture callbacks run on the UI thread (Reanimated worklets); the result is
+ * sent back to React with `scheduleOnRN`. Render with `key={card.id}` so each
+ * new card starts with fresh shared values.
+ */
+export function SwipeCard({ card, showBack, onSwiped, ref }: Props) {
+  const { width } = useWindowDimensions();
+  const threshold = width * 0.25;
+  const x = useSharedValue(0);
+  const y = useSharedValue(0);
+  const gone = useSharedValue(false);
+
+  // Shared values use .get()/.set() (not .value) to stay compatible with the React Compiler.
+  const flyOut = (dir: SwipeDirection) => {
+    'worklet';
+    if (gone.get()) return;
+    gone.set(true);
+    x.set(
+      withTiming((dir === 'right' ? 1 : -1) * width * 1.5, { duration: 220 }, (done) => {
+        if (done) scheduleOnRN(onSwiped, dir);
+      }),
+    );
+  };
+
+  useImperativeHandle(ref, () => ({ swipe: (dir) => flyOut(dir) }));
+
+  const pan = usePanGesture({
+    onUpdate: (e) => {
+      if (gone.get()) return;
+      x.set(e.translationX);
+      y.set(e.translationY);
+    },
+    onDeactivate: (e) => {
+      const right = e.translationX > threshold || (e.velocityX > FLING_VELOCITY && e.translationX > 0);
+      const left = e.translationX < -threshold || (e.velocityX < -FLING_VELOCITY && e.translationX < 0);
+      if (!e.canceled && (right || left)) {
+        flyOut(right ? 'right' : 'left');
+      } else {
+        x.set(withSpring(0));
+        y.set(withSpring(0));
+      }
+    },
+  });
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: x.get() },
+      { translateY: y.get() },
+      { rotate: `${interpolate(x.get(), [-width, width], [-18, 18])}deg` },
+    ],
+  }));
+  const addStampStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(x.get(), [0, threshold], [0, 1], Extrapolation.CLAMP),
+  }));
+  const discardStampStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(x.get(), [-threshold, 0], [1, 0], Extrapolation.CLAMP),
+  }));
+
+  const uri = (showBack && card.backImageUrl) || card.imageUrl;
+
+  return (
+    <GestureDetector gesture={pan}>
+      <Animated.View style={[styles.card, cardStyle]}>
+        <Image source={{ uri: uri ?? undefined }} style={styles.image} contentFit="contain" transition={150} />
+        <Animated.View style={[styles.stamp, styles.addStamp, addStampStyle]}>
+          <Text style={[styles.stampText, { color: colors.add }]}>AÑADIR</Text>
+        </Animated.View>
+        <Animated.View style={[styles.stamp, styles.discardStamp, discardStampStyle]}>
+          <Text style={[styles.stampText, { color: colors.discard }]}>DESCARTAR</Text>
+        </Animated.View>
+      </Animated.View>
+    </GestureDetector>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: { ...StyleSheet.absoluteFill },
+  image: { flex: 1, borderRadius: 16 },
+  stamp: {
+    position: 'absolute',
+    top: 32,
+    borderWidth: 4,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  addStamp: { left: 20, borderColor: colors.add, transform: [{ rotate: '-15deg' }] },
+  discardStamp: { right: 20, borderColor: colors.discard, transform: [{ rotate: '15deg' }] },
+  stampText: { fontSize: 28, fontWeight: '900', letterSpacing: 2 },
+});
