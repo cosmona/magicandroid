@@ -12,17 +12,7 @@ export default function RootLayout() {
       <SQLiteProvider databaseName={DATABASE_NAME} onInit={migrateDbIfNeeded}>
         <AppStateProvider>
           <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerStyle: { backgroundColor: colors.surface },
-              headerTintColor: colors.text,
-              contentStyle: { backgroundColor: colors.bg },
-            }}
-          >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="filters" options={{ title: 'Filtros', presentation: 'modal' }} />
-            <Stack.Screen name="deck/[id]" options={{ title: 'Mazo' }} />
-          </Stack>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }} />
         </AppStateProvider>
       </SQLiteProvider>
     </GestureHandlerRootView>

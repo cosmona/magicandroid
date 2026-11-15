@@ -1,8 +1,9 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Card } from '@/api/scryfall';
+import { SINGLETON_FORMATS } from '@/theme';
 
 export const DATABASE_NAME = 'magicswipe.db';
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 /** Runs on every app start (SQLiteProvider onInit). Schema changes = bump version + add a step. */
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
@@ -40,6 +41,14 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     `);
     version = 1;
   }
+  if (version === 1) {
+    await db.execAsync(`
+      ALTER TABLE decks ADD COLUMN cover_image TEXT;
+      ALTER TABLE deck_cards ADD COLUMN oracle_text TEXT;
+      ALTER TABLE deck_cards ADD COLUMN rarity TEXT;
+    `);
+    version = 2;
+  }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
 
@@ -56,7 +65,8 @@ export interface Deck {
 const DECK_SELECT = `
   SELECT d.id, d.name, d.format,
     COALESCE((SELECT SUM(quantity) FROM deck_cards WHERE deck_id = d.id), 0) AS cardCount,
-    (SELECT image_url FROM deck_cards WHERE deck_id = d.id ORDER BY added_at LIMIT 1) AS coverImage
+    COALESCE(d.cover_image,
+      (SELECT image_url FROM deck_cards WHERE deck_id = d.id ORDER BY added_at LIMIT 1)) AS coverImage
   FROM decks d`;
 
 export const getDecks = (db: SQLiteDatabase) =>
@@ -75,8 +85,15 @@ export async function createDeck(db: SQLiteDatabase, name: string, format: strin
   return r.lastInsertRowId;
 }
 
-export const renameDeck = (db: SQLiteDatabase, id: number, name: string) =>
-  db.runAsync('UPDATE decks SET name = ? WHERE id = ?', name, id);
+export const updateDeck = (db: SQLiteDatabase, id: number, name: string, format: string | null) =>
+  db.runAsync('UPDATE decks SET name = ?, format = ? WHERE id = ?', name, format, id);
+
+export const setDeckCover = (db: SQLiteDatabase, id: number, imageUrl: string | null) =>
+  db.runAsync('UPDATE decks SET cover_image = ? WHERE id = ?', imageUrl, id);
+
+/** Empties a deck (keeps the deck itself). */
+export const clearDeck = (db: SQLiteDatabase, id: number) =>
+  db.runAsync('DELETE FROM deck_cards WHERE deck_id = ?', id);
 
 export const deleteDeck = (db: SQLiteDatabase, id: number) =>
   db.runAsync('DELETE FROM decks WHERE id = ?', id);
@@ -91,25 +108,28 @@ export interface DeckCard {
   manaCost: string | null;
   cmc: number;
   imageUrl: string | null;
+  oracleText: string | null;
+  rarity: string | null;
   quantity: number;
 }
 
 export const getDeckCards = (db: SQLiteDatabase, deckId: number) =>
   db.getAllAsync<DeckCard>(
     `SELECT oracle_id AS oracleId, name, printed_name AS printedName, type_line AS typeLine,
-            mana_cost AS manaCost, cmc, image_url AS imageUrl, quantity
+            mana_cost AS manaCost, cmc, image_url AS imageUrl,
+            oracle_text AS oracleText, rarity, quantity
      FROM deck_cards WHERE deck_id = ? ORDER BY cmc, name`,
     deckId,
   );
 
 /** Max copies of a card allowed in a deck of `format`; Infinity for basic lands & similar. */
 export function copyLimit(
-  card: { typeLine: string; oracleText?: string },
+  card: { typeLine: string; oracleText?: string | null },
   format: string | null,
 ): number {
   if (/\bBasic\b/.test(card.typeLine)) return Infinity;
   if (card.oracleText && /any number of cards named/i.test(card.oracleText)) return Infinity;
-  return format === 'commander' ? 1 : 4;
+  return format && SINGLETON_FORMATS.includes(format) ? 1 : 4;
 }
 
 export type AddResult = { added: true; quantity: number } | { added: false; limit: number };
@@ -139,8 +159,8 @@ export async function addCardToDeck(
   } else {
     await db.runAsync(
       `INSERT INTO deck_cards (deck_id, oracle_id, scryfall_id, name, printed_name, type_line,
-         mana_cost, cmc, image_url, quantity, added_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+         mana_cost, cmc, image_url, oracle_text, rarity, quantity, added_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
       deckId,
       card.oracleId,
       card.id,
@@ -150,11 +170,16 @@ export async function addCardToDeck(
       card.manaCost,
       card.cmc,
       card.imageUrl,
+      card.oracleText,
+      card.rarity,
       Date.now(),
     );
   }
   return { added: true, quantity: current + 1 };
 }
+
+export const removeCardFromDeck = (db: SQLiteDatabase, deckId: number, oracleId: string) =>
+  db.runAsync('DELETE FROM deck_cards WHERE deck_id = ? AND oracle_id = ?', deckId, oracleId);
 
 /** Changes a card's quantity by `delta`; removes the row when it reaches 0. */
 export async function changeQuantity(

@@ -1,53 +1,126 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { DEFAULT_FILTERS, type Filters } from '@/api/scryfall';
-import { getSetting, setSetting } from '@/db/database';
+import {
+  createDeck,
+  getDeckCards,
+  getDecks,
+  getSetting,
+  setSetting,
+  type Deck,
+  type DeckCard,
+} from '@/db/database';
+
+/** Name given to a deck auto-created by the first right swipe (like the web's "(Not Saved)"). */
+export const UNNAMED_DECK = 'Mazo sin nombre';
+// Bumped whenever the Filters shape changes incompatibly; older saved filters are ignored.
+const FILTERS_KEY = 'filters.v3';
 
 interface AppState {
   ready: boolean;
-  activeDeckId: number | null;
+  decks: Deck[];
+  activeDeck: Deck | null;
+  /** Cards of the active deck. */
+  activeCards: DeckCard[];
   setActiveDeckId: (id: number | null) => void;
+  /** Reload decks + active deck cards from SQLite. Call after any write. */
+  refresh: (deckId?: number | null) => Promise<void>;
+  /** Returns the active deck, creating an unnamed one if there is none. */
+  ensureActiveDeck: () => Promise<Deck>;
   filters: Filters;
   setFilters: (f: Filters) => void;
 }
 
 const AppStateContext = createContext<AppState | null>(null);
 
-/** Global UI state (active deck + search filters), persisted in the SQLite `settings` table. */
+/** Global state shared by the single-screen layout, persisted in SQLite. */
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const db = useSQLiteContext();
   const [ready, setReady] = useState(false);
+  const [decks, setDecks] = useState<Deck[]>([]);
   const [activeDeckId, setActiveDeckIdState] = useState<number | null>(null);
+  const [activeCards, setActiveCards] = useState<DeckCard[]>([]);
   const [filters, setFiltersState] = useState<Filters>(DEFAULT_FILTERS);
+
+  const load = useCallback(
+    async (deckId: number | null) => {
+      const list = await getDecks(db);
+      const exists = deckId !== null && list.some((d) => d.id === deckId);
+      setDecks(list);
+      setActiveCards(exists ? await getDeckCards(db, deckId) : []);
+      if (deckId !== null && !exists) {
+        setActiveDeckIdState(null);
+        setSetting(db, 'activeDeckId', null);
+      }
+    },
+    [db],
+  );
 
   useEffect(() => {
     (async () => {
-      const deck = await getSetting(db, 'activeDeckId');
-      const savedFilters = await getSetting(db, 'filters');
-      if (deck) setActiveDeckIdState(Number(deck));
+      const savedDeck = await getSetting(db, 'activeDeckId');
+      const savedFilters = await getSetting(db, FILTERS_KEY);
+      const deckId = savedDeck ? Number(savedDeck) : null;
+      setActiveDeckIdState(deckId);
       if (savedFilters) setFiltersState({ ...DEFAULT_FILTERS, ...JSON.parse(savedFilters) });
+      await load(deckId);
       setReady(true);
     })();
-  }, [db]);
+  }, [db, load]);
 
   const setActiveDeckId = useCallback(
     (id: number | null) => {
       setActiveDeckIdState(id);
       setSetting(db, 'activeDeckId', id === null ? null : String(id));
+      load(id);
     },
-    [db],
+    [db, load],
   );
+
+  // `deckId` lets callers that just created/activated a deck refresh it before state catches up.
+  const refresh = useCallback(
+    (deckId: number | null = activeDeckId) => load(deckId),
+    [load, activeDeckId],
+  );
+
+  const activeDeck = decks.find((d) => d.id === activeDeckId) ?? null;
+
+  const ensureActiveDeck = useCallback(async (): Promise<Deck> => {
+    if (activeDeck) return activeDeck;
+    const id = await createDeck(db, UNNAMED_DECK, null);
+    setActiveDeckId(id);
+    return { id, name: UNNAMED_DECK, format: null, cardCount: 0, coverImage: null };
+  }, [activeDeck, db, setActiveDeckId]);
 
   const setFilters = useCallback(
     (f: Filters) => {
       setFiltersState(f);
-      setSetting(db, 'filters', JSON.stringify(f));
+      setSetting(db, FILTERS_KEY, JSON.stringify(f));
     },
     [db],
   );
 
   return (
-    <AppStateContext.Provider value={{ ready, activeDeckId, setActiveDeckId, filters, setFilters }}>
+    <AppStateContext.Provider
+      value={{
+        ready,
+        decks,
+        activeDeck,
+        activeCards,
+        setActiveDeckId,
+        refresh,
+        ensureActiveDeck,
+        filters,
+        setFilters,
+      }}
+    >
       {children}
     </AppStateContext.Provider>
   );

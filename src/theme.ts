@@ -1,3 +1,6 @@
+/** A bundled asset: `require('…png'/'…svg')` resolves to a numeric asset id in React Native. */
+export type IconSource = number;
+
 export const colors = {
   bg: '#14101c',
   surface: '#1f1a2b',
@@ -11,18 +14,48 @@ export const colors = {
   undo: '#f1c40f',
 } as const;
 
-/** Formats offered when creating a deck / filtering by legality. `null` = no restriction. */
-export const FORMATS: { key: string | null; label: string }[] = [
-  { key: null, label: 'Libre' },
-  { key: 'standard', label: 'Estándar' },
-  { key: 'pioneer', label: 'Pioneer' },
-  { key: 'modern', label: 'Modern' },
-  { key: 'legacy', label: 'Legacy' },
-  { key: 'vintage', label: 'Vintage' },
-  { key: 'pauper', label: 'Pauper' },
-  { key: 'commander', label: 'Commander' },
+const FORMAT_ICONS = {
+  commander: require('../assets/mtg/formats/commander.svg'),
+  duel: require('../assets/mtg/formats/duel.svg'),
+  legacy: require('../assets/mtg/formats/legacy.svg'),
+  modern: require('../assets/mtg/formats/modern.svg'),
+  oathbreaker: require('../assets/mtg/formats/oathbreaker.svg'),
+  pauper: require('../assets/mtg/formats/pauper.svg'),
+  paupercommander: require('../assets/mtg/formats/paupercommander.svg'),
+  penny: require('../assets/mtg/formats/penny.svg'),
+  predh: require('../assets/mtg/formats/predh.svg'),
+  premodern: require('../assets/mtg/formats/premodern.svg'),
+  vintage: require('../assets/mtg/formats/vintage.svg'),
+  generic: require('../assets/mtg/formats/generic.svg'),
+};
+
+export interface FormatOption {
+  /** Scryfall format key (`f:`), null = no restriction. */
+  key: string | null;
+  label: string;
+  icon: IconSource;
+}
+
+/** Same legality list as the web app (Data.tsx) plus Standard and Pioneer. */
+export const FORMATS: FormatOption[] = [
+  { key: null, label: 'Libre', icon: FORMAT_ICONS.generic },
+  { key: 'standard', label: 'Estándar', icon: FORMAT_ICONS.generic },
+  { key: 'pioneer', label: 'Pioneer', icon: FORMAT_ICONS.generic },
+  { key: 'commander', label: 'Commander', icon: FORMAT_ICONS.commander },
+  { key: 'duel', label: 'Duel', icon: FORMAT_ICONS.duel },
+  { key: 'legacy', label: 'Legacy', icon: FORMAT_ICONS.legacy },
+  { key: 'modern', label: 'Modern', icon: FORMAT_ICONS.modern },
+  { key: 'oathbreaker', label: 'Oathbreaker', icon: FORMAT_ICONS.oathbreaker },
+  { key: 'pauper', label: 'Pauper', icon: FORMAT_ICONS.pauper },
+  { key: 'paupercommander', label: 'Pauper Commander', icon: FORMAT_ICONS.paupercommander },
+  { key: 'penny', label: 'Penny Dreadful', icon: FORMAT_ICONS.penny },
+  { key: 'predh', label: 'PreDH', icon: FORMAT_ICONS.predh },
+  { key: 'premodern', label: 'Premodern', icon: FORMAT_ICONS.premodern },
+  { key: 'vintage', label: 'Vintage', icon: FORMAT_ICONS.vintage },
 ];
 
-export function formatLabel(key: string | null): string {
-  return FORMATS.find((f) => f.key === key)?.label ?? 'Libre';
-}
+export const formatOption = (key: string | null) => FORMATS.find((f) => f.key === key) ?? FORMATS[0];
+export const formatLabel = (key: string | null) => formatOption(key).label;
+
+/** Formats where a deck may only hold one copy of each card. */
+export const SINGLETON_FORMATS = ['commander', 'duel', 'oathbreaker', 'paupercommander', 'predh'];
