@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-"Magic Swipe": an Android app (Expo SDK 58, React Native, TypeScript, Expo Router) to build Magic: The Gathering decks Tinder-style — swipe right adds the card to the active deck, swipe left discards it. Cards come from the Scryfall API; decks are stored locally in SQLite (no backend, no login). UI text is in Spanish.
+"Magic Swipe": an Android app (Expo SDK 58, React Native, TypeScript, Expo Router) to build Magic: The Gathering decks as if holding a handful of cards — swipe right adds the card to the active deck, swipe left discards it, arrows browse. Product framing: "cards in your hands", never "Tinder". Cards come from the Scryfall API; decks are stored locally in SQLite (no backend, no login). UI text is in Spanish.
 
 It's a port of the web app in `../frontmagic` (React) + `../apimagic` (Express/MySQL). Those used api.magicthegathering.io and a server-side DB; this app deliberately uses Scryfall and local storage instead.
 
