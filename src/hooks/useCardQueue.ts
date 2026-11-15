@@ -127,6 +127,8 @@ export function useCardQueue(filters: Filters, enabled: boolean, language = 'en'
     reload: () => setAttempt((a) => a + 1),
     next: () => setIndex((i) => i + 1),
     back: () => setIndex((i) => Math.max(0, i - 1)),
+    /** Jump to any loaded card (history, undo). */
+    goTo: (position: number) => setIndex(Math.max(0, position)),
     /** Swap the current card for another printing of it (e.g. another language). */
     replaceCurrent: (card: Card) => {
       // A language picked by hand wins over the preferred one.

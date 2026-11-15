@@ -26,10 +26,11 @@
 |---|---|
 | 🃏 **Swipe de cartas** | Las cartas llegan de [Scryfall](https://scryfall.com) una a una. Desliza a la derecha para añadirla al mazo y a la izquierda para descartarla. También con botones ✕ / ✓ y **deshacer** ↶. |
 | 🔍 **Buscador completo** | Nombre (en español o inglés, sin importar tildes), texto de reglas, colores (*jugables en* / *exactamente* / *incluye*, incolora), varios tipos, legendaria, subtipo, coste de maná mín–máx, rareza, habilidades (224, en español), formato, edición y orden. |
-| 🌐 **Idiomas** | Elige el idioma por defecto en Ajustes y las cartas aparecen traducidas si Scryfall las tiene. En cada carta puedes cambiar a cualquier idioma disponible. |
+| 🌐 **Idiomas** | Elige el idioma por defecto en Ajustes y las cartas aparecen traducidas si Scryfall las tiene. En cada carta puedes cambiar a cualquier idioma disponible y elegir entre sus **artes alternativos** 🎨. |
 | 📚 **Mazos** | Varios mazos con formato, portada, vista **lista**, **galería** o **grande**, compartir lista y deslizar para quitar cartas. Todo se guarda en **SQLite** en el móvil. |
 | ✅ **Validación por formato** | Nada impide añadir cartas: el mazo se comprueba y marca los errores (tamaño, copias, legalidad, comandante 👑 e identidad de color) carta por carta. |
 | ▤ **Historial** | Miniaturas de lo que has ido viendo, con lo que añadiste o descartaste, la carta actual destacada y las siguientes, con scroll infinito. |
+| 📦 **Colección** | Tus cartas reales, por edición e idioma. Búscalas y añádelas (también con nombres en español) o pulsa **📦 La tengo** mientras deslizas. Cada mazo te dice qué cartas tienes y cuáles te faltan. |
 | ⚙ **Ajustes** | Idioma de las cartas, vista del mazo por defecto, vibración y restablecer filtros. |
 
 ## ✅ Reglas que se comprueban
@@ -71,7 +72,7 @@ npx expo export --platform android --output-dir <tmp>   # comprobar que compila
 
 ## 🧱 Cómo está hecha
 
-- **Expo Router** con una sola pantalla. Filtros, mazo, historial y ajustes se abren en hojas inferiores (`BottomSheet`, sobre el `Modal` de React Native).
+- **Expo Router** con pestañas por herramienta: **Construir** (el swipe, donde se abre la app) y **Colección**; aquí irán las próximas (contador de vidas…). En Construir, filtros, mazo, historial y ajustes se abren en hojas inferiores (`BottomSheet`, sobre el `Modal` de React Native).
 - **Gestos y animación** con Gesture Handler 3 y Reanimated 4: swipe de cartas y deslizar para borrar.
 - **expo-sqlite** con migraciones versionadas (`PRAGMA user_version`) para mazos, cartas y ajustes.
 - **expo-image** con miniaturas `small` de Scryfall (~15 KB) y precarga de las siguientes cartas para que todo vaya fluido.

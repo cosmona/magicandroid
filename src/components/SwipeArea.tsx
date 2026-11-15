@@ -5,8 +5,10 @@ import { Image } from 'expo-image';
 import { useSQLiteContext } from 'expo-sqlite';
 import { displayName, type Card } from '@/api/scryfall';
 import { BottomSheet } from '@/components/BottomSheet';
+import { ArtPicker } from '@/components/ArtPicker';
 import { Button } from '@/components/Button';
 import { HistorySheet, type Decision } from '@/components/HistorySheet';
+import { OwnButton } from '@/components/collection/OwnButton';
 import { LanguagePicker } from '@/components/LanguagePicker';
 import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
@@ -16,7 +18,9 @@ import { colors } from '@/theme';
 
 interface HistoryEntry {
   card: Card;
-  /** Deck the card was added to, or null if it was discarded / over the copy limit. */
+  /** Position of the card in the result list, to return to it on undo. */
+  position: number;
+  /** Deck the card was added to, or null if it was discarded. */
   addedTo: number | null;
 }
 
@@ -58,6 +62,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const onSwiped = async (dir: SwipeDirection) => {
     const card = queue.current;
     if (!card) return;
+    const position = queue.index;
     queue.next();
     setShowBack(false);
 
@@ -75,7 +80,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
       buzz('discard');
       decide(card.id, 'discarded');
     }
-    setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), { card, addedTo }]);
+    setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), { card, position, addedTo }]);
   };
 
   const undo = async () => {
@@ -83,13 +88,20 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     if (!last) return;
     setHistory((h) => h.slice(0, -1));
     decide(last.card.id, null);
-    queue.back();
+    queue.goTo(last.position);
     setShowBack(false);
     if (last.addedTo !== null) {
       await changeQuantity(db, last.addedTo, last.card.oracleId, -1);
       onToast(`Deshecho: −1 ${displayName(last.card)}`);
       refresh();
     }
+  };
+
+  // Arrows: move through the cards without adding or discarding.
+  const browse = (step: 1 | -1) => () => {
+    setShowBack(false);
+    if (step === 1) queue.next();
+    else queue.back();
   };
 
   const onLayout = (e: LayoutChangeEvent) => {
@@ -99,6 +111,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   };
 
   const card = queue.current;
+  const decision = card ? decisions[card.id] : undefined;
   let body: React.ReactNode;
   if (!ready || (queue.loading && !card)) {
     body = <ActivityIndicator size="large" color={colors.accent} />;
@@ -138,10 +151,31 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
               queue.replaceCurrent(c);
             }}
           />
+          <ArtPicker
+            card={card}
+            onChange={(c) => {
+              setShowBack(false);
+              queue.replaceCurrent(c);
+            }}
+          />
+          <OwnButton card={card} onAdded={onToast} />
+          {decision && (
+            <View style={[styles.decided, { borderColor: decision === 'added' ? colors.add : colors.discard }]}>
+              <Text style={[styles.decidedText, { color: decision === 'added' ? colors.add : colors.discard }]}>
+                {decision === 'added' ? '✓ Ya añadida' : '✕ Descartada'}
+              </Text>
+            </View>
+          )}
         </View>
       )}
       <View style={styles.cardArea} onLayout={onLayout}>
         {cardSize.width > 0 && body}
+        {card && (
+          <>
+            <ArrowButton side="left" disabled={queue.index === 0} onPress={browse(-1)} />
+            <ArrowButton side="right" disabled={!queue.upcoming} onPress={browse(1)} />
+          </>
+        )}
       </View>
       {card && (
         <View style={styles.actions}>
@@ -167,9 +201,32 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
           decisions={decisions}
           hasMore={queue.hasMore}
           onNeedMore={queue.loadUpTo}
+          onSelect={(position) => {
+            setHistoryOpen(false);
+            setShowBack(false);
+            queue.goTo(position);
+          }}
         />
       </BottomSheet>
     </View>
+  );
+}
+
+function ArrowButton(props: { side: 'left' | 'right'; onPress: () => void; disabled: boolean }) {
+  return (
+    <Pressable
+      onPress={props.onPress}
+      disabled={props.disabled}
+      hitSlop={8}
+      style={({ pressed }) => [
+        styles.arrow,
+        props.side === 'left' ? { left: 2 } : { right: 2 },
+        props.disabled && { opacity: 0.2 },
+        pressed && { backgroundColor: colors.surfaceAlt },
+      ]}
+    >
+      <Text style={styles.arrowText}>{props.side === 'left' ? '‹' : '›'}</Text>
+    </Pressable>
   );
 }
 
@@ -192,8 +249,31 @@ function RoundButton(props: { symbol: string; color: string; onPress: () => void
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  languageRow: { paddingTop: 8 },
+  languageRow: {
+    paddingTop: 8,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+  },
   cardArea: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 10 },
+  arrow: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -28,
+    width: 34,
+    height: 56,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(20,16,28,0.75)',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  arrowText: { color: colors.text, fontSize: 30, fontWeight: '700', marginTop: -4 },
+  decided: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1 },
+  decidedText: { fontWeight: '800', fontSize: 13 },
   upcoming: { borderRadius: 16, transform: [{ scale: 0.94 }], opacity: 0.6 },
   actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 14, paddingVertical: 10 },
   historyButton: {

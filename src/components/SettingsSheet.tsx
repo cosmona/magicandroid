@@ -67,6 +67,20 @@ export function SettingsSheet() {
         />
       </View>
 
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>Pantalla completa</Text>
+          <Text style={styles.hint}>
+            Oculta los botones de Android. Desliza desde el borde inferior para que vuelvan a aparecer.
+          </Text>
+        </View>
+        <Switch
+          value={prefs.hideNavBar}
+          onValueChange={(hideNavBar) => setPrefs({ ...prefs, hideNavBar })}
+          trackColor={{ true: colors.accent, false: colors.border }}
+        />
+      </View>
+
       <Section title="Búsqueda">
         <Pressable style={styles.linkButton} onPress={resetFilters}>
           <Text style={styles.linkText}>Restablecer filtros</Text>

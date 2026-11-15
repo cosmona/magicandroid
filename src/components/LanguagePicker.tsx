@@ -71,7 +71,6 @@ export function LanguagePicker({ card, onChange }: { card: Card; onChange: (card
 
 const styles = StyleSheet.create({
   pill: {
-    alignSelf: 'center',
     paddingVertical: 5,
     paddingHorizontal: 12,
     borderRadius: 999,

@@ -34,9 +34,11 @@ export interface Prefs {
   haptics: boolean;
   /** View the deck sheet opens with. */
   deckView: DeckView;
+  /** Hide Android's navigation buttons (swipe up from the bottom edge to show them). */
+  hideNavBar: boolean;
 }
 
-export const DEFAULT_PREFS: Prefs = { language: 'en', haptics: true, deckView: 'list' };
+export const DEFAULT_PREFS: Prefs = { language: 'en', haptics: true, deckView: 'list', hideNavBar: false };
 
 interface AppState {
   ready: boolean;

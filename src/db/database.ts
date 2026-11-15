@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Card } from '@/api/scryfall';
 
 export const DATABASE_NAME = 'magicswipe.db';
-const DATABASE_VERSION = 3;
+const DATABASE_VERSION = 4;
 
 /** Runs on every app start (SQLiteProvider onInit). Schema changes = bump version + add a step. */
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
@@ -57,6 +57,28 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
       ALTER TABLE deck_cards ADD COLUMN is_commander INTEGER NOT NULL DEFAULT 0;
     `);
     version = 3;
+  }
+  if (version === 3) {
+    // The user's own cards: one row per printing (edition + language), like a big deck.
+    await db.execAsync(`
+      CREATE TABLE collection_cards (
+        scryfall_id TEXT PRIMARY KEY NOT NULL,
+        oracle_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        printed_name TEXT,
+        type_line TEXT NOT NULL,
+        mana_cost TEXT,
+        cmc REAL NOT NULL DEFAULT 0,
+        image_url TEXT,
+        rarity TEXT,
+        set_code TEXT NOT NULL,
+        lang TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        added_at INTEGER NOT NULL
+      );
+      CREATE INDEX collection_cards_oracle ON collection_cards (oracle_id);
+    `);
+    version = 4;
   }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
@@ -224,6 +246,84 @@ export async function changeQuantity(
     );
     await db.runAsync('DELETE FROM deck_cards WHERE deck_id = ? AND quantity <= 0', deckId);
   });
+}
+
+// ---------- Collection ----------
+
+export interface CollectionCard {
+  scryfallId: string;
+  oracleId: string;
+  name: string;
+  printedName: string | null;
+  typeLine: string;
+  manaCost: string | null;
+  imageUrl: string | null;
+  rarity: string | null;
+  setCode: string;
+  lang: string;
+  quantity: number;
+}
+
+export const getCollection = (db: SQLiteDatabase) =>
+  db.getAllAsync<CollectionCard>(
+    `SELECT scryfall_id AS scryfallId, oracle_id AS oracleId, name, printed_name AS printedName,
+            type_line AS typeLine, mana_cost AS manaCost, image_url AS imageUrl, rarity,
+            set_code AS setCode, lang, quantity
+     FROM collection_cards ORDER BY COALESCE(printed_name, name)`,
+  );
+
+/** Adds `count` copies of this exact printing to the collection; returns the new total. */
+export async function addToCollection(db: SQLiteDatabase, card: Card, count = 1): Promise<number> {
+  await db.runAsync(
+    `INSERT INTO collection_cards (scryfall_id, oracle_id, name, printed_name, type_line, mana_cost,
+       cmc, image_url, rarity, set_code, lang, quantity, added_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(scryfall_id) DO UPDATE SET quantity = quantity + excluded.quantity`,
+    card.id,
+    card.oracleId,
+    card.name,
+    card.printedName,
+    card.typeLine,
+    card.manaCost,
+    card.cmc,
+    card.imageUrl,
+    card.rarity,
+    card.set,
+    card.lang,
+    count,
+    Date.now(),
+  );
+  const row = await db.getFirstAsync<{ quantity: number }>(
+    'SELECT quantity FROM collection_cards WHERE scryfall_id = ?',
+    card.id,
+  );
+  return row?.quantity ?? count;
+}
+
+/** Changes a printing's quantity by `delta`; removes it at 0. */
+export async function changeCollectionQuantity(db: SQLiteDatabase, scryfallId: string, delta: number) {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      'UPDATE collection_cards SET quantity = quantity + ? WHERE scryfall_id = ?',
+      delta,
+      scryfallId,
+    );
+    await db.runAsync('DELETE FROM collection_cards WHERE quantity <= 0');
+  });
+}
+
+export const removeFromCollection = (db: SQLiteDatabase, scryfallId: string) =>
+  db.runAsync('DELETE FROM collection_cards WHERE scryfall_id = ?', scryfallId);
+
+/** Copies owned of each card (any printing/language), by oracle id. */
+export async function getOwnedCounts(db: SQLiteDatabase, oracleIds: string[]): Promise<Record<string, number>> {
+  if (!oracleIds.length) return {};
+  const rows = await db.getAllAsync<{ oracleId: string; owned: number }>(
+    `SELECT oracle_id AS oracleId, SUM(quantity) AS owned FROM collection_cards
+     WHERE oracle_id IN (${oracleIds.map(() => '?').join(',')}) GROUP BY oracle_id`,
+    ...oracleIds,
+  );
+  return Object.fromEntries(rows.map((r) => [r.oracleId, r.owned]));
 }
 
 // ---------- Settings (key/value) ----------

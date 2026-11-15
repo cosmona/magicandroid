@@ -15,6 +15,7 @@ import {
   createDeck,
   deleteDeck,
   getCardsMissingData,
+  getOwnedCounts,
   removeCardFromDeck,
   setCommander,
   setDeckCover,
@@ -48,6 +49,21 @@ export function DeckSheet() {
     [activeDeck?.format, activeCards],
   );
   const previewIssues = preview ? validation.cardIssues[preview.oracleId] : undefined;
+
+  // Copies of each deck card in the user's collection (any printing).
+  const [owned, setOwned] = useState<Record<string, number> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getOwnedCounts(db, activeCards.map((c) => c.oracleId)).then((counts) => {
+      if (!cancelled) setOwned(counts);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [db, activeCards]);
+  const missing = owned
+    ? activeCards.reduce((n, c) => n + Math.max(0, c.quantity - (owned[c.oracleId] ?? 0)), 0)
+    : null;
 
   // Cards saved before validation data existed get it from Scryfall, once per deck.
   const backfilled = useRef(new Set<number>());
@@ -126,6 +142,11 @@ export function DeckSheet() {
           {activeDeck && (
             <Text style={styles.subtitle}>
               {formatLabel(activeDeck.format)} · {activeDeck.cardCount} cartas
+              {missing === null || !activeCards.length
+                ? ''
+                : missing === 0
+                  ? ' · 📦 las tienes todas'
+                  : ` · 📦 te faltan ${missing}`}
             </Text>
           )}
         </View>
@@ -197,6 +218,7 @@ export function DeckSheet() {
                 actions={actions}
                 issues={validation.cardIssues[item.oracleId]}
                 crown={validation.usesCommander}
+                owned={owned?.[item.oracleId]}
               />
             </SwipeToDelete>
           ) : mode === 'big' ? (
@@ -206,6 +228,7 @@ export function DeckSheet() {
                 actions={actions}
                 issues={validation.cardIssues[item.oracleId]}
                 crown={validation.usesCommander}
+                owned={owned?.[item.oracleId]}
               />
             </SwipeToDelete>
           ) : (
@@ -308,6 +331,23 @@ interface CardProps {
   issues?: string[];
   /** Show the 👑 commander toggle. */
   crown: boolean;
+  /** Copies in the collection; undefined while loading. */
+  owned?: number;
+}
+
+/** "📦 Tienes 2" / "📦 Te falta 1 (tienes 1)" line under a deck card. */
+function OwnedLine({ owned, needed }: { owned?: number; needed: number }) {
+  if (owned === undefined) return null;
+  const short = needed - owned;
+  return (
+    <Text style={[styles.owned, short > 0 && styles.ownedShort]}>
+      {short <= 0
+        ? `📦 Tienes ${owned}`
+        : owned > 0
+          ? `📦 Te ${short === 1 ? 'falta' : 'faltan'} ${short} (tienes ${owned})`
+          : `📦 No la tienes`}
+    </Text>
+  );
 }
 
 /**
@@ -321,7 +361,8 @@ function ValidationBanner(props: {
   onOpenCard: (card: DeckCard) => void;
 }) {
   const { validation: v, format, cards, onOpenCard } = props;
-  const [open, setOpen] = useState(true);
+  // Collapsed by default: the title already says how many problems there are.
+  const [open, setOpen] = useState(false);
   if (!v.checked) {
     return (
       <View style={[styles.banner, styles.bannerNeutral]}>
@@ -383,7 +424,7 @@ function CardIssues({ issues }: { issues?: string[] }) {
 }
 
 /** One card of the list view, with the same data the web table showed. */
-function CardRow({ card, actions, issues, crown }: CardProps) {
+function CardRow({ card, actions, issues, crown, owned }: CardProps) {
   const [types, subtypes] = card.typeLine.split(' — ');
   return (
     <View style={[styles.row, issues && styles.invalid, !!card.isCommander && styles.commander]}>
@@ -412,6 +453,7 @@ function CardRow({ card, actions, issues, crown }: CardProps) {
         {!!subtypes && <Datum label="Subtipos" value={subtypes} />}
       </View>
 
+      <OwnedLine owned={owned} needed={card.quantity} />
       <CardIssues issues={issues} />
 
       <View style={styles.rowActions}>
@@ -432,7 +474,7 @@ function CardRow({ card, actions, issues, crown }: CardProps) {
 }
 
 /** "Grande" view: the card at full width (like the swipe stack) with its controls below. */
-function BigCard({ card, actions, issues, crown }: CardProps) {
+function BigCard({ card, actions, issues, crown, owned }: CardProps) {
   return (
     <View style={[styles.big, issues && styles.invalid, !!card.isCommander && styles.commander]}>
       <Pressable onPress={() => actions.preview(card)}>
@@ -452,6 +494,7 @@ function BigCard({ card, actions, issues, crown }: CardProps) {
           {card.isCommander ? '👑 ' : ''}x{card.quantity}
         </Text>
       </Pressable>
+      <OwnedLine owned={owned} needed={card.quantity} />
       <CardIssues issues={issues} />
       <View style={styles.rowActions}>
         <View style={styles.qty}>
@@ -568,6 +611,8 @@ const styles = StyleSheet.create({
   issues: { gap: 2, padding: 8, borderRadius: 8, backgroundColor: 'rgba(231,76,60,0.15)' },
   issueText: { color: '#ff8a80', fontSize: 12, fontWeight: '600' },
   smallActive: { backgroundColor: colors.accent },
+  owned: { color: colors.add, fontSize: 12, fontWeight: '700' },
+  ownedShort: { color: colors.undo },
   galleryInvalid: { borderWidth: 2, borderColor: colors.discard, borderRadius: 10 },
   viewSwitch: {
     flexDirection: 'row',

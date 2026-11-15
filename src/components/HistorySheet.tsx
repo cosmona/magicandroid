@@ -11,12 +11,14 @@ interface Props {
   cards: Card[];
   /** Position of the current card in `cards`. */
   index: number;
-  /** Decision per card id, for the cards before `index`. */
+  /** Decision per card id (cards can be revisited, so any position may have one). */
   decisions: Record<string, Decision>;
   /** Scryfall has more pages for this search. */
   hasMore: boolean;
   /** Ask the queue to load at least this many cards. */
   onNeedMore: (count: number) => void;
+  /** Tap on a thumbnail: move the builder to that card. */
+  onSelect: (position: number) => void;
 }
 
 const COLUMNS = 4;
@@ -33,19 +35,22 @@ const BADGES: Record<Decision, { label: string; color: string }> = {
   discarded: { label: '✕', color: colors.discard },
 };
 
-type Status = Decision | 'current' | 'upcoming';
+/** `skipped` = passed with the arrows, no decision. */
+type Status = 'current' | 'upcoming' | 'skipped';
 interface Thumb {
   card: Card;
   position: number;
   status: Status;
+  decision?: Decision;
 }
 
 /**
  * Grid of thumbnails: swiped cards (with their decision), the current one highlighted,
  * and the next few. Uses Scryfall's ~15 KB `small` images and a virtualized list of
- * fixed-height rows, opened already scrolled to the current card.
+ * fixed-height rows, opened already scrolled to the current card. Tap = go to that card,
+ * long press = see it big.
  */
-export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore }: Props) {
+export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore, onSelect }: Props) {
   const { width } = useWindowDimensions();
   const [preview, setPreview] = useState<Thumb | null>(null);
   // Upcoming cards shown after the current one; grows as the user scrolls down.
@@ -60,8 +65,8 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore }: P
       cards.slice(0, wantedCount).map((card, position) => ({
         card,
         position,
-        status:
-          position < index ? (decisions[card.id] ?? 'discarded') : position === index ? 'current' : 'upcoming',
+        status: position === index ? 'current' : position < index ? 'skipped' : 'upcoming',
+        decision: decisions[card.id],
       })),
     [cards, index, decisions, wantedCount],
   );
@@ -95,7 +100,7 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore }: P
 
   const counts = useMemo(() => {
     const c = { added: 0, discarded: 0 };
-    for (const t of thumbs) if (t.status in c) c[t.status as Decision]++;
+    for (const t of thumbs) if (t.decision) c[t.decision]++;
     return c;
   }, [thumbs]);
 
@@ -132,7 +137,13 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore }: P
         renderItem={({ item: row }) => (
           <View style={[styles.row, { height: rowHeight }]}>
             {row.map((t) => (
-              <ThumbView key={t.card.id} thumb={t} width={thumbWidth} onPress={() => setPreview(t)} />
+              <ThumbView
+                key={t.card.id}
+                thumb={t}
+                width={thumbWidth}
+                onPress={() => onSelect(t.position)}
+                onLongPress={() => setPreview(t)}
+              />
             ))}
           </View>
         )}
@@ -152,7 +163,8 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore }: P
                 transition={150}
               />
               <Text style={styles.previewText}>
-                {displayName(preview.card)} · {STATUS_TEXT[preview.status]}
+                {displayName(preview.card)} ·{' '}
+                {preview.decision ? DECISION_TEXT[preview.decision] : STATUS_TEXT[preview.status]}
               </Text>
             </>
           )}
@@ -162,34 +174,30 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore }: P
   );
 }
 
-const STATUS_TEXT: Record<Status, string> = {
-  added: 'Añadida al mazo',
-  discarded: 'Descartada',
-  current: 'Carta actual',
-  upcoming: 'Próxima',
-};
+const DECISION_TEXT: Record<Decision, string> = { added: 'Añadida al mazo', discarded: 'Descartada' };
+const STATUS_TEXT: Record<Status, string> = { current: 'Carta actual', upcoming: 'Próxima', skipped: 'Sin decidir' };
 
-function ThumbView({ thumb, width, onPress }: { thumb: Thumb; width: number; onPress: () => void }) {
-  const { card, status, position } = thumb;
+function ThumbView(props: { thumb: Thumb; width: number; onPress: () => void; onLongPress: () => void }) {
+  const { thumb, width } = props;
+  const { card, status, position, decision } = thumb;
   const isCurrent = status === 'current';
-  const decided = status === 'added' || status === 'discarded';
-  const badge = decided ? BADGES[status] : null;
+  const badge = decision ? BADGES[decision] : null;
 
   return (
-    <Pressable onPress={onPress} style={{ width }}>
+    <Pressable onPress={props.onPress} onLongPress={props.onLongPress} style={{ width }}>
       <View
         style={[
           styles.thumb,
           { height: width * CARD_RATIO },
           isCurrent && styles.thumbCurrent,
-          status === 'added' && { borderColor: colors.add },
-          status === 'upcoming' && { opacity: 0.55 },
+          decision === 'added' && !isCurrent && { borderColor: colors.add },
+          status === 'upcoming' && !decision && { opacity: 0.55 },
         ]}
       >
         {card.imageUrl && (
           <Image
             source={{ uri: smallImageUrl(card.imageUrl) }}
-            style={[StyleSheet.absoluteFill, status === 'discarded' && { opacity: 0.4 }]}
+            style={[StyleSheet.absoluteFill, decision === 'discarded' && !isCurrent && { opacity: 0.4 }]}
             contentFit="cover"
             cachePolicy="memory-disk"
             recyclingKey={card.id}

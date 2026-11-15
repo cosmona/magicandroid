@@ -86,6 +86,11 @@ export interface Card {
   colorIdentity: string[];
   /** Scryfall format key → 'legal' | 'not_legal' | 'banned' | 'restricted'. */
   legalities: Record<string, string>;
+  /** Same for every printing that reuses an artwork (alternate arts have their own). */
+  illustrationId?: string;
+  setName?: string;
+  /** 'YYYY-MM-DD' */
+  releasedAt?: string;
 }
 
 export interface SearchPage {
@@ -174,6 +179,7 @@ interface ScryfallFace {
   oracle_text?: string;
   mana_cost?: string;
   image_uris?: { normal: string };
+  illustration_id?: string;
 }
 interface ScryfallCard extends ScryfallFace {
   id: string;
@@ -185,6 +191,8 @@ interface ScryfallCard extends ScryfallFace {
   rarity: string;
   lang: string;
   set: string;
+  set_name?: string;
+  released_at?: string;
   color_identity?: string[];
   legalities?: Record<string, string>;
   card_faces?: ScryfallFace[];
@@ -208,6 +216,9 @@ function toCard(c: ScryfallCard): Card {
     set: c.set,
     colorIdentity: c.color_identity ?? [],
     legalities: c.legalities ?? {},
+    illustrationId: c.illustration_id ?? faces[0]?.illustration_id,
+    setName: c.set_name,
+    releasedAt: c.released_at,
   };
 }
 
@@ -339,6 +350,43 @@ export function getCardInLanguage(card: Card, lang: string): Promise<Card | null
     localizedCache.set(key, promise);
   }
   return promise;
+}
+
+const artsCache = new Map<string, Promise<Card[]>>();
+
+/**
+ * One printing per artwork of `card` (Scryfall `unique=art`), newest first, the current
+ * one first. Prefers printings in the card's language; artworks never printed in it come
+ * in English. Cached.
+ */
+export function getCardArts(card: Card): Promise<Card[]> {
+  const key = `${card.oracleId}|${card.lang}`;
+  let promise = artsCache.get(key);
+  if (!promise) {
+    const artsUrl = (lang: string) =>
+      `${BASE_URL}/cards/search?` +
+      new URLSearchParams({
+        q: `oracleid:${card.oracleId} lang:${lang}`,
+        unique: 'art',
+        include_multilingual: 'true',
+        order: 'released',
+        dir: 'desc',
+      }).toString();
+    promise = (async () => {
+      const own = card.lang === 'en' ? [] : (await fetchPage(artsUrl(card.lang))).cards;
+      const english = (await fetchPage(artsUrl('en'))).cards;
+      const byArt = new Map<string, Card>();
+      for (const c of [...own, ...english]) {
+        const art = c.illustrationId ?? c.id;
+        if (!byArt.has(art)) byArt.set(art, c);
+      }
+      return [...byArt.values()];
+    })();
+    promise.catch(() => artsCache.delete(key));
+    artsCache.set(key, promise);
+  }
+  const current = card.illustrationId ?? card.id;
+  return promise.then((arts) => [card, ...arts.filter((c) => (c.illustrationId ?? c.id) !== current)]);
 }
 
 /** Memoizes a fetch for the app's lifetime; a failed attempt can be retried. */

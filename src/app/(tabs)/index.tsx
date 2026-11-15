@@ -12,7 +12,8 @@ import { useAppState } from '@/context/AppState';
 import { colors } from '@/theme';
 
 /**
- * Main screen: top bar (filters) → card stack → active deck bar.
+ * "Construir" tab — the app opens here: cards in your hands.
+ * Top bar (filters) → card stack → active deck bar.
  * Filters and the deck open in bottom sheets (RN Modal) over this screen, which stays
  * mounted so the card stack keeps its position.
  */
@@ -31,7 +32,7 @@ export default function MainScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
       <TopBar onOpenFilters={() => setFiltersOpen(true)} onOpenSettings={() => setSettingsOpen(true)} />
       <View style={styles.content}>
         <SwipeArea onToast={showToast} />
