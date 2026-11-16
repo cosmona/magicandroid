@@ -44,6 +44,14 @@ De arriba a abajo:
 
 La app siempre se abre en **Construir**.
 
+**La tengo en cualquier carta:** donde veas una carta en grande (mazo, ficha ⓘ, combos, recomendadas, mano de prueba,
+historial) está el botón **La tengo** con las copias que ya tienes; cada toque añade una a tu colección. En las cartas
+del mazo, la línea de la colección («En tu colección: 2», «Te falta 1», «No la tienes») también tiene **＋ La tengo**, y
+en la vista galería una cajita verde (las tienes todas) o amarilla (te faltan) en la esquina.
+
+**¿Qué hace este botón?** Mantén el dedo sobre cualquier botón de icono (los del mazo y los de cada carta) y aparece
+un globo con su nombre.
+
 **Idioma de cualquier carta:** siempre que veas una carta en grande (en Construir, el historial, el mazo, la colección,
 la ficha ⓘ, los combos, las recomendadas o la mano de prueba) tienes el botón **🌐 Idioma ▾** para verla en otro
 idioma. En el **mazo** y la **colección** cambia la carta guardada (como ✏️ → Idioma); en las recomendadas, la carta se
@@ -64,10 +72,10 @@ Si vuelves a una carta que ya decidiste, verás «✓ Ya añadida» o «✕ Desc
 
 ### Encima de la carta
 
-- **🌐 Idioma:** cambia la carta a otro idioma en el que exista.
-- **🎨 Arte:** elige entre sus ilustraciones alternativas (primero las de tu idioma, luego las inglesas).
-- **📦 La tengo:** añade a tu [colección](#6-colección) la impresión que estás viendo. Si ya la tienes, muestra
-  cuántas («Tienes 2 · +1»).
+- **Idioma** (icono de traducir): cambia la carta a otro idioma en el que exista.
+- **Arte** (paleta): elige entre sus ilustraciones alternativas (primero las de tu idioma, luego las inglesas).
+- **La tengo** (caja): añade a tu [colección](#6-colección) la impresión que estás viendo. Si ya la tienes, se pone
+  verde y muestra cuántas («Tienes 2 · +1»).
 
 ### Historial ▤
 
@@ -112,6 +120,12 @@ La hoja del mazo tiene tres posiciones:
 - **📦 «Te faltan N de tu colección»** (amarillo) o «Las tienes todas» (verde): compara el mazo con tu colección.
 - **Vistas:** los tres iconos de la derecha cambian entre **lista**, **galería** y **grande**.
   En la galería las miniaturas no tienen botones: toca una carta para verla en grande con todos sus botones debajo.
+- **Agrupar** (icono de lista agrupada, junto a las vistas): por **tipo** (lo habitual), **coste**, **color**, **rareza** o
+  sin agrupar. Cada grupo tiene su título con el número de cartas; tócalo para plegarlo. El comandante va siempre
+  primero en su propio grupo. Funciona en las tres vistas y se recuerda.
+- **Arrastrar al banquillo:** mantén pulsada la **imagen** de una carta (en cualquier vista) hasta que se levante, arrástrala hacia abajo
+  y suéltala sobre la zona «Suelta aquí para pasarla al banquillo». Igual desde el banquillo para pasarla al mazo. Si la
+  sueltas en otro sitio no pasa nada.
 - **⋯ / ⌃:** oculta o muestra la fila de botones del mazo, para ganar espacio.
 - **Recuadro de validación:** «✓ Mazo válido» o «⚠ N problemas». Tócalo para ver la lista de problemas y las cartas
   afectadas (toca una carta para verla).
@@ -139,8 +153,7 @@ lealtad, precio, cuántas tienes en tu colección y sus problemas de validación
 | **− N +** | Cambia el número de copias. Bajar a 0 la quita |
 | 👑 | Elegir comandante (solo en formatos con comandante) |
 | ⓘ | Abre la [ficha completa](#5-ficha-completa-de-una-carta) |
-| Lápiz | **Cambiar el arte o el idioma**: elige *Arte* (otra ilustración o edición) o *Idioma* (la carta en otro idioma). Mantiene las copias y el comandante; si era la portada del mazo, la portada cambia con ella |
-| Imagen | Usar la carta como portada del mazo |
+| Lápiz | **Editar**: *Arte* (otra ilustración o edición), *Idioma* (la carta en otro idioma) o *Usar como portada* del mazo. Al cambiar arte o idioma mantiene las copias y el comandante; si era la portada del mazo, la portada cambia con ella |
 | Compartir | Enviar la **imagen** de la carta (y copiar su enlace de Scryfall para pegarlo al lado), enviar solo el **enlace de Scryfall** o copiarlo |
 | Bandeja ↓ | Pasar una copia al **banquillo** (no aparece en formatos con comandante) |
 | Papelera | Quitarla del mazo (pide confirmación) |

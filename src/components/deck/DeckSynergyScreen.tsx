@@ -26,6 +26,7 @@ import {
 import { Section, SectionHelp, SubTitle } from '@/components/cardInfo/Section';
 import { ComboView, count, EntryRow, pct, useCardImages } from '@/components/synergy/SynergyParts';
 import { LanguagePill } from '@/components/LanguagePicker';
+import { OwnPill } from '@/components/collection/OwnButton';
 import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
 import type { DeckCard } from '@/db/database';
@@ -447,7 +448,14 @@ function RecommendSwipe({
           </Text>
           {' · '}en el {pct(inclusion)} de sus mazos
         </Text>
-        <LanguagePill card={card} lang={shown.lang} onPick={(c) => setPicked((prev) => ({ ...prev, [entry.id]: c }))} />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <LanguagePill
+            card={card}
+            lang={shown.lang}
+            onPick={(c) => setPicked((prev) => ({ ...prev, [entry.id]: c }))}
+          />
+          <OwnPill card={shown} />
+        </View>
       </View>
       <View style={styles.swipeArea} onLayout={onLayout}>
         {size.width > 0 && (

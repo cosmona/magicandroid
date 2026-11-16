@@ -7,6 +7,7 @@ import { getRawCard, getRulings, type RawCard, type Ruling } from '@/api/scryfal
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { CardSynergy } from '@/components/cardInfo/CardSynergy';
 import { LanguagePill } from '@/components/LanguagePicker';
+import { OwnPill } from '@/components/collection/OwnButton';
 import { Section as BaseSection } from '@/components/cardInfo/Section';
 import { ManaCost } from '@/components/ManaCost';
 import { useAppState } from '@/context/AppState';
@@ -146,7 +147,8 @@ export function CardInfoScreen({ id, onClose }: { id: string; onClose: () => voi
                 ))}
               </ScrollView>
             )}
-            <View style={{ alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <OwnPill card={shownId} />
               <LanguagePill
                 card={shownId}
                 lang={typeof card.lang === 'string' ? card.lang : undefined}

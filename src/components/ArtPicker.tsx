@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { getCardArts, getCardsByIds, smallImageUrl, type Card } from '@/api/scryfall';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { colors } from '@/theme';
@@ -14,7 +15,9 @@ export function ArtPicker({ card, onChange }: { card: Card; onChange: (card: Car
   return (
     <>
       <Pressable style={styles.pill} onPress={() => setOpen(true)} hitSlop={6}>
-        <Text style={styles.pillText}>🎨 Arte ▾</Text>
+        <MaterialCommunityIcons name="palette-outline" size={16} color={colors.text} />
+        <Text style={styles.pillText}>Arte</Text>
+        <MaterialCommunityIcons name="chevron-down" size={16} color={colors.textMuted} />
       </Pressable>
       {open && (
         <ArtPickerModal
@@ -125,6 +128,9 @@ export function ArtPickerModal({
 
 const styles = StyleSheet.create({
   pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingVertical: 5,
     paddingHorizontal: 12,
     borderRadius: 999,

@@ -275,6 +275,15 @@ sequenceDiagram
 - **Arrastrar**: la barra superior y cualquier zona envuelta en **`SheetDragArea`** mueven la hoja con el dedo. Cada
   zona crea su propio gesto (solo vertical, así las listas horizontales de dentro siguen funcionando). Si se arrastra
   desde un botón, el toque del botón se cancela. **Nunca** se envuelve una lista vertical.
+- **«La tengo» en toda carta**: `OwnPill` (`collection/OwnButton`, acepta `CardRef`) cuenta las copias de la colección por `oracle_id` y añade la impresión con cada toque; `OwnButton` (Construir) es un envoltorio. En el mazo, `OwnedLine` es pulsable (`actions.own`) y la galería marca lo que tienes; `ownedVersion` fuerza a recontar.
+- **Globos de ayuda**: `components/Hint` (`useHint` / `HintButton`): pulsación larga en un botón de icono → `measureInWindow` y un `Modal` transparente con su nombre encima durante 1,6 s. Lo usan `CardIconButton`, los botones de acción del mazo y los de vista/agrupar.
+- **Arrastrar cartas** (mazo ⇄ banquillo): la imagen de cada carta (y la miniatura en galería y banquillo) va en un `Draggable` (en `DeckSheet`) con
+  `usePanGesture({ activateAfterLongPress: 350 })`: un toque normal sigue desplazando la lista o pulsando botones; tras la
+  pulsación larga, la posición va a valores compartidos de la hoja, que dibuja una miniatura siguiendo el dedo y una zona
+  de soltar abajo (`measureInWindow` de la hoja da su posición). Soltar en la zona llama a `moveCopy`.
+- **Agrupar el mazo**: `deck/group.ts` (`groupDeck`: tipo, coste con `curveCost`, color, rareza o nada; comandantes
+  primero) y la lista se aplana en cabeceras plegables + cartas (o filas de 3 en galería), así la `FlatList` ya no usa
+  `numColumns`. Preferencia `prefs.deckGroup`.
 - **`expandable`** (la hoja del mazo): tres paradas, oculta / abierta (`heightRatio`) / pantalla completa. Se maqueta a
   tamaño completo y se desplaza hacia abajo, con relleno inferior en la parada «abierta» para que no se corte el
   contenido.

@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { HintButton } from '@/components/Hint';
 import { colors } from '@/theme';
 
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -44,10 +45,9 @@ export function CardIconButton(props: {
   danger?: boolean;
 }) {
   return (
-    <Pressable
+    <HintButton
+      hint={props.hint}
       onPress={props.onPress}
-      accessibilityRole="button"
-      accessibilityLabel={props.hint}
       hitSlop={4}
       style={({ pressed }) => [styles.button, props.filled && styles.filled, pressed && { opacity: 0.6 }]}
     >
@@ -56,7 +56,7 @@ export function CardIconButton(props: {
         size={20}
         color={props.filled ? colors.bg : props.danger ? colors.discard : colors.text}
       />
-    </Pressable>
+    </HintButton>
   );
 }
 

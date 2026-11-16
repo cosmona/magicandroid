@@ -12,6 +12,7 @@ import {
 import { Image } from 'expo-image';
 import { displayName, smallImageUrl, type Card } from '@/api/scryfall';
 import { LanguagePill } from '@/components/LanguagePicker';
+import { OwnPill } from '@/components/collection/OwnButton';
 import { colors } from '@/theme';
 
 /** What happened to a card the user already swiped. */
@@ -176,11 +177,14 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore, onS
                 contentFit="contain"
                 transition={150}
               />
-              <LanguagePill
-                card={preview.card}
-                lang={previewPrinting?.lang ?? preview.card.lang}
-                onPick={setPreviewPrinting}
-              />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <LanguagePill
+                  card={preview.card}
+                  lang={previewPrinting?.lang ?? preview.card.lang}
+                  onPick={setPreviewPrinting}
+                />
+                <OwnPill card={previewPrinting ?? preview.card} />
+              </View>
               <Text style={styles.previewText}>
                 {displayName(previewPrinting ?? preview.card)} ·{' '}
                 {preview.decision ? DECISION_TEXT[preview.decision] : STATUS_TEXT[preview.status]}

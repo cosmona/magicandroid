@@ -15,11 +15,14 @@ export function PrintingPicker({
   name,
   onPick,
   onClose,
+  onCover,
 }: {
   scryfallId: string;
   name: string;
   onPick: (card: Card) => void;
   onClose: () => void;
+  /** Deck cards only: "Portada" uses the card as the deck's cover. */
+  onCover?: () => void;
 }) {
   const [mode, setMode] = useState<'ask' | 'art' | 'language'>('ask');
   const pick = (card: Card) => {
@@ -51,13 +54,33 @@ export function PrintingPicker({
               onPress={() => setMode('language')}
             />
           </View>
+          {onCover && (
+            <Pressable
+              style={({ pressed }) => [styles.coverOption, pressed && { opacity: 0.7 }]}
+              onPress={() => {
+                onClose();
+                onCover();
+              }}
+            >
+              <MaterialCommunityIcons name="image-outline" size={24} color={colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Usar como portada</Text>
+                <Text style={styles.help}>La imagen del mazo en la lista de mazos y en la cabecera</Text>
+              </View>
+            </Pressable>
+          )}
         </Pressable>
       </Pressable>
     </Modal>
   );
 }
 
-function Option(props: { icon: 'palette-outline' | 'translate'; label: string; help: string; onPress: () => void }) {
+function Option(props: {
+  icon: 'palette-outline' | 'translate' | 'image-outline';
+  label: string;
+  help: string;
+  onPress: () => void;
+}) {
   return (
     <Pressable style={({ pressed }) => [styles.option, pressed && { opacity: 0.7 }]} onPress={props.onPress}>
       <MaterialCommunityIcons name={props.icon} size={30} color={colors.accent} />
@@ -85,6 +108,16 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: 16,
     paddingHorizontal: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+  },
+  coverOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,

@@ -8,6 +8,7 @@ import { getCardInLanguage, getCardsByNames, type Card } from '@/api/scryfall';
 import { mainType, TYPE_GROUP_LABELS } from '@/collection/organize';
 import { Section, SectionHelp } from '@/components/cardInfo/Section';
 import { LanguagePill } from '@/components/LanguagePicker';
+import { OwnPill } from '@/components/collection/OwnButton';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
 import {
@@ -600,7 +601,10 @@ function SampleHand({
               contentFit="contain"
             />
           )}
-          <LanguagePill card={preview.scryfallId} lang={previewPrinting?.lang} onPick={setPreviewPrinting} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <LanguagePill card={preview.scryfallId} lang={previewPrinting?.lang} onPick={setPreviewPrinting} />
+            <OwnPill card={previewPrinting ?? preview.scryfallId} oracleId={preview.oracleId} />
+          </View>
         </Pressable>
       )}
     </>

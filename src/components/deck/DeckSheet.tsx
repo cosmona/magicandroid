@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef, type ReactNode } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
+import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 // RNGH lists cooperate with the rows' swipe-to-delete gesture.
-import { FlatList } from 'react-native-gesture-handler';
+import { FlatList, GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import { displayName, getCardsByIds, smallImageUrl, type CardDetails } from '@/api/scryfall';
 import { SheetDragArea } from '@/components/BottomSheet';
 import { DeckFormModal } from '@/components/DeckFormModal';
@@ -12,8 +15,10 @@ import { DeckPicker } from '@/components/deck/DeckPicker';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
 import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/components/CardControls';
 import { CardShareSheet, type ShareableCard } from '@/components/CardShareSheet';
+import { HintButton } from '@/components/Hint';
 import { PrintingPicker } from '@/components/PrintingPicker';
 import { LanguagePill } from '@/components/LanguagePicker';
+import { OwnPill } from '@/components/collection/OwnButton';
 import { DeckSummary } from '@/components/deck/DeckSummary';
 import { DeckStatsScreen } from '@/components/deck/DeckStatsScreen';
 import { ShareDeckModal } from '@/components/deck/ShareDeckModal';
@@ -25,6 +30,7 @@ import { useCardDetails } from '@/hooks/useCardDetails';
 import { UNNAMED_DECK, useAppState, type DeckView } from '@/context/AppState';
 import {
   addCardToDeck,
+  addToCollection,
   changeQuantity,
   changeSideboardQuantity,
   moveCopy,
@@ -47,6 +53,26 @@ import {
 import { RARITY_LABELS } from '@/icons';
 import { colors, formatEur, formatLabel } from '@/theme';
 import { validateDeck, type DeckValidation } from '@/validation';
+import { DECK_GROUP_OPTIONS, groupDeck, type DeckGroup, type DeckGroupBy } from '@/deck/group';
+
+/** Height of the drop zone that appears at the bottom while dragging a card. */
+const DROP_ZONE_HEIGHT = 84;
+const GHOST_WIDTH = 92;
+
+type Side = 'main' | 'side';
+
+/** What the rows need to start / follow / finish a drag (long press, then move). */
+interface DragApi {
+  x: SharedValue<number>;
+  y: SharedValue<number>;
+  start: (oracleId: string, from: Side) => void;
+  end: (absoluteY: number, ok: boolean) => void;
+}
+
+type ListItem =
+  | { type: 'header'; key: string; group: DeckGroup; collapsed: boolean }
+  | { type: 'card'; key: string; card: DeckCard }
+  | { type: 'row'; key: string; cards: DeckCard[] };
 
 const VIEWS: { key: DeckView; label: string; icon: IconName }[] = [
   { key: 'list', label: 'Lista', icon: 'format-list-bulleted' },
@@ -63,6 +89,8 @@ export function DeckSheet() {
   const db = useSQLiteContext();
   const { activeDeck, activeCards, activeSideboard, setActiveDeckId, refresh, prefs, setPrefs } = useAppState();
   const [mode, setMode] = useState<DeckView>(prefs.deckView);
+  const [groupMenu, setGroupMenu] = useState(false);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState(false);
   // Oracle id of the card shown enlarged; the card itself is read from the deck so its
   // quantity / commander update live while the buttons under it are used.
@@ -76,6 +104,8 @@ export function DeckSheet() {
 
   // Copies of each deck card in the user's collection (any printing).
   const [owned, setOwned] = useState<Record<string, number> | null>(null);
+  // Bumped after adding to the collection from here, to recount.
+  const [ownedVersion, setOwnedVersion] = useState(0);
   useEffect(() => {
     let cancelled = false;
     getOwnedCounts(
@@ -87,7 +117,7 @@ export function DeckSheet() {
     return () => {
       cancelled = true;
     };
-  }, [db, activeCards]);
+  }, [db, activeCards, ownedVersion]);
   const missingCards: MissingCard[] = owned
     ? activeCards
         .map((card) => ({
@@ -182,6 +212,82 @@ export function DeckSheet() {
     });
 
   const deckId = activeDeck?.id;
+
+  // ---- Groups: the list is flattened into headers + cards (or gallery rows of 3). ----
+  const groupBy = prefs.deckGroup;
+  const groups = useMemo(
+    () => groupDeck(activeDeck ? activeCards : [], groupBy, validation.usesCommander),
+    [activeDeck, activeCards, groupBy, validation.usesCommander],
+  );
+  const items = useMemo(() => {
+    const out: ListItem[] = [];
+    const headers = groups.length > 1 || groupBy !== 'none';
+    for (const group of groups) {
+      const isCollapsed = collapsed.has(group.key);
+      if (headers) out.push({ type: 'header', key: `h:${group.key}`, group, collapsed: isCollapsed });
+      if (isCollapsed) continue;
+      if (mode === 'gallery') {
+        for (let i = 0; i < group.cards.length; i += 3)
+          out.push({
+            type: 'row',
+            key: `r:${group.key}:${group.cards[i].oracleId}`,
+            cards: group.cards.slice(i, i + 3),
+          });
+      } else {
+        for (const card of group.cards) out.push({ type: 'card', key: card.oracleId, card });
+      }
+    }
+    return out;
+  }, [groups, groupBy, collapsed, mode]);
+  const toggleGroup = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  // ---- Drag a card (long press) to the drop zone: main deck ⇄ sideboard. ----
+  const sheetRef = useRef<ComponentRef<typeof View>>(null);
+  const dragX = useSharedValue(0);
+  const dragY = useSharedValue(0);
+  const sheetTop = useSharedValue(0);
+  const zoneTop = useSharedValue(Number.POSITIVE_INFINITY);
+  const [dragging, setDragging] = useState<{ card: DeckCard; from: Side } | null>(null);
+  const draggingRef = useRef<{ card: DeckCard; from: Side } | null>(null);
+  const drag: DragApi = {
+    x: dragX,
+    y: dragY,
+    start: (oracleId, from) => {
+      const card = (from === 'main' ? activeCards : activeSideboard).find((c) => c.oracleId === oracleId);
+      if (!card) return;
+      sheetRef.current?.measureInWindow((_x, y, _w, h) => {
+        sheetTop.set(y);
+        zoneTop.set(y + h - DROP_ZONE_HEIGHT - 24);
+      });
+      if (prefs.haptics) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      draggingRef.current = { card, from };
+      setDragging({ card, from });
+    },
+    end: (absoluteY, ok) => {
+      const current = draggingRef.current;
+      draggingRef.current = null;
+      setDragging(null);
+      if (!current || !ok || !deckId || absoluteY < zoneTop.get()) return;
+      run(moveCopy(db, deckId, current.card.oracleId, current.from === 'main' ? 'side' : 'main'));
+    },
+  };
+  const ghostStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: dragX.get() - GHOST_WIDTH / 2 },
+      { translateY: dragY.get() - sheetTop.get() - (GHOST_WIDTH * 680) / 488 / 2 },
+      { rotate: '-4deg' },
+    ],
+  }));
+  const zoneStyle = useAnimatedStyle(() => {
+    const over = dragY.get() >= zoneTop.get();
+    return { opacity: over ? 1 : 0.8, transform: [{ scale: over ? 1.03 : 1 }] };
+  });
   const run = (p: Promise<unknown>) => p.then(() => refresh());
   const removeCard = async (c: DeckCard) => {
     if (!deckId) return;
@@ -200,6 +306,12 @@ export function DeckSheet() {
       }),
     cover: (c) => deckId && run(setDeckCover(db, deckId, c.imageUrl)),
     printing: (c) => setPrintingCard(c),
+    own: async (c) => {
+      const [printing] = await getCardsByIds([c.scryfallId]).catch(() => []);
+      if (!printing) return;
+      await addToCollection(db, printing);
+      setOwnedVersion((v) => v + 1);
+    },
     toSide: (c) => deckId && run(moveCopy(db, deckId, c.oracleId, 'side')),
     share: (c) => setShareCard({ scryfallId: c.scryfallId, name: displayName(c), imageUrl: c.imageUrl }),
     preview: (c) => setPreviewId(c.oracleId),
@@ -243,14 +355,27 @@ export function DeckSheet() {
               <View style={{ flex: 1 }} />
             )}
             {activeCards.length > 0 && (
+              <HintButton
+                hint="Agrupar cartas"
+                style={[styles.groupButton, groupBy !== 'none' && styles.groupButtonOn]}
+                onPress={() => setGroupMenu(true)}
+                hitSlop={4}
+              >
+                <MaterialCommunityIcons
+                  name="format-list-group"
+                  size={18}
+                  color={groupBy !== 'none' ? colors.bg : colors.textMuted}
+                />
+              </HintButton>
+            )}
+            {activeCards.length > 0 && (
               <View style={styles.viewSwitch}>
                 {VIEWS.map((v) => (
-                  <Pressable
+                  <HintButton
                     key={v.key}
+                    hint={`Vista ${v.label.toLowerCase()}`}
                     style={[styles.viewOption, mode === v.key && styles.viewOptionSelected]}
                     onPress={() => setMode(v.key)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Vista ${v.label}`}
                     accessibilityState={{ selected: mode === v.key }}
                   >
                     <MaterialCommunityIcons
@@ -258,15 +383,14 @@ export function DeckSheet() {
                       size={18}
                       color={mode === v.key ? colors.bg : colors.textMuted}
                     />
-                  </Pressable>
+                  </HintButton>
                 ))}
               </View>
             )}
-            <Pressable
+            <HintButton
+              hint={toolsHidden ? 'Mostrar botones' : 'Ocultar botones'}
               style={[styles.toolsToggle, !toolsHidden && styles.toolsToggleOpen]}
               onPress={() => setPrefs({ ...prefs, deckToolsHidden: !toolsHidden })}
-              accessibilityRole="button"
-              accessibilityLabel={toolsHidden ? 'Mostrar botones' : 'Ocultar botones'}
               hitSlop={6}
             >
               <MaterialCommunityIcons
@@ -274,7 +398,7 @@ export function DeckSheet() {
                 size={20}
                 color={toolsHidden ? colors.text : colors.accent}
               />
-            </Pressable>
+            </HintButton>
           </View>
         )}
       </View>
@@ -333,13 +457,12 @@ export function DeckSheet() {
   );
 
   return (
-    <View style={styles.sheet}>
+    <View style={styles.sheet} ref={sheetRef} collapsable={false}>
       <SheetDragArea>{header}</SheetDragArea>
       <FlatList
-        key={mode} // numColumns can't change on the fly
-        data={activeDeck ? activeCards : []}
-        keyExtractor={(c) => c.oracleId}
-        numColumns={mode === 'gallery' ? 3 : 1}
+        key={mode}
+        data={items}
+        keyExtractor={(item) => item.key}
         ListHeaderComponent={listHeader}
         ListFooterComponent={
           // Always there for decks that can have one (so it can be found), and whenever it has cards.
@@ -349,12 +472,12 @@ export function DeckSheet() {
               onAdd={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, 1))}
               onSub={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, -1))}
               onToMain={(c) => run(moveCopy(db, activeDeck.id, c.oracleId, 'main'))}
+              drag={drag}
             />
           ) : undefined
         }
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 24 }}
-        columnWrapperStyle={mode === 'gallery' ? styles.galleryRow : undefined}
         nestedScrollEnabled
         ListEmptyComponent={
           activeDeck ? (
@@ -363,49 +486,132 @@ export function DeckSheet() {
         }
         initialNumToRender={mode === 'big' ? 2 : 8}
         windowSize={mode === 'big' ? 3 : 7}
-        renderItem={({ item }) =>
-          mode === 'list' ? (
-            <CardRow
-              card={item}
-              actions={actions}
-              issues={validation.cardIssues[item.oracleId]}
-              crown={validation.usesCommander}
-              owned={owned?.[item.oracleId]}
-              details={details[item.scryfallId]}
-              showPrice={prefs.pricesDeckCards}
-            />
-          ) : mode === 'big' ? (
-            <BigCard
-              card={item}
-              actions={actions}
-              issues={validation.cardIssues[item.oracleId]}
-              crown={validation.usesCommander}
-              owned={owned?.[item.oracleId]}
-              details={details[item.scryfallId]}
-              showPrice={prefs.pricesDeckCards}
-            />
-          ) : (
-            <Pressable
-              style={[styles.galleryItem, validation.cardIssues[item.oracleId] && styles.galleryInvalid]}
-              onPress={() => actions.preview(item)}
-            >
-              {item.imageUrl && (
-                // Gallery tiles are small: the ~15 KB thumbnail is enough and loads fast.
-                <Image
-                  source={{ uri: smallImageUrl(item.imageUrl) }}
-                  style={styles.galleryImage}
-                  contentFit="contain"
-                  recyclingKey={item.oracleId}
+        renderItem={({ item: entry }) => {
+          if (entry.type === 'header') {
+            return (
+              <Pressable
+                style={styles.groupHeader}
+                onPress={() => toggleGroup(entry.group.key)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: !entry.collapsed }}
+              >
+                <MaterialCommunityIcons
+                  name={entry.collapsed ? 'chevron-right' : 'chevron-down'}
+                  size={20}
+                  color={colors.textMuted}
+                />
+                <Text style={styles.groupTitle}>{entry.group.label}</Text>
+                <Text style={styles.groupCount}>{entry.group.count}</Text>
+              </Pressable>
+            );
+          }
+          if (entry.type === 'row') {
+            return (
+              <View style={styles.galleryRow}>
+                {entry.cards.map((item) => (
+                  <Draggable
+                    key={item.oracleId}
+                    oracleId={item.oracleId}
+                    from="main"
+                    drag={drag}
+                    style={styles.galleryCell}
+                  >
+                    <GalleryTile
+                      owned={owned?.[item.oracleId]}
+                      card={item}
+                      invalid={!!validation.cardIssues[item.oracleId]}
+                      crown={validation.usesCommander}
+                      onPress={() => actions.preview(item)}
+                    />
+                  </Draggable>
+                ))}
+              </View>
+            );
+          }
+          const item = entry.card;
+          return (
+            <>
+              {mode === 'big' ? (
+                <BigCard
+                  card={item}
+                  actions={actions}
+                  issues={validation.cardIssues[item.oracleId]}
+                  crown={validation.usesCommander}
+                  owned={owned?.[item.oracleId]}
+                  details={details[item.scryfallId]}
+                  showPrice={prefs.pricesDeckCards}
+                  drag={drag}
+                />
+              ) : (
+                <CardRow
+                  card={item}
+                  actions={actions}
+                  issues={validation.cardIssues[item.oracleId]}
+                  crown={validation.usesCommander}
+                  owned={owned?.[item.oracleId]}
+                  details={details[item.scryfallId]}
+                  showPrice={prefs.pricesDeckCards}
+                  drag={drag}
                 />
               )}
-              <Text style={styles.badge}>
-                {validation.usesCommander && item.isCommander ? '👑 ' : ''}x{item.quantity}
-              </Text>
-              {validation.cardIssues[item.oracleId] && <Text style={styles.warnBadge}>⚠</Text>}
-            </Pressable>
-          )
-        }
+            </>
+          );
+        }}
       />
+
+      {dragging && (
+        <>
+          <Animated.View style={[styles.dropZone, zoneStyle]} pointerEvents="none">
+            <MaterialCommunityIcons
+              name={dragging.from === 'main' ? 'tray-arrow-down' : 'tray-arrow-up'}
+              size={26}
+              color={colors.accent}
+            />
+            <Text style={styles.dropText}>
+              Suelta aquí para pasarla {dragging.from === 'main' ? 'al banquillo' : 'al mazo'}
+            </Text>
+          </Animated.View>
+          <Animated.View style={[styles.ghost, ghostStyle]} pointerEvents="none">
+            {dragging.card.imageUrl && (
+              <Image
+                source={{ uri: smallImageUrl(dragging.card.imageUrl) }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+              />
+            )}
+          </Animated.View>
+        </>
+      )}
+
+      <Modal visible={groupMenu} transparent animationType="fade" onRequestClose={() => setGroupMenu(false)}>
+        <Pressable style={styles.issuesBackdrop} onPress={() => setGroupMenu(false)}>
+          <Pressable style={styles.groupMenu} onPress={() => {}}>
+            <Text style={styles.groupMenuTitle}>Agrupar por</Text>
+            {DECK_GROUP_OPTIONS.map((o) => (
+              <Pressable
+                key={o.key}
+                style={[styles.groupOption, groupBy === o.key && styles.groupOptionOn]}
+                onPress={() => {
+                  setPrefs({ ...prefs, deckGroup: o.key as DeckGroupBy });
+                  setCollapsed(new Set());
+                  setGroupMenu(false);
+                }}
+              >
+                <MaterialCommunityIcons
+                  name={groupBy === o.key ? 'radiobox-marked' : 'radiobox-blank'}
+                  size={20}
+                  color={groupBy === o.key ? colors.accent : colors.textMuted}
+                />
+                <Text style={styles.groupOptionText}>{o.label}</Text>
+              </Pressable>
+            ))}
+            <Text style={styles.groupMenuHelp}>
+              Toca el título de un grupo para plegarlo. Mantén pulsada una carta y arrástrala abajo para pasarla al
+              banquillo (o del banquillo al mazo).
+            </Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {shopping && (
         <MissingCardsModal
@@ -423,6 +629,7 @@ export function DeckSheet() {
           scryfallId={printingCard.scryfallId}
           name={displayName(printingCard)}
           onClose={() => setPrintingCard(null)}
+          onCover={() => actions.cover(printingCard)}
           onPick={(printing) => run(setDeckCardPrinting(db, deckId, printingCard.imageUrl, printing))}
         />
       )}
@@ -473,6 +680,13 @@ export function DeckSheet() {
               placeholderContentFit="contain"
               style={styles.modalImage}
               contentFit="contain"
+            />
+          )}
+          {preview && (
+            <OwnPill
+              card={preview.scryfallId}
+              oracleId={preview.oracleId}
+              onAdded={() => setOwnedVersion((v) => v + 1)}
             />
           )}
           {preview && deckId && (
@@ -542,10 +756,9 @@ function Action(props: {
         ? colors.accent
         : colors.text;
   return (
-    <Pressable
+    <HintButton
+      hint={props.hint}
       onPress={props.onPress}
-      accessibilityRole="button"
-      accessibilityLabel={props.hint}
       disabled={props.disabled}
       style={({ pressed }) => [
         styles.action,
@@ -556,7 +769,7 @@ function Action(props: {
       ]}
     >
       <MaterialCommunityIcons name={props.icon} size={22} color={color} />
-    </Pressable>
+    </HintButton>
   );
 }
 
@@ -570,6 +783,8 @@ interface CardActions {
   printing: (c: DeckCard) => void;
   /** Moves one copy to the sideboard. */
   toSide: (c: DeckCard) => void;
+  /** "La tengo": adds this printing to the collection. */
+  own: (c: DeckCard) => void;
   share: (c: DeckCard) => void;
   preview: (c: DeckCard) => void;
   /** Opens the screen with everything Scryfall knows about the card. */
@@ -579,6 +794,8 @@ interface CardActions {
 
 interface CardProps {
   card: DeckCard;
+  /** Long press on the card image drags it to the sideboard. */
+  drag: DragApi;
   actions: CardActions;
   /** Validation problems of this card (red border + messages). */
   issues?: string[];
@@ -592,18 +809,34 @@ interface CardProps {
   showPrice: boolean;
 }
 
-/** "📦 Tienes 2" / "📦 Te falta 1 (tienes 1)" line under a deck card. */
-function OwnedLine({ owned, needed }: { owned?: number; needed: number }) {
+/**
+ * "Tienes 2" / "Te falta 1 (tienes 1)" / "No la tienes" under a deck card, from the collection.
+ * Tapping it ("+ La tengo") adds this printing to the collection.
+ */
+function OwnedLine({ owned, needed, onOwn }: { owned?: number; needed: number; onOwn: () => void }) {
   if (owned === undefined) return null;
   const short = needed - owned;
   return (
-    <Text style={[styles.owned, short > 0 && styles.ownedShort]}>
-      {short <= 0
-        ? `📦 Tienes ${owned}`
-        : owned > 0
-          ? `📦 Te ${short === 1 ? 'falta' : 'faltan'} ${short} (tienes ${owned})`
-          : `📦 No la tienes`}
-    </Text>
+    <Pressable
+      style={({ pressed }) => [styles.ownedLine, pressed && { opacity: 0.6 }]}
+      onPress={onOwn}
+      hitSlop={6}
+      accessibilityLabel="La tengo: añadir a tu colección"
+    >
+      <MaterialCommunityIcons
+        name={short <= 0 ? 'package-variant-closed-check' : 'package-variant-closed'}
+        size={15}
+        color={short <= 0 ? colors.add : colors.undo}
+      />
+      <Text style={[styles.owned, short > 0 && styles.ownedShort]}>
+        {short <= 0
+          ? `En tu colección: ${owned}`
+          : owned > 0
+            ? `Te ${short === 1 ? 'falta' : 'faltan'} ${short} (tienes ${owned})`
+            : 'No la tienes en tu colección'}
+      </Text>
+      <Text style={styles.ownAdd}>＋ La tengo</Text>
+    </Pressable>
   );
 }
 
@@ -720,15 +953,17 @@ function CardIssues({ issues }: { issues?: string[] }) {
 }
 
 /** One card of the list view, with the same data the web table showed. */
-function CardRow({ card, actions, issues, crown, owned, details, showPrice }: CardProps) {
+function CardRow({ card, actions, issues, crown, owned, details, showPrice, drag }: CardProps) {
   const [types, subtypes] = card.typeLine.split(' — ');
   const stats = statsOf(details);
   return (
     <View style={[styles.row, issues && styles.invalid, crown && !!card.isCommander && styles.commander]}>
       <View style={styles.rowTop}>
-        <Pressable onPress={() => actions.preview(card)}>
-          {card.imageUrl && <Image source={{ uri: card.imageUrl }} style={styles.thumb} contentFit="cover" />}
-        </Pressable>
+        <Draggable oracleId={card.oracleId} from="main" drag={drag}>
+          <Pressable onPress={() => actions.preview(card)}>
+            {card.imageUrl && <Image source={{ uri: card.imageUrl }} style={styles.thumb} contentFit="cover" />}
+          </Pressable>
+        </Draggable>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={styles.name}>
             {crown && card.isCommander ? '👑 ' : ''}
@@ -754,7 +989,7 @@ function CardRow({ card, actions, issues, crown, owned, details, showPrice }: Ca
         {!!subtypes && <Datum label="Subtipos" value={subtypes} />}
       </View>
 
-      <OwnedLine owned={owned} needed={card.quantity} />
+      <OwnedLine owned={owned} needed={card.quantity} onOwn={() => actions.own(card)} />
       <CardIssues issues={issues} />
 
       <CardControls card={card} actions={actions} crown={crown} />
@@ -763,28 +998,30 @@ function CardRow({ card, actions, issues, crown, owned, details, showPrice }: Ca
 }
 
 /** "Grande" view: the card at full width (like the swipe stack) with its controls below. */
-function BigCard({ card, actions, issues, crown, owned, details, showPrice }: CardProps) {
+function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag }: CardProps) {
   return (
     <View style={[styles.big, issues && styles.invalid, crown && !!card.isCommander && styles.commander]}>
-      <Pressable onPress={() => actions.preview(card)}>
-        {card.imageUrl && (
-          <Image
-            source={{ uri: card.imageUrl }}
-            // Thumbnail first (usually cached), full image when it arrives.
-            placeholder={{ uri: smallImageUrl(card.imageUrl) }}
-            placeholderContentFit="contain"
-            style={styles.bigImage}
-            contentFit="contain"
-            recyclingKey={card.oracleId}
-            transition={120}
-          />
-        )}
-        <Text style={styles.bigBadge}>
-          {crown && card.isCommander ? '👑 ' : ''}x{card.quantity}
-          {showPrice && details?.eur != null ? ` · ${formatEur(details.eur)}` : ''}
-        </Text>
-      </Pressable>
-      <OwnedLine owned={owned} needed={card.quantity} />
+      <Draggable oracleId={card.oracleId} from="main" drag={drag}>
+        <Pressable onPress={() => actions.preview(card)}>
+          {card.imageUrl && (
+            <Image
+              source={{ uri: card.imageUrl }}
+              // Thumbnail first (usually cached), full image when it arrives.
+              placeholder={{ uri: smallImageUrl(card.imageUrl) }}
+              placeholderContentFit="contain"
+              style={styles.bigImage}
+              contentFit="contain"
+              recyclingKey={card.oracleId}
+              transition={120}
+            />
+          )}
+          <Text style={styles.bigBadge}>
+            {crown && card.isCommander ? '👑 ' : ''}x{card.quantity}
+            {showPrice && details?.eur != null ? ` · ${formatEur(details.eur)}` : ''}
+          </Text>
+        </Pressable>
+      </Draggable>
+      <OwnedLine owned={owned} needed={card.quantity} onOwn={() => actions.own(card)} />
       <CardIssues issues={issues} />
       <CardControls card={card} actions={actions} crown={crown} />
     </View>
@@ -819,11 +1056,13 @@ function SideboardSection({
   onAdd,
   onSub,
   onToMain,
+  drag,
 }: {
   cards: DeckCard[];
   onAdd: (c: DeckCard) => void;
   onSub: (c: DeckCard) => void;
   onToMain: (c: DeckCard) => void;
+  drag: DragApi;
 }) {
   const [open, setOpen] = useState(true);
   const total = cards.reduce((n, c) => n + c.quantity, 0);
@@ -836,38 +1075,121 @@ function SideboardSection({
       </Pressable>
       {open && cards.length === 0 && (
         <Text style={styles.sideType}>
-          Vacío. Pasa cartas aquí con el botón de la bandeja ↓ de cada carta del mazo, o importa una lista con banquillo
-          (sideboard).
+          Vacío. Pasa cartas aquí con el botón de la bandeja ↓ de cada carta, manteniéndola pulsada y arrastrándola
+          abajo, o importando una lista con banquillo (sideboard).
         </Text>
       )}
       {open &&
         cards.map((c) => (
           <View key={c.oracleId} style={styles.sideRow}>
-            <View style={styles.sideThumb}>
-              {c.imageUrl && (
-                <Image source={{ uri: smallImageUrl(c.imageUrl) }} style={StyleSheet.absoluteFill} contentFit="cover" />
-              )}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.sideName} numberOfLines={1}>
-                {displayName(c)}
-              </Text>
-              <Text style={styles.sideType} numberOfLines={1}>
-                {c.typeLine}
-              </Text>
-            </View>
+            <Draggable oracleId={c.oracleId} from="side" drag={drag} style={styles.sideDrag}>
+              <View style={styles.sideThumb}>
+                {c.imageUrl && (
+                  <Image
+                    source={{ uri: smallImageUrl(c.imageUrl) }}
+                    style={StyleSheet.absoluteFill}
+                    contentFit="cover"
+                  />
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sideName} numberOfLines={1}>
+                  {displayName(c)}
+                </Text>
+                <Text style={styles.sideType} numberOfLines={1}>
+                  {c.typeLine}
+                </Text>
+              </View>
+            </Draggable>
             <QuantityStepper value={c.quantity} onSub={() => onSub(c)} onAdd={() => onAdd(c)} />
-            <Pressable
-              style={styles.sideMove}
-              onPress={() => onToMain(c)}
-              hitSlop={4}
-              accessibilityLabel="Pasar una copia al mazo"
-            >
+            <HintButton hint="Pasar una copia al mazo" style={styles.sideMove} onPress={() => onToMain(c)} hitSlop={4}>
               <MaterialCommunityIcons name="tray-arrow-up" size={20} color={colors.text} />
-            </Pressable>
+            </HintButton>
           </View>
         ))}
     </View>
+  );
+}
+
+/**
+ * Makes its content draggable after a long press (a quick touch still scrolls the list or
+ * presses buttons). Positions go to the sheet's shared values; the sheet draws the card
+ * following the finger and decides where it was dropped.
+ */
+function Draggable({
+  oracleId,
+  from,
+  drag,
+  style,
+  children,
+}: {
+  oracleId: string;
+  from: Side;
+  drag: DragApi;
+  style?: ComponentProps<typeof View>['style'];
+  children: ReactNode;
+}) {
+  const { x, y, start, end } = drag;
+  const pan = usePanGesture({
+    activateAfterLongPress: 350,
+    onActivate: (e) => {
+      x.set(e.absoluteX);
+      y.set(e.absoluteY);
+      scheduleOnRN(start, oracleId, from);
+    },
+    onUpdate: (e) => {
+      x.set(e.absoluteX);
+      y.set(e.absoluteY);
+    },
+    onDeactivate: (e) => {
+      scheduleOnRN(end, e.absoluteY, !e.canceled);
+    },
+  });
+  return (
+    <GestureDetector gesture={pan}>
+      <View collapsable={false} style={style}>
+        {children}
+      </View>
+    </GestureDetector>
+  );
+}
+
+/** One card of the gallery view: thumbnail, copies (👑 for commanders) and a ⚠ mark. */
+function GalleryTile({
+  card,
+  owned,
+  invalid,
+  crown,
+  onPress,
+}: {
+  card: DeckCard;
+  /** Copies in the collection (green: enough, yellow: some, none: none). */
+  owned?: number;
+  invalid: boolean;
+  crown: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={[styles.galleryItem, invalid && styles.galleryInvalid]} onPress={onPress}>
+      {card.imageUrl && (
+        // Gallery tiles are small: the ~15 KB thumbnail is enough and loads fast.
+        <Image
+          source={{ uri: smallImageUrl(card.imageUrl) }}
+          style={styles.galleryImage}
+          contentFit="contain"
+          recyclingKey={card.oracleId}
+        />
+      )}
+      <Text style={styles.badge}>
+        {crown && card.isCommander ? '👑 ' : ''}x{card.quantity}
+      </Text>
+      {invalid && <Text style={styles.warnBadge}>⚠</Text>}
+      {!!owned && (
+        <View style={[styles.ownedBadge, { backgroundColor: owned >= card.quantity ? colors.add : colors.undo }]}>
+          <MaterialCommunityIcons name="package-variant-closed" size={13} color={colors.bg} />
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -884,7 +1206,11 @@ function CardControls({ card, actions, crown }: { card: DeckCard; actions: CardA
         />
       )}
       <CardIconButton icon="information-outline" hint="Ficha completa" onPress={() => actions.info(card)} />
-      <CardIconButton icon="pencil-outline" hint="Cambiar arte o idioma" onPress={() => actions.printing(card)} />
+      <CardIconButton
+        icon="pencil-outline"
+        hint="Editar: arte, idioma o portada"
+        onPress={() => actions.printing(card)}
+      />
       {/* Commander-style decks have no sideboard (the crown takes that place). */}
       {!crown && (
         <CardIconButton
@@ -893,7 +1219,6 @@ function CardControls({ card, actions, crown }: { card: DeckCard; actions: CardA
           onPress={() => actions.toSide(card)}
         />
       )}
-      <CardIconButton icon="image-outline" hint="Usar como portada" onPress={() => actions.cover(card)} />
       <CardIconButton icon="share-variant-outline" hint="Compartir" onPress={() => actions.share(card)} />
       <CardIconButton
         icon="trash-can-outline"
@@ -920,6 +1245,7 @@ const styles = StyleSheet.create({
   sideHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sideTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '900' },
   sideRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sideDrag: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   sideThumb: {
     width: 34,
     aspectRatio: 488 / 680,
@@ -1111,8 +1437,85 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
   },
-  galleryRow: { gap: 6, paddingHorizontal: 8, marginTop: 6 },
-  galleryItem: { width: '31.5%', aspectRatio: 488 / 680 },
+  galleryRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 8, marginTop: 6 },
+  galleryCell: { width: '31.5%' },
+  ownedBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ownedLine: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  ownAdd: { color: colors.accent, fontWeight: '800', fontSize: 12 },
+  galleryItem: { width: '100%', aspectRatio: 488 / 680 },
+  groupButton: {
+    width: 34,
+    height: 30,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupButtonOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  groupTitle: { flex: 1, color: colors.accent, fontSize: 13, fontWeight: '900', textTransform: 'uppercase' },
+  groupCount: { color: colors.textMuted, fontWeight: '800' },
+  groupMenu: {
+    alignSelf: 'stretch',
+    gap: 6,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  groupMenuTitle: { color: colors.text, fontSize: 17, fontWeight: '900', marginBottom: 4 },
+  groupOption: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 10 },
+  groupOptionOn: { backgroundColor: colors.surfaceAlt },
+  groupOptionText: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  groupMenuHelp: { color: colors.textMuted, fontSize: 12, marginTop: 6 },
+  dropZone: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 12,
+    height: DROP_ZONE_HEIGHT,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.accent,
+    backgroundColor: colors.bg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  dropText: { color: colors.text, fontWeight: '900' },
+  ghost: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: GHOST_WIDTH,
+    aspectRatio: 488 / 680,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: colors.accent,
+    backgroundColor: colors.surfaceAlt,
+    elevation: 12,
+  },
   galleryImage: { flex: 1, borderRadius: 8 },
   badge: {
     position: 'absolute',

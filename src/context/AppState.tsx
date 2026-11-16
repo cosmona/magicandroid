@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { DEFAULT_FILTERS, type Filters } from '@/api/scryfall';
+import type { DeckGroupBy } from '@/deck/group';
 import {
   createDeck,
   getDeckCards,
@@ -28,6 +29,8 @@ export interface Prefs {
   haptics: boolean;
   /** View the deck sheet opens with. */
   deckView: DeckView;
+  /** How the deck sheet groups the cards. */
+  deckGroup: DeckGroupBy;
   /** Hide Android's navigation buttons (swipe up from the bottom edge to show them). */
   hideNavBar: boolean;
   /** Deck sheet's action buttons and deck picker hidden (more room for the cards). */
@@ -44,6 +47,7 @@ export const DEFAULT_PREFS: Prefs = {
   language: 'en',
   haptics: true,
   deckView: 'list',
+  deckGroup: 'type',
   hideNavBar: false,
   deckToolsHidden: false,
   pricesDeck: true,

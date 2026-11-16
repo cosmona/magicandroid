@@ -5,6 +5,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { getCardsByIds, getCardsByNames, smallImageUrl, type Card } from '@/api/scryfall';
 import type { Combo, EdhrecEntry } from '@/api/synergy';
 import { LanguagePill } from '@/components/LanguagePicker';
+import { OwnPill } from '@/components/collection/OwnButton';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { ManaCost } from '@/components/ManaCost';
 import { colors } from '@/theme';
@@ -167,7 +168,10 @@ export function ComboView({
               />
             )}
             <Text style={styles.bigName}>{bigPrinting?.printedName ?? big}</Text>
-            <LanguagePill card={{ name: big }} lang={bigPrinting?.lang} onPick={setBigPrinting} />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <LanguagePill card={{ name: big }} lang={bigPrinting?.lang} onPick={setBigPrinting} />
+              <OwnPill card={bigPrinting ?? { name: big }} />
+            </View>
             {added?.has(big) ? (
               <Text style={[styles.bigName, { color: colors.add }]}>✓ Añadida al mazo</Text>
             ) : canAdd(big) ? (
