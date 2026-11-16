@@ -2,6 +2,8 @@
 // Scryfall requires a User-Agent + Accept header and asks clients to keep
 // requests ~100 ms apart, so every request goes through `scryfallFetch`.
 
+import { ARENA_FORMATS } from '@/theme';
+
 const BASE_URL = 'https://api.scryfall.com';
 const HEADERS = { 'User-Agent': 'MagicSwipe/1.0', Accept: 'application/json' };
 const MIN_INTERVAL_MS = 100;
@@ -40,6 +42,8 @@ export interface Filters {
   format: string | null;
   /** Set code (`e:`), null = any. */
   set: string | null;
+  /** Only cards that exist in MTG Arena (`game:arena` instead of `game:paper`). */
+  arena: boolean;
   order: SortOrder;
   dir: SortDir;
 }
@@ -59,6 +63,7 @@ export const DEFAULT_FILTERS: Filters = {
   keywords: [],
   format: null,
   set: null,
+  arena: false,
   order: 'edhrec',
   dir: 'auto',
 };
@@ -82,6 +87,7 @@ export interface Card {
   /** Scryfall language code of this printing (en, es, fr, de, it, pt, ja, ko, ru, zhs, zht…). */
   lang: string;
   set: string;
+  collectorNumber?: string;
   /** Color identity letters, e.g. ['W', 'U']; [] = colorless. */
   colorIdentity: string[];
   /** Scryfall format key → 'legal' | 'not_legal' | 'banned' | 'restricted'. */
@@ -112,11 +118,7 @@ async function scryfallFetch(url: string, init?: { method: 'POST'; body: string 
 const clean = (s: string) => s.replace(/"/g, '').trim();
 
 /** Lowercase without accents ("Relámpago" → "relampago"). */
-export const fold = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
+export const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 const anyOf = (terms: string[]) => (terms.length === 1 ? terms[0] : `(${terms.join(' or ')})`);
 
@@ -142,7 +144,9 @@ function colorTerm(f: Filters): string | null {
  * fallback when a name search finds nothing, e.g. a Spanish name).
  */
 export function buildQuery(f: Filters, anyLanguage = false): string {
-  const parts: (string | null)[] = ['game:paper'];
+  // Arena-only formats (Historic, Alchemy…) are about Arena cards, some of which aren't on paper.
+  const arena = f.arena || (!!f.format && ARENA_FORMATS.includes(f.format));
+  const parts: (string | null)[] = [arena ? 'game:arena' : 'game:paper'];
   // One unquoted `name:` per word: unquoted terms ignore accents on the card side
   // ("relampago" finds "Relámpago", a quoted "relampago" doesn't), but accents in the
   // query itself never match, so strip them too.
@@ -154,7 +158,10 @@ export function buildQuery(f: Filters, anyLanguage = false): string {
   parts.push(colorTerm(f));
   if (f.types.length) parts.push(anyOf(f.types.map((t) => `t:${t.toLowerCase()}`)));
   if (f.legendary) parts.push('t:legendary');
-  for (const word of clean(f.subtype).split(/[\s,]+/).filter(Boolean)) parts.push(`t:${word}`);
+  for (const word of clean(f.subtype)
+    .split(/[\s,]+/)
+    .filter(Boolean))
+    parts.push(`t:${word}`);
   if (f.cmcMin !== null) parts.push(`cmc>=${f.cmcMin}`);
   if (f.cmcMax !== null) parts.push(`cmc<=${f.cmcMax}`);
   if (f.rarities.length) parts.push(anyOf(f.rarities.map((r) => `r:${r}`)));
@@ -191,6 +198,7 @@ interface ScryfallCard extends ScryfallFace {
   rarity: string;
   lang: string;
   set: string;
+  collector_number?: string;
   set_name?: string;
   released_at?: string;
   color_identity?: string[];
@@ -206,14 +214,20 @@ function toCard(c: ScryfallCard): Card {
     name: c.name,
     printedName: c.printed_name ?? null,
     typeLine: c.type_line ?? '',
-    manaCost: c.mana_cost ?? faces.map((f) => f.mana_cost).filter(Boolean).join(' // '),
+    manaCost:
+      c.mana_cost ??
+      faces
+        .map((f) => f.mana_cost)
+        .filter(Boolean)
+        .join(' // '),
     cmc: c.cmc ?? 0,
     rarity: c.rarity,
     oracleText: c.oracle_text ?? faces.map((f) => f.oracle_text ?? '').join('\n'),
     imageUrl: c.image_uris?.normal ?? faces[0]?.image_uris?.normal ?? null,
-    backImageUrl: c.image_uris ? null : faces[1]?.image_uris?.normal ?? null,
+    backImageUrl: c.image_uris ? null : (faces[1]?.image_uris?.normal ?? null),
     lang: c.lang,
     set: c.set,
+    collectorNumber: c.collector_number,
     colorIdentity: c.color_identity ?? [],
     legalities: c.legalities ?? {},
     illustrationId: c.illustration_id ?? faces[0]?.illustration_id,
@@ -246,7 +260,9 @@ export async function searchCards(filters: Filters, nextPage?: string): Promise<
   const page = await fetchPage(searchUrl(filters, false));
   // A name typed in another language (e.g. "relámpago") only matches foreign printings:
   // if no English name contains the words, search every language instead.
-  const words = fold(filters.name).split(/[^\p{L}\p{N}'-]+/u).filter(Boolean);
+  const words = fold(filters.name)
+    .split(/[^\p{L}\p{N}'-]+/u)
+    .filter(Boolean);
   const englishHit = page.cards.some((c) => words.every((w) => fold(c.name).includes(w)));
   if (words.length && !englishHit) return fetchPage(searchUrl(filters, true));
   return page;
@@ -276,6 +292,62 @@ export async function getCardsByNames(names: string[]): Promise<Card[]> {
     });
     if (!res.ok) throw new Error(`Error ${res.status} de Scryfall`);
     out.push(...((await res.json()).data as ScryfallCard[]).map(toCard));
+  }
+  return out;
+}
+
+/** A card of a pasted list: name, and set + collector number when the list gives them. */
+export interface ListEntry {
+  name: string;
+  set?: string;
+  number?: string;
+}
+
+async function collectionCards(identifiers: object[]): Promise<Card[]> {
+  const out: Card[] = [];
+  for (let i = 0; i < identifiers.length; i += 75) {
+    const res = await scryfallFetch(`${BASE_URL}/cards/collection`, {
+      method: 'POST',
+      body: JSON.stringify({ identifiers: identifiers.slice(i, i + 75) }),
+    });
+    if (!res.ok) throw new Error(`Error ${res.status} de Scryfall`);
+    out.push(...((await res.json()).data as ScryfallCard[]).map(toCard));
+  }
+  return out;
+}
+
+const nameKey = (name: string) => name.split(' // ')[0].trim().toLowerCase();
+
+/**
+ * Finds the cards of a pasted list, keeping its order: the exact printing when set + collector
+ * number are given (Arena's own set codes don't always exist in Scryfall, so those fall back),
+ * else by English name. null = not found.
+ */
+export async function resolveCardList(entries: ListEntry[]): Promise<(Card | null)[]> {
+  const out: (Card | null)[] = entries.map(() => null);
+
+  const printed = entries.map((e, i) => ({ e, i })).filter(({ e }) => e.set && e.number);
+  if (printed.length) {
+    const found = await collectionCards(printed.map(({ e }) => ({ set: e.set, collector_number: e.number })));
+    const byPrint = new Map(found.map((c) => [`${c.set}/${c.collectorNumber}`, c]));
+    for (const { e, i } of printed) {
+      const card = byPrint.get(`${e.set}/${e.number}`);
+      // The number must belong to the card named (lists sometimes mix them up).
+      if (card && nameKey(card.name) === nameKey(e.name)) out[i] = card;
+    }
+  }
+
+  const rest = [...new Set(entries.filter((_, i) => !out[i]).map((e) => nameKey(e.name)))];
+  if (rest.length) {
+    const found = await collectionCards(rest.map((name) => ({ name })));
+    const byName = new Map<string, Card>();
+    for (const c of found) {
+      byName.set(c.name.toLowerCase(), c);
+      byName.set(nameKey(c.name), c);
+    }
+    entries.forEach((e, i) => {
+      if (!out[i]) out[i] = byName.get(nameKey(e.name)) ?? null;
+    });
   }
   return out;
 }
@@ -511,8 +583,7 @@ export const artCropUrl = (imageUrl: string) => imageUrl.replace('/normal/', '/a
 /** Scryfall CDN: ~15 KB thumbnail (146×204) of a `normal` image URL (~105 KB). */
 export const smallImageUrl = (imageUrl: string) => imageUrl.replace('/normal/', '/small/');
 
-export const displayName = (c: { name: string; printedName: string | null }) =>
-  c.printedName ?? c.name;
+export const displayName = (c: { name: string; printedName: string | null }) => c.printedName ?? c.name;
 
 // ---------- Prices, stats and tokens of saved cards ----------
 
@@ -522,6 +593,8 @@ export interface CardDetails {
   eur: number | null;
   /** The card's product page on Cardmarket (Spanish site). */
   cardmarketUrl: string | null;
+  /** The printing's page on scryfall.com (without tracking parameters). */
+  scryfallUrl: string | null;
   power?: string;
   toughness?: string;
   loyalty?: string;
@@ -543,6 +616,7 @@ interface ScryfallDetailsCard extends ScryfallStats {
   collector_number: string;
   prices?: { eur?: string | null; eur_foil?: string | null };
   purchase_uris?: { cardmarket?: string };
+  scryfall_uri?: string;
   card_faces?: ScryfallStats[];
   all_parts?: { id: string; component: string; name: string; type_line: string }[];
 }
@@ -585,6 +659,7 @@ async function loadDetails(ids: string[]): Promise<Record<string, CardDetails>> 
     out[c.id] = {
       eur: priceOf(c) ?? (en ? priceOf(en) : null),
       cardmarketUrl: spanishSite(en?.purchase_uris?.cardmarket ?? c.purchase_uris?.cardmarket),
+      scryfallUrl: c.scryfall_uri ? c.scryfall_uri.split('?')[0] : null,
       power: c.power ?? face.power,
       toughness: c.toughness ?? face.toughness,
       loyalty: c.loyalty ?? face.loyalty,

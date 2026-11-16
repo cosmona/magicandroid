@@ -1,12 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Image } from 'expo-image';
 import {
   DEFAULT_FILTERS,
@@ -81,8 +74,17 @@ export function FilterPanel({ applied, onApply }: Props) {
     <View style={styles.panel}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Filtros</Text>
-        <Button label="Limpiar" variant="secondary" onPress={() => setDraft(DEFAULT_FILTERS)} style={styles.headerButton} />
-        <Button label={dirty ? 'Buscar' : 'Buscar de nuevo'} onPress={() => onApply(draft)} style={styles.headerButton} />
+        <Button
+          label="Limpiar"
+          variant="secondary"
+          onPress={() => setDraft(DEFAULT_FILTERS)}
+          style={styles.headerButton}
+        />
+        <Button
+          label={dirty ? 'Buscar' : 'Buscar de nuevo'}
+          onPress={() => onApply(draft)}
+          style={styles.headerButton}
+        />
       </View>
       <ScrollView
         style={{ flex: 1 }}
@@ -100,7 +102,12 @@ export function FilterPanel({ applied, onApply }: Props) {
         </Section>
 
         <Section title="Texto de reglas" hint="En inglés: «flying», «draw a card», «destroy target»…">
-          <Input value={draft.text} onChangeText={(text) => set({ text })} placeholder="Texto de la carta" onSubmit={() => onApply(draft)} />
+          <Input
+            value={draft.text}
+            onChangeText={(text) => set({ text })}
+            placeholder="Texto de la carta"
+            onSubmit={() => onApply(draft)}
+          />
         </Section>
 
         <Section title="Colores" hint={COLOR_MODES.find((m) => m.key === draft.colorMode)!.hint}>
@@ -158,7 +165,11 @@ export function FilterPanel({ applied, onApply }: Props) {
         <Section title="Rareza">
           <View style={styles.rarityRow}>
             {RARITIES.map((r) => (
-              <IconToggle key={r} selected={draft.rarities.includes(r)} onPress={() => set({ rarities: toggle(draft.rarities, r) })}>
+              <IconToggle
+                key={r}
+                selected={draft.rarities.includes(r)}
+                onPress={() => set({ rarities: toggle(draft.rarities, r) })}
+              >
                 <View style={styles.rarityItem}>
                   <Image source={RARITY_ICONS[r]} style={styles.rarityIcon} contentFit="contain" />
                   <Text style={styles.rarityLabel}>{RARITY_LABELS[r]}</Text>
@@ -190,12 +201,24 @@ export function FilterPanel({ applied, onApply }: Props) {
             onChange={(format) => set({ format })}
           />
           <SetPicker value={draft.set} onChange={(s) => set({ set: s })} />
+          <View style={styles.chips}>
+            <Chip
+              label="Solo cartas de MTG Arena"
+              selected={draft.arena}
+              onPress={() => set({ arena: !draft.arena })}
+            />
+          </View>
         </Section>
 
         <Section title="Orden">
           <View style={styles.chips}>
             {ORDERS.map((o) => (
-              <Chip key={o.key} label={o.label} selected={draft.order === o.key} onPress={() => set({ order: o.key })} />
+              <Chip
+                key={o.key}
+                label={o.label}
+                selected={draft.order === o.key}
+                onPress={() => set({ order: o.key })}
+              />
             ))}
           </View>
           <Segmented
@@ -262,7 +285,11 @@ function IconChip(props: { label: string; icon: ReactNode; selected: boolean; on
   );
 }
 
-function Segmented<T extends string>(props: { options: { key: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+function Segmented<T extends string>(props: {
+  options: { key: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
   return (
     <View style={styles.segmented}>
       {props.options.map((o) => (
@@ -279,7 +306,13 @@ function Segmented<T extends string>(props: { options: { key: T; label: string }
 }
 
 /** Number picker where "—" (null) means no limit. */
-function Stepper(props: { label: string; value: number | null; onChange: (v: number | null) => void; min?: number; max?: number }) {
+function Stepper(props: {
+  label: string;
+  value: number | null;
+  onChange: (v: number | null) => void;
+  min?: number;
+  max?: number;
+}) {
   const { value, min = 0, max = 16 } = props;
   const dec = () => props.onChange(value === null ? null : value <= min ? null : value - 1);
   const inc = () => props.onChange(value === null ? min : Math.min(max, value + 1));
@@ -301,7 +334,9 @@ function Stepper(props: { label: string; value: number | null; onChange: (v: num
 function KeywordPicker({ values, onChange }: { values: string[]; onChange: (v: string[]) => void }) {
   const [keywords, setKeywords] = useState<string[]>(COMMON_KEYWORDS);
   useEffect(() => {
-    getKeywords().then(setKeywords).catch(() => {});
+    getKeywords()
+      .then(setKeywords)
+      .catch(() => {});
   }, []);
   return (
     <MultiSelect
@@ -321,7 +356,9 @@ function KeywordPicker({ values, onChange }: { values: string[]; onChange: (v: s
 function SetPicker({ value, onChange }: { value: string | null; onChange: (code: string | null) => void }) {
   const [sets, setSets] = useState<MtgSet[]>([]);
   useEffect(() => {
-    getSets().then(setSets).catch(() => {});
+    getSets()
+      .then(setSets)
+      .catch(() => {});
   }, []);
   return (
     <Select

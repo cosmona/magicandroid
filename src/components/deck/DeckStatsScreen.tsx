@@ -34,6 +34,7 @@ import {
 } from '@/deck/stats';
 import { MANA_ICONS } from '@/icons';
 import { colors } from '@/theme';
+import { commanderDeckSize } from '@/validation';
 
 type Tab = 'stats' | 'hand';
 
@@ -287,7 +288,7 @@ function LandRecommender({
   const { activeDeck, refresh, prefs } = useAppState();
   const [step, setStep] = useState<LandStep>({ kind: 'idle' });
 
-  const deckSize = usesCommander ? (activeDeck?.format === 'oathbreaker' ? 60 : 100) : null;
+  const deckSize = usesCommander ? commanderDeckSize(activeDeck?.format ?? null) : null;
   const leaders = cards.filter((c) => usesCommander && c.isCommander && c.colorIdentity !== null);
   const identity = leaders.length ? leaders.map((c) => c.colorIdentity).join('') : null;
   const plan = recommendLands(stats, deckSize, identity);

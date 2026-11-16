@@ -28,48 +28,23 @@ Eliges una edición y abres sobres con la distribución real de rarezas (comunes
 - Las cartas llegan a la mano una a una, como al abrir un sobre de verdad.
 - Con 6 sobres montas un mazo **Sealed**: sirve para practicar antes de un presentación de una edición.
 
-## 4. Compartir el mazo como imagen
-
-Genera una imagen bonita del mazo: comandante grande, cartas agrupadas por tipo, curva de maná y precio.
-
-- Se manda por WhatsApp o redes y sirve de publicidad gratis para la app.
-- Funciona en Expo Go (`react-native-view-shot`).
-
-## 5. Intercambio entre dos móviles por QR
+## 4. Intercambio entre dos móviles por QR
 
 Cada uno enseña un QR con lo que busca, y la app cruza las cartas que el otro tiene repetidas en su colección.
 
 - Muy útil para cambiar cartas en la tienda o en un torneo.
 
-## 6. Copia de seguridad y restauración 🔴
+## 5. Copia de seguridad y restauración 🔴
 
 Lo más urgente: los mazos y la colección solo están en el móvil, y si se desinstala la app se pierden.
 
 - Exportar todo a un archivo que se pueda guardar en Drive o mandar por WhatsApp, e importarlo después.
 
-## 7. Importar y exportar listas de texto
-
-Pegar una lista tipo «1 Sol Ring» para crear un mazo o sumar cartas a la colección, y copiar un mazo como texto.
-
-- Formatos: MTG Arena (`4 Lightning Bolt (M11) 149`), Moxfield, Archidekt y MTGO, que son casi iguales.
-- Comparte formato con la copia de seguridad: conviene hacerlas juntas.
-
-## 8. Cosas de MTG Arena
-
-Arena no tiene API ni deja leer sus datos en Android, así que todo pasa por copiar y pegar y por los datos de Scryfall.
-
-- Botón **«Copiar para Arena»**: se pega en *Importar* de Arena (PC o móvil).
-- Importar mazos exportados desde Arena (es la función 7).
-- Filtro **«Solo cartas de Arena»** en Construir.
-- Formatos de Arena: Historic, Timeless, Alchemy, Brawl y Standard Brawl.
-- Aviso en la validación si una carta del mazo no existe en Arena.
-- No se puede: leer la colección, los comodines o las partidas de Arena, ni abrir Arena con el mazo cargado.
-
-## 9. Lista de deseos
+## 6. Lista de deseos
 
 Las cartas que quieres conseguir, con su precio y enlace a Cardmarket.
 
-## 10. Foil y estado en la colección
+## 7. Foil y estado en la colección
 
 Marcar cada carta como foil y su estado (Mint, Near Mint…) para afinar su valor.
 

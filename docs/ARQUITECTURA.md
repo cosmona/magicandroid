@@ -280,6 +280,24 @@ animados a mano chocaban con botones y listas.
 - **`MissingCardsModal`**: cartas que faltan respecto a la colección, con precio, enlace a Cardmarket y lista para
   copiar.
 - **`TokensModal`**: fichas que crean las cartas (agrupadas por nombre y tipo).
+- **`CardShareSheet`** (`components/`, botón compartir de cada carta en el mazo y la colección): imagen `large` descargada a la caché con `expo-file-system` (`File.downloadFileAsync`) y compartida con `expo-sharing` (copia antes el enlace al portapapeles, porque Android no deja adjuntar texto a una imagen), enlace de Scryfall con `Share` o copiarlo. El enlace es `scryfallUrl` de `getCardDetails` (`scryfall_uri` sin parámetros).
+- **MTG Arena** (`deck/arena.ts`, puro): Arena no tiene API, así que se pasa por el portapapeles. `onArena` usa las
+  legalidades guardadas (en Arena, Timeless/Historic/Brawl/Alchemy no son `not_legal`), `arenaName` deja «A // B» solo
+  en cartas partidas (instantáneo/conjuro) y la cara frontal en el resto, y `arenaDeckList` arma *Commander* + *Deck*
+  sin las cartas que no existen en Arena. Formatos de Arena en `theme.ts` (`ARENA_FORMATS`; Brawl y Standard Brawl
+  son de comandante, `commanderDeckSize` en `validation.ts`) y `Filters.arena`: con él o con un formato de Arena,
+  `buildQuery` usa `game:arena` en vez de `game:paper`.
+- **Importar listas** (`components/ImportListModal`, desde el `DeckPicker` → mazo nuevo, o desde la colección):
+  `deck/importList.ts` (puro) lee formatos de Arena, MTGO, Moxfield y Archidekt (`parseDeckList`: secciones
+  *Commander* / *Deck* / *Sideboard*…, «Name …» de Arena, `*CMDR*` y categorías `[Commander]`, `(SET) número`, `4x`,
+  «A/B» → «A // B»). `resolveCardList` (`scryfall.ts`) busca en `/cards/collection` primero por edición + número
+  (solo si el nombre coincide; los códigos propios de Arena no existen en Scryfall) y el resto por nombre (cara
+  frontal). Opcionalmente pasa cada carta al idioma preferido (`getCardInLanguage`). Con comandante el mazo se crea en
+  formato `commander` y `setCommander`.
+- **`ShareDeckModal`** (botón Compartir): dibuja la imagen del mazo en una `View` normal (portada `art_crop`, comandante
+  o las 3 cartas más caras, `deckStats`, lista por tipos, pie con el logo), espera a que carguen las imágenes remotas
+  (máx. 6 s) y la captura con `react-native-view-shot` (`captureRef`, PNG de 1080 px de ancho) para compartirla con
+  `expo-sharing`. «Como texto» usa `Share` con la lista.
 - **`DeckStatsScreen`** (botón del gráfico, `Modal` a pantalla completa): pestaña *Estadísticas* (resumen, aviso de
   tierras, curva apilada criaturas / otros, símbolos por color frente a tierras que lo dan, tipos; gráficos hechos con
   `View`, sin librería) y pestaña *Mano de prueba* (biblioteca sin comandantes, barajar, mulligan London eligiendo las

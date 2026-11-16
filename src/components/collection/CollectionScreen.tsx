@@ -5,7 +5,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -45,6 +44,8 @@ import {
   type GroupBy,
 } from '@/collection/organize';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
+import { CardShareSheet, type ShareableCard } from '@/components/CardShareSheet';
+import { ImportListModal } from '@/components/ImportListModal';
 import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/components/CardControls';
 import { useAppState } from '@/context/AppState';
 import {
@@ -95,6 +96,7 @@ export function CollectionScreen() {
   const [preview, setPreview] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [importing, setImporting] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const [filter, setFilter] = useState<CollectionFilter>(EMPTY_FILTER);
@@ -258,6 +260,7 @@ export function CollectionScreen() {
   };
 
   const [infoId, setInfoId] = useState<string | null>(null);
+  const [shareCard, setShareCard] = useState<ShareableCard | null>(null);
 
   /** Adds this printing to the active deck (creating "Mazo sin nombre" if there's none). */
   const addToDeck = async (card: CollectionCard) => {
@@ -301,6 +304,14 @@ export function CollectionScreen() {
             </Pressable>
           )}
         </View>
+        <Pressable
+          style={[styles.scanButton, styles.importButton]}
+          onPress={() => setImporting(true)}
+          hitSlop={6}
+          accessibilityLabel="Importar lista"
+        >
+          <MaterialCommunityIcons name="import" size={24} color={colors.accent} />
+        </Pressable>
         <Pressable style={styles.scanButton} onPress={() => setScanning(true)} hitSlop={6}>
           <Text style={styles.scanIcon}>📷</Text>
         </Pressable>
@@ -495,7 +506,9 @@ export function CollectionScreen() {
                 <CardIconButton
                   icon="share-variant-outline"
                   hint="Compartir"
-                  onPress={() => Share.share({ message: `${displayName(card)}\n${card.imageUrl ?? ''}` })}
+                  onPress={() =>
+                    setShareCard({ scryfallId: card.scryfallId, name: displayName(card), imageUrl: card.imageUrl })
+                  }
                 />
                 <CardIconButton
                   icon="trash-can-outline"
@@ -536,6 +549,16 @@ export function CollectionScreen() {
 
       {undo && <UndoBar label={undo.label} onUndo={runUndo} />}
       {infoId && <CardInfoScreen id={infoId} onClose={() => setInfoId(null)} />}
+      {importing && (
+        <ImportListModal
+          target="collection"
+          onClose={() => {
+            setImporting(false);
+            load();
+          }}
+        />
+      )}
+      {shareCard && <CardShareSheet card={shareCard} onClose={() => setShareCard(null)} />}
 
       {toast && (
         <View style={styles.toast} pointerEvents="none">
@@ -574,6 +597,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   scanIcon: { fontSize: 22 },
+  importButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   stats: { color: colors.textMuted, fontWeight: '700' },
   value: { color: colors.accent, fontWeight: '800' },
   searchBox: {

@@ -1,21 +1,24 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSQLiteContext } from 'expo-sqlite';
 import { artCropUrl } from '@/api/scryfall';
 import { DeckFormModal } from '@/components/DeckFormModal';
+import { ImportListModal } from '@/components/ImportListModal';
 import { useAppState } from '@/context/AppState';
 import { createDeck } from '@/db/database';
 import { colors, formatLabel } from '@/theme';
 
 /**
  * Row of saved decks (the web's Mazos list) that drops down under the deck's cover in the
- * deck sheet; tap one to load it, ＋ to create one. `onPicked` closes the dropdown.
+ * deck sheet; tap one to load it, ＋ to create one, Importar to paste a list. `onPicked` closes the dropdown.
  */
 export function DeckPicker({ onPicked }: { onPicked?: () => void }) {
   const db = useSQLiteContext();
   const { decks, activeDeck, setActiveDeckId } = useAppState();
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const create = async (name: string, format: string | null) => {
     const id = await createDeck(db, name, format);
@@ -30,6 +33,10 @@ export function DeckPicker({ onPicked }: { onPicked?: () => void }) {
         <Pressable style={[styles.tile, styles.newTile]} onPress={() => setCreating(true)}>
           <Text style={styles.newPlus}>＋</Text>
           <Text style={styles.tileName}>Nuevo</Text>
+        </Pressable>
+        <Pressable style={[styles.tile, styles.newTile]} onPress={() => setImporting(true)}>
+          <MaterialCommunityIcons name="import" size={30} color={colors.accent} style={{ marginVertical: 3 }} />
+          <Text style={styles.tileName}>Importar</Text>
         </Pressable>
         {decks.map((deck) => (
           <Pressable
@@ -59,6 +66,15 @@ export function DeckPicker({ onPicked }: { onPicked?: () => void }) {
         ))}
       </ScrollView>
 
+      {importing && (
+        <ImportListModal
+          target="deck"
+          onClose={() => {
+            setImporting(false);
+            onPicked?.();
+          }}
+        />
+      )}
       {creating && <DeckFormModal title="Nuevo mazo" onCancel={() => setCreating(false)} onSubmit={create} />}
     </View>
   );

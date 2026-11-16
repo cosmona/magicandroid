@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -11,8 +11,10 @@ import { DeckFormModal } from '@/components/DeckFormModal';
 import { DeckPicker } from '@/components/deck/DeckPicker';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
 import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/components/CardControls';
+import { CardShareSheet, type ShareableCard } from '@/components/CardShareSheet';
 import { DeckSummary } from '@/components/deck/DeckSummary';
 import { DeckStatsScreen } from '@/components/deck/DeckStatsScreen';
+import { ShareDeckModal } from '@/components/deck/ShareDeckModal';
 import { DeckSynergyScreen } from '@/components/deck/DeckSynergyScreen';
 import { MissingCardsModal, type MissingCard } from '@/components/deck/MissingCardsModal';
 import { deckTokens, TokensModal } from '@/components/deck/TokensModal';
@@ -95,6 +97,8 @@ export function DeckSheet() {
   const [showTokens, setShowTokens] = useState(false);
   const [showSynergy, setShowSynergy] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [shareCard, setShareCard] = useState<ShareableCard | null>(null);
   // "Mis mazos" drops down from the cover, like a select.
   const [picking, setPicking] = useState(false);
   // Printing shown in the full Scryfall info screen.
@@ -168,14 +172,6 @@ export function DeckSheet() {
       offerUndo(`«${activeDeck.name}» borrado`, snapshot);
     });
 
-  const shareList = () =>
-    activeDeck &&
-    Share.share({
-      message:
-        `${activeDeck.name} (${formatLabel(activeDeck.format)})\n` +
-        activeCards.map((c) => `${c.quantity} ${c.name}`).join('\n'),
-    });
-
   const deckId = activeDeck?.id;
   const run = (p: Promise<unknown>) => p.then(() => refresh());
   const removeCard = async (c: DeckCard) => {
@@ -194,7 +190,7 @@ export function DeckSheet() {
         removeCard(c);
       }),
     cover: (c) => deckId && run(setDeckCover(db, deckId, c.imageUrl)),
-    share: (c) => Share.share({ message: `${displayName(c)}\n${c.imageUrl ?? ''}` }),
+    share: (c) => setShareCard({ scryfallId: c.scryfallId, name: displayName(c), imageUrl: c.imageUrl }),
     preview: (c) => setPreview(c),
     info: (c) => setInfoId(c.scryfallId),
     commander: (c) => deckId && run(setCommander(db, deckId, c.oracleId, !c.isCommander)),
@@ -289,7 +285,12 @@ export function DeckSheet() {
             highlight={unnamed}
             onPress={() => setEditing(true)}
           />
-          <Action icon="share-variant-outline" hint="Compartir" onPress={shareList} disabled={!activeCards.length} />
+          <Action
+            icon="share-variant-outline"
+            hint="Compartir"
+            onPress={() => setShowShare(true)}
+            disabled={!activeCards.length}
+          />
           {!!missing && (
             <Action icon="cart-outline" hint="Comprar en Cardmarket" filled onPress={() => setShopping(true)} />
           )}
@@ -394,6 +395,15 @@ export function DeckSheet() {
       )}
       {undo && <UndoBar label={undo.label} onUndo={runUndo} />}
       {infoId && <CardInfoScreen id={infoId} onClose={() => setInfoId(null)} />}
+      {shareCard && <CardShareSheet card={shareCard} onClose={() => setShareCard(null)} />}
+      {showShare && activeDeck && (
+        <ShareDeckModal
+          deck={activeDeck}
+          cards={activeCards}
+          usesCommander={validation.usesCommander}
+          onClose={() => setShowShare(false)}
+        />
+      )}
       {showStats && activeDeck && (
         <DeckStatsScreen
           cards={activeCards}

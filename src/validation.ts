@@ -17,7 +17,15 @@ export interface DeckValidation {
 }
 
 const NUMBER_WORDS: Record<string, number> = {
-  two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
 };
 
 /** Copies allowed by the card's own text, or null to use the format's limit. */
@@ -41,10 +49,17 @@ const parseLegalities = (card: DeckCard): Record<string, string> | null => {
   }
 };
 
+/** Exact size of a commander-style deck: 60 in Oathbreaker and Standard Brawl, else 100. */
+export const commanderDeckSize = (format: string | null) =>
+  format === 'oathbreaker' || format === 'standardbrawl' ? 60 : 100;
+
 function canBeCommander(card: DeckCard, format: string): boolean {
   const text = card.oracleText ?? '';
   if (format === 'oathbreaker') return /\bPlaneswalker\b/.test(card.typeLine);
   if (/can be your commander/i.test(text)) return true;
+  // Brawl: any legendary creature or planeswalker.
+  if (format === 'brawl' || format === 'standardbrawl')
+    return /\bLegendary\b/.test(card.typeLine) && /\b(Creature|Planeswalker)\b/.test(card.typeLine);
   const creature = /\bCreature\b/.test(card.typeLine);
   if (format === 'paupercommander') return creature && card.rarity === 'uncommon';
   return creature && /\bLegendary\b/.test(card.typeLine);
@@ -80,7 +95,7 @@ export function validateDeck(format: string | null, cards: DeckCard[]): DeckVali
 
   // ---- Size ----
   if (usesCommander) {
-    const size = format === 'oathbreaker' ? 60 : 100;
+    const size = commanderDeckSize(format);
     if (total !== size) issues.push(`Debe tener exactamente ${size} cartas (ahora ${total}).`);
   } else if (total < 60) {
     issues.push(`Debe tener al menos 60 cartas (ahora ${total}).`);
@@ -99,7 +114,12 @@ export function validateDeck(format: string | null, cards: DeckCard[]): DeckVali
         issues.push('Dos comandantes solo si tienen Partner, Friends forever o Background.');
       for (const c of commanders) {
         if (!canBeCommander(c, format))
-          flag(c, format === 'paupercommander' ? 'No puede ser comandante (criatura infrecuente).' : 'No puede ser comandante.');
+          flag(
+            c,
+            format === 'paupercommander'
+              ? 'No puede ser comandante (criatura infrecuente).'
+              : 'No puede ser comandante.',
+          );
         if (c.quantity > 1) flag(c, 'El comandante va una sola vez.');
       }
       if (commanders.every((c) => c.colorIdentity !== null))

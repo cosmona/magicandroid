@@ -52,13 +52,30 @@ export const FORMATS: FormatOption[] = [
   { key: 'predh', label: 'PreDH', icon: FORMAT_ICONS.predh },
   { key: 'premodern', label: 'Premodern', icon: FORMAT_ICONS.premodern },
   { key: 'vintage', label: 'Vintage', icon: FORMAT_ICONS.vintage },
+  // MTG Arena only
+  { key: 'historic', label: 'Historic (Arena)', icon: FORMAT_ICONS.generic },
+  { key: 'timeless', label: 'Timeless (Arena)', icon: FORMAT_ICONS.generic },
+  { key: 'alchemy', label: 'Alchemy (Arena)', icon: FORMAT_ICONS.generic },
+  { key: 'brawl', label: 'Brawl (Arena)', icon: FORMAT_ICONS.commander },
+  { key: 'standardbrawl', label: 'Standard Brawl (Arena)', icon: FORMAT_ICONS.commander },
 ];
+
+/** Formats that only exist in MTG Arena: searching them looks at Arena cards (`game:arena`). */
+export const ARENA_FORMATS = ['historic', 'timeless', 'alchemy', 'brawl', 'standardbrawl'];
 
 export const formatOption = (key: string | null) => FORMATS.find((f) => f.key === key) ?? FORMATS[0];
 export const formatLabel = (key: string | null) => formatOption(key).label;
 
 /** Formats where a deck may only hold one copy of each card. */
-export const SINGLETON_FORMATS = ['commander', 'duel', 'oathbreaker', 'paupercommander', 'predh'];
+export const SINGLETON_FORMATS = [
+  'commander',
+  'duel',
+  'oathbreaker',
+  'paupercommander',
+  'predh',
+  'brawl',
+  'standardbrawl',
+];
 
 /** "0,45 €" / "12,30 €" / "143 €" (no cents from 100 up). */
 export function formatEur(n: number): string {

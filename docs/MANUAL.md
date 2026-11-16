@@ -77,6 +77,8 @@ La fila **Filtros** (debajo de las pestañas) muestra un resumen de lo que está
 - **Colores**, con tres modos: *jugables en* (para un comandante), *exactamente* o *incluye*; e **incolora**.
 - **Tipos** (varios a la vez), **legendaria**, **subtipo**, **coste de maná** mínimo y máximo.
 - **Rareza**, **habilidades** (en español), **formato**, **edición** y **orden** de los resultados.
+- **Solo cartas de MTG Arena:** muestra solo las cartas que existen en Arena (incluidas las de Alchemy, que no existen
+  en papel). Los formatos de Arena (Historic, Timeless, Alchemy, Brawl, Standard Brawl) ya buscan cartas de Arena.
 
 Pulsa **Buscar** para aplicar los filtros.
 
@@ -98,8 +100,8 @@ La hoja del mazo tiene tres posiciones:
 
 ### La cabecera
 
-- **Portada y flecha ⌄:** tócalas para desplegar **tus mazos**. Elige uno para cargarlo, o **＋ Nuevo** para crear
-  otro. El desplegable se cierra solo al elegir.
+- **Portada y flecha ⌄:** tócalas para desplegar **tus mazos**. Elige uno para cargarlo, **＋ Nuevo** para crear
+  otro o **Importar** para pegar una lista ([ver más](#importar-una-lista)). El desplegable se cierra solo al elegir.
 - **Nombre, formato, cartas y estado** (✓ válido / ⚠ revisar).
 - **≈ precio** del mazo en Cardmarket.
 - **📦 «Te faltan N de tu colección»** (amarillo) o «Las tienes todas» (verde): compara el mazo con tu colección.
@@ -113,7 +115,7 @@ La hoja del mazo tiene tres posiciones:
 | Botón | Qué hace |
 |---|---|
 | ✎ / 💾 | Editar el nombre y el formato (💾 si el mazo aún no tiene nombre) |
-| Compartir | Envía la lista del mazo como texto |
+| Compartir | Crea una **imagen del mazo** para mandar por WhatsApp o redes: portada, comandante (o las 3 cartas más caras), tierras, coste medio, curva, colores y la lista por tipos. También se puede enviar **como texto** o copiar **para MTG Arena** ([ver más](#pasar-un-mazo-a-mtg-arena)) |
 | 🛒 (amarillo) | Comprar en Cardmarket las cartas que te faltan ([ver más](#8-precios-y-cardmarket)) |
 | Gráfico de barras | [Estadísticas y mano de prueba](#10-estadísticas-y-mano-de-prueba) |
 | Pieza de puzle | [Sinergias y combos](#9-sinergias-y-combos) del mazo |
@@ -132,7 +134,7 @@ lealtad, precio, cuántas tienes en tu colección y sus problemas de validación
 | 👑 | Elegir comandante (solo en formatos con comandante) |
 | ⓘ | Abre la [ficha completa](#5-ficha-completa-de-una-carta) |
 | Imagen | Usar la carta como portada del mazo |
-| Compartir | Enviar la carta |
+| Compartir | Enviar la **imagen** de la carta (y copiar su enlace de Scryfall para pegarlo al lado), enviar solo el **enlace de Scryfall** o copiarlo |
 | Papelera | Quitarla del mazo (pide confirmación) |
 
 ### Deshacer
@@ -148,10 +150,41 @@ Puedes añadir lo que quieras: el mazo nunca te lo impide, solo te avisa.
 |---|---|
 | Commander, Duel, PreDH, Pauper Commander | Comandante elegido y elegible (dos con *Partner*, *Friends forever* o *Background*), 100 cartas exactas, 1 copia de cada carta, identidad de color y legalidad |
 | Oathbreaker | Igual, con un planeswalker como líder y 60 cartas |
+| Brawl (Arena) | Como Commander, con 100 cartas; el comandante puede ser una criatura o un planeswalker legendario |
+| Standard Brawl (Arena) | Igual que Brawl, con 60 cartas |
+| Historic, Timeless, Alchemy (Arena) | Como Estándar: mínimo 60 cartas, máximo 4 copias y legalidad |
 | Estándar, Pioneer, Modern, Legacy, Vintage, Pauper, Premodern, Penny | Mínimo 60 cartas, máximo 4 copias (1 si está restringida en Vintage) y legalidad |
 | Libre | Sin comprobaciones |
 
-Las tierras básicas y las cartas que permiten cualquier número de copias respetan su propia regla.
+Las tierras básicas y las cartas que permiten cualquier número de copias respetan su propia regla. En los formatos de
+Arena, una carta que no existe en Arena sale como «No es legal».
+
+### Pasar un mazo a MTG Arena
+
+Arena no deja que otras apps lean ni cambien sus datos, así que se hace copiando y pegando:
+
+1. En el mazo, pulsa **Compartir** y luego **Arena**. La lista se copia en el formato que entiende Arena (nombres en
+   inglés y, si el mazo tiene comandante, su sección *Commander*).
+2. En MTG Arena (móvil o PC): **Mazos → Importar**. Las cartas que no tengas se pueden crear con comodines.
+
+Las cartas que no existen en Arena se quedan fuera de la lista (si no, Arena rechazaría todo el mazo) y la app te dice
+cuáles son.
+
+### Importar una lista
+
+Para traer un mazo de MTG Arena, Moxfield, Archidekt, MTGO o cualquier lista con una carta por línea («4 Lightning
+Bolt», «1x Sol Ring (CMR) 472»):
+
+1. Copia la lista (en Arena: en el mazo, *Exportar*).
+2. Despliega tus mazos (portada ⌄) y pulsa **Importar**. En la colección, el botón de importar está junto a 📷.
+3. **Pegar del portapapeles**, revisa el resumen (cartas, comandante, banquillo) y pulsa **Crear el mazo** o **Añadir a
+   la colección**.
+
+- Se respeta la edición cuando la lista la indica; si no, se usa la habitual de Scryfall.
+- Con **En tu idioma** activado se busca cada carta en tu idioma (tarda un poco con listas largas).
+- Si la lista tiene sección *Commander* (o la etiqueta de comandante de Archidekt), el mazo se crea en formato
+  Commander con su comandante 👑. Si no, en formato Libre: cámbialo con ✏️.
+- El banquillo (*Sideboard*, *Maybeboard*) no se importa. Al terminar verás las cartas que no se encontraron.
 
 ## 5. Ficha completa de una carta
 
@@ -184,6 +217,8 @@ Aquí apuntas las cartas que tienes de verdad. Cada fila es una **impresión** c
   Confirma con «＋ Añadir a la colección» o pulsa «↻ No es esta». Si no la reconoce, puedes buscarla a mano. *No funciona
   en Expo Go, solo en la app instalada.*
 - **Desde Construir:** botón **📦 La tengo** encima de la carta.
+- **Importar una lista** (botón junto a 📷): pega una lista de cartas, por ejemplo la exportación de otra web, y se
+  suman todas a la colección con su edición si la lista la indica ([ver más](#importar-una-lista)).
 
 Arriba se muestra el total de cartas, las distintas y el **valor aproximado** de la colección.
 
@@ -206,7 +241,7 @@ copias y su valor: **Color**, **Tipo**, **Edición** (de la más nueva a la más
 | **− N +** | Copias que tienes. Bajar a 0 la quita (se puede deshacer) |
 | ⓘ | [Ficha completa](#5-ficha-completa-de-una-carta) |
 | Cartas | Añadirla al mazo activo |
-| Compartir | Enviar la carta |
+| Compartir | Enviar la **imagen** de la carta (y copiar su enlace de Scryfall para pegarlo al lado), enviar solo el **enlace de Scryfall** o copiarlo |
 | Papelera | Quitarla de la colección (pide confirmación y se puede deshacer) |
 
 Si la carta está en algún mazo verás «En algún mazo» en verde. La vista **galería** (▦) muestra solo las imágenes.

@@ -41,6 +41,9 @@ son siempre las cartas.
 | ⓘ **Ficha completa** | Todo lo que Scryfall sabe de una carta (reglas, legalidad, precios, rankings, impresión, aclaraciones oficiales…) con la explicación de cada dato. |
 | 🧩 **Sinergias y combos** | Cómo se juega cada carta en Commander y sus cartas afines ([EDHREC](https://edhrec.com)), sus combos y los que tu mazo tiene o está a una carta de tener ([Commander Spellbook](https://commanderspellbook.com)), y recomendaciones para tu comandante. |
 | 📊 **Estadísticas y mano de prueba** | Curva de maná, colores (símbolos frente a tierras que los dan), tipos y aviso de tierras. **Recomendar maná** añade las tierras básicas que faltan, repartidas por colores (como en Arena). Roba una mano de 7, haz mulligan y roba turno a turno. |
+| 🖼️ **Compartir como imagen** | Una imagen del mazo lista para WhatsApp o redes: portada, comandante, curva, colores y la lista por tipos. |
+| 🎮 **MTG Arena** | Formatos de Arena, filtro «Solo cartas de Arena» y **copiar el mazo para Arena** (Mazos → Importar), avisando de las cartas que no existen allí. |
+| 📥 **Importar listas** | Pega un mazo exportado de Arena, Moxfield, Archidekt o MTGO (o cualquier lista «4 Nombre») para crear un mazo o sumarlo a la colección. |
 | 🪙 **Fichas** | Las fichas y emblemas que crean las cartas de tu mazo, con su imagen. |
 | ❤️ **Contador de vidas** | De 2 a 6 jugadores alrededor del móvil, con veneno, daño de comandante, quién empieza y dados. La pantalla no se apaga y la partida se guarda sola. |
 | 📦 **Colección** | Tus cartas reales por edición e idioma: añádelas buscando, con **📷 el escáner** (reconoce la carta con la cámara) o con **📦 La tengo**. Filtros (color, tipo, coste, rareza, edición, idioma, precio, uso en mazos, repetidas) y agrupaciones (color, tipo, edición, rareza, coste, precio). Cada mazo te dice cuántas cartas te faltan. |
@@ -54,6 +57,8 @@ son siempre las cartas.
 |---|---|
 | **Commander · Duel · PreDH · Pauper Commander** | Comandante elegido (o dos con *Partner* / *Friends forever* / *Background*), elegible, 100 cartas exactas, 1 copia por carta, identidad de color y legalidad |
 | **Oathbreaker** | Igual, con un planeswalker como líder y 60 cartas |
+| **Brawl · Standard Brawl** (Arena) | Como Commander (100 / 60 cartas), con criatura o planeswalker legendario de comandante |
+| **Historic · Timeless · Alchemy** (Arena) | Como Estándar |
 | **Estándar · Pioneer · Modern · Legacy · Vintage · Pauper · Premodern · Penny** | Mínimo 60 cartas, máximo 4 copias (1 si está restringida en Vintage) y legalidad |
 | **Libre** | Sin comprobaciones |
 
