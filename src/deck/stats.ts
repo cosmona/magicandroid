@@ -24,6 +24,8 @@ export interface DeckStats {
   types: { type: TypeKey; count: number }[];
   /** Suggested number of lands for a deck of this size. */
   landRange: [number, number];
+  /** Deck size the range is for (the format's size, or the current count). */
+  landRangeSize: number;
 }
 
 const emptyColors = (): Record<ManaColor, number> => ({ W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 });
@@ -73,7 +75,11 @@ export function curveCost(card: Pick<DeckCard, 'cmc' | 'manaCost'>): number {
   return Math.min(...values);
 }
 
-export function deckStats(cards: DeckCard[]): DeckStats {
+/**
+ * `format`: the deck's size rules for the land advice — the exact size of a commander-style deck
+ * (100 / 60), or 'limited' (40). Without it the advice goes by the current number of cards.
+ */
+export function deckStats(cards: DeckCard[], format?: { commanderSize?: number | null; limited?: boolean }): DeckStats {
   const curve = Array.from({ length: CURVE_MAX + 1 }, () => ({ creatures: 0, others: 0 }));
   const symbols = emptyColors();
   const sources = emptyColors();
@@ -103,10 +109,13 @@ export function deckStats(cards: DeckCard[]): DeckStats {
 
   // Commander-size decks play ~35-38 lands; 60-card decks ~22-26 (40 % of the deck).
   const big = total >= 90;
-  const landRange: [number, number] = [
-    Math.round(total * (big ? 0.35 : 0.37)),
-    Math.round(total * (big ? 0.38 : 0.43)),
-  ];
+  // An unfinished Commander deck still aims at its final size (35-38 lands in 100 cards).
+  const size = format?.commanderSize ?? (format?.limited ? 40 : total);
+  const landRange: [number, number] = format?.commanderSize
+    ? [Math.round(size * 0.35), Math.round(size * 0.38)]
+    : format?.limited
+      ? [16, 18]
+      : [Math.round(total * (big ? 0.35 : 0.37)), Math.round(total * (big ? 0.38 : 0.43))];
 
   return {
     total,
@@ -117,6 +126,7 @@ export function deckStats(cards: DeckCard[]): DeckStats {
     sources,
     types: [...types].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count),
     landRange,
+    landRangeSize: size,
   };
 }
 

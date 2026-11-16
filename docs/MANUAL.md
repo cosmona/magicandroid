@@ -1,6 +1,7 @@
 # 📖 Manual de usuario de Magic Swipe
 
 > Este manual crece con la app: cada vez que algo cambia, se actualiza aquí.
+> Las capturas son de un Android con las cartas en español y un mazo de ejemplo.
 > Versión de la app: **1.0.0** · Última revisión: noviembre de 2026.
 
 Magic Swipe sirve para construir mazos de *Magic: The Gathering* como si tuvieras un puñado de cartas en la mano: las vas
@@ -34,6 +35,8 @@ te dice cuánto cuestan y te ayuda a comprar las que te faltan.
 - Al abrir la app verás un momento la pantalla de carga con el logo y el número de versión.
 
 ## 2. La pantalla principal
+
+<table><tr><td align="center"><img src="img/construir.jpg" width="240" alt="Construir: la carta en la mano"><br><sub>Construir: la carta en la mano</sub></td></tr></table>
 
 De arriba a abajo:
 
@@ -85,6 +88,8 @@ Para corregir una decisión, abre el **historial** y toca la carta: vuelves a el
 
 ### La fila de botones de abajo
 
+<table><tr><td align="center"><img src="img/la-tengo.jpg" width="240" alt="Panel de «La tengo»"><br><sub>Panel de «La tengo»</sub></td></tr></table>
+
 De izquierda a derecha: **✕** descartar, **idioma**, **arte**, **historial** (con la posición en los resultados),
 **la tengo** y **✓** añadir.
 
@@ -96,10 +101,14 @@ De izquierda a derecha: **✕** descartar, **idioma**, **arte**, **historial** (
 
 ### Historial ▤
 
+<table><tr><td align="center"><img src="img/historial.jpg" width="240" alt="Historial"><br><sub>Historial</sub></td></tr></table>
+
 El botón ▤ junto al contador abre las miniaturas de las cartas vistas (con su decisión), la actual resaltada y las
 siguientes. **Toca** una para saltar a ella; **mantén pulsado** para verla en grande. Al llegar al final carga más.
 
 ### Filtros
+
+<table><tr><td align="center"><img src="img/filtros.jpg" width="240" alt="Filtros de búsqueda"><br><sub>Filtros de búsqueda</sub></td></tr></table>
 
 La fila **Filtros** (debajo de las pestañas) muestra un resumen de lo que estás filtrando; tócala para cambiarlo:
 
@@ -126,6 +135,8 @@ hacia abajo (desde cualquier punto de la parte de arriba, incluidos los botones)
 
 ### La cabecera
 
+<table><tr><td align="center"><img src="img/mazo-lista.jpg" width="240" alt="Mazo en vista lista"><br><sub>Mazo en vista lista</sub></td><td align="center"><img src="img/mazo-galeria.jpg" width="240" alt="Vista galería"><br><sub>Vista galería</sub></td><td align="center"><img src="img/agrupar.jpg" width="240" alt="Agrupar por"><br><sub>Agrupar por</sub></td></tr></table>
+
 - **Portada y flecha ⌄:** tócalas para desplegar **tus mazos**. Elige uno para cargarlo, **＋ Nuevo** para crear
   otro o **Importar** para pegar una lista ([ver más](#importar-una-lista)). El desplegable se cierra solo al elegir.
 - **Nombre, formato, cartas y estado** (✓ válido / ⚠ revisar).
@@ -146,6 +157,8 @@ hacia abajo (desde cualquier punto de la parte de arriba, incluidos los botones)
   afectadas (toca una carta para verla).
 
 ### Botones del mazo
+
+<table><tr><td align="center"><img src="img/compartir-mazo.jpg" width="240" alt="Compartir el mazo como imagen"><br><sub>Compartir el mazo como imagen</sub></td></tr></table>
 
 | Botón | Qué hace |
 |---|---|
@@ -221,6 +234,8 @@ cuáles son.
 
 ### Importar una lista
 
+<table><tr><td align="center"><img src="img/importar.jpg" width="240" alt="Importar una lista"><br><sub>Importar una lista</sub></td></tr></table>
+
 Para traer un mazo de MTG Arena, Moxfield, Archidekt, MTGO o cualquier lista con una carta por línea («4 Lightning
 Bolt», «1x Sol Ring (CMR) 472»):
 
@@ -242,6 +257,8 @@ Bolt», «1x Sol Ring (CMR) 472»):
 
 ## 5. Ficha completa de una carta
 
+<table><tr><td align="center"><img src="img/ficha.jpg" width="240" alt="Ficha completa (ⓘ)"><br><sub>Ficha completa (ⓘ)</sub></td></tr></table>
+
 El botón **ⓘ** (en el mazo y en la colección) abre una pantalla con **todo lo que Scryfall sabe de esa impresión**.
 Debajo de cada dato hay una explicación de qué significa.
 Cada bloque se **pliega y despliega** tocando su título (flecha a la derecha), para ir directo a lo que buscas.
@@ -260,6 +277,8 @@ Cada bloque se **pliega y despliega** tocando su título (flecha a la derecha), 
 Usa **←** para volver y **↗** para abrirla en Scryfall.
 
 ## 6. Colección
+
+<table><tr><td align="center"><img src="img/coleccion.jpg" width="240" alt="Tu colección"><br><sub>Tu colección</sub></td></tr></table>
 
 Aquí apuntas las cartas que tienes de verdad. Cada fila es una **impresión** concreta (edición + idioma).
 
@@ -302,6 +321,8 @@ copias y su valor: **Color**, **Tipo**, **Edición** (de la más nueva a la más
 Si la carta está en algún mazo verás «En algún mazo» en verde. La vista **galería** (▦) muestra solo las imágenes.
 
 ## 7. Ajustes
+
+<table><tr><td align="center"><img src="img/ajustes.jpg" width="240" alt="Ajustes"><br><sub>Ajustes</sub></td></tr></table>
 
 Botón ⚙ de la cabecera:
 
@@ -349,6 +370,8 @@ Scryfall no sabe qué cartas funcionan bien juntas, así que la app lo consulta 
 
 ### En el mazo (botón de la pieza de puzle)
 
+<table><tr><td align="center"><img src="img/sinergias-combos.jpg" width="240" alt="Combos del mazo"><br><sub>Combos del mazo</sub></td><td align="center"><img src="img/sinergias-recomendadas.jpg" width="240" alt="Recomendadas"><br><sub>Recomendadas</sub></td></tr></table>
+
 Se abre una pantalla con dos pestañas:
 
 - **Combos:** los que el mazo ya tiene completos y los que están **a una carta** (la que falta, marcada en amarillo).
@@ -368,6 +391,8 @@ Estas webs no son oficiales: si cambian, alguna sección puede dejar de cargar h
 El botón del **gráfico de barras** del mazo abre una pantalla con dos pestañas.
 
 ### Estadísticas
+
+<table><tr><td align="center"><img src="img/estadisticas.jpg" width="240" alt="Estadísticas"><br><sub>Estadísticas</sub></td><td align="center"><img src="img/mano-de-prueba.jpg" width="240" alt="Mano de prueba"><br><sub>Mano de prueba</sub></td></tr></table>
 
 - **Cartas, tierras y coste medio** (el coste medio no cuenta las tierras), y un aviso si tienes **pocas o muchas
   tierras** para el tamaño del mazo: con 100 cartas se suelen jugar 35-38; con 60, unas 22-26. Es orientativo: un mazo
@@ -395,6 +420,8 @@ Baraja el mazo y roba 7 cartas, como al empezar una partida (sin el comandante, 
 - Toca una carta para verla en grande. Debajo verás la probabilidad de que la mano inicial traiga entre 2 y 4 tierras.
 
 ## 11. Contador de vidas
+
+<table><tr><td align="center"><img src="img/vidas.jpg" width="240" alt="Contador de vidas"><br><sub>Contador de vidas</sub></td></tr></table>
 
 La pestaña **Vidas** es un contador para partidas de 2 a 6 jugadores. Deja el móvil en el centro de la mesa: los
 jugadores de la fila de arriba ven sus números del derecho desde el otro lado. Mientras estás en esta pestaña la

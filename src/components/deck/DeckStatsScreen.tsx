@@ -75,7 +75,16 @@ export function DeckStatsScreen({
 }) {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<Tab>('stats');
-  const stats = useMemo(() => deckStats(cards), [cards]);
+  const { activeDeck } = useAppState();
+  const format = activeDeck?.format ?? null;
+  const stats = useMemo(
+    () =>
+      deckStats(cards, {
+        commanderSize: usesCommander ? commanderDeckSize(format) : null,
+        limited: format === 'limited',
+      }),
+    [cards, usesCommander, format],
+  );
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
@@ -142,10 +151,10 @@ function StatsView({ stats, children }: { stats: DeckStats; children: ReactNode 
           />
           <Text style={styles.adviceText}>
             {stats.lands < lo
-              ? `Pocas tierras: con ${stats.total} cartas se suelen jugar entre ${lo} y ${hi}.`
+              ? `Pocas tierras: en un mazo de ${stats.landRangeSize} cartas se suelen jugar entre ${lo} y ${hi}.`
               : stats.lands > hi
-                ? `Muchas tierras: con ${stats.total} cartas se suelen jugar entre ${lo} y ${hi}.`
-                : `Buen número de tierras (lo habitual con ${stats.total} cartas es ${lo}-${hi}).`}
+                ? `Muchas tierras: en un mazo de ${stats.landRangeSize} cartas se suelen jugar entre ${lo} y ${hi}.`
+                : `Buen número de tierras (lo habitual en un mazo de ${stats.landRangeSize} cartas es ${lo}-${hi}).`}
             {stats.averageCost < 2.5 && stats.lands < lo ? ' Con una curva baja como la tuya puede bastar.' : ''}
           </Text>
         </View>

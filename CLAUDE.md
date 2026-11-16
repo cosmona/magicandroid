@@ -16,6 +16,8 @@ It's a port of the web app in `../frontmagic` (React) + `../apimagic` (Express/M
 - `docs/ARQUITECTURA.md` — **architecture guide** (Spanish, for developers): structure, data flow, DB schema, Scryfall client, gestures, design decisions. Update it in the same change when the structure changes (new folder/module, table/migration, navigation, state, data source).
 - `README.md` — project front page (features table, install, development). Refresh the features table when a notable feature lands.
 
+- Manual screenshots live in `docs/img/` (432×960 JPEG, ~60 KB) and are shown with small HTML tables in `MANUAL.md`. They were taken on a local Android emulator: SDK in `%LOCALAPPDATA%\Android\Sdk`, AVD `MagicSwipe` (Pixel 7, API 35). Hyper-V reserves ports 5533-5632 on this PC, so start it with `emulator -avd MagicSwipe -ports 5640,5641 -no-window -gpu swiftshader_indirect` and `adb connect localhost:5641`; install the EAS APK with `adb install -r`, drive it with `adb shell input tap/text/keyevent`, capture with `adb exec-out screencap -p`. Retake the affected screenshots when a screen changes.
+
 ## Commands
 
 ```bash
