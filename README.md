@@ -42,6 +42,7 @@ son siempre las cartas.
 | 🧩 **Sinergias y combos** | Cómo se juega cada carta en Commander y sus cartas afines ([EDHREC](https://edhrec.com)), sus combos y los que tu mazo tiene o está a una carta de tener ([Commander Spellbook](https://commanderspellbook.com)), y recomendaciones para tu comandante. |
 | 📊 **Estadísticas y mano de prueba** | Curva de maná, colores (símbolos frente a tierras que los dan), tipos y aviso de tierras. **Recomendar maná** añade las tierras básicas que faltan, repartidas por colores (como en Arena). Roba una mano de 7, haz mulligan y roba turno a turno. |
 | 🪙 **Fichas** | Las fichas y emblemas que crean las cartas de tu mazo, con su imagen. |
+| ❤️ **Contador de vidas** | De 2 a 6 jugadores alrededor del móvil, con veneno, daño de comandante, quién empieza y dados. La pantalla no se apaga y la partida se guarda sola. |
 | 📦 **Colección** | Tus cartas reales por edición e idioma: añádelas buscando, con **📷 el escáner** (reconoce la carta con la cámara) o con **📦 La tengo**. Filtros (color, tipo, coste, rareza, edición, idioma, precio, uso en mazos, repetidas) y agrupaciones (color, tipo, edición, rareza, coste, precio). Cada mazo te dice cuántas cartas te faltan. |
 | ⚙ **Ajustes** | Idioma de las cartas, vista del mazo por defecto, vibración, pantalla completa y restablecer filtros. |
 

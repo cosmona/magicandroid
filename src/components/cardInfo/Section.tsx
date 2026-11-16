@@ -1,19 +1,52 @@
-import type { ComponentProps, ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useState, type ComponentProps, type ReactNode } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors } from '@/theme';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-/** A titled card-like block of the info screens (card info, deck synergies). */
-export function Section({ title, icon, children }: { title: string; icon: IconName; children: ReactNode }) {
+/**
+ * A titled card-like block of the info screens (card info, deck synergies, deck stats).
+ * `collapsible`: tapping the title folds / unfolds it (starts open).
+ */
+export function Section({
+  title,
+  icon,
+  collapsible = false,
+  children,
+}: {
+  title: string;
+  icon: IconName;
+  collapsible?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(true);
+  const header = (
+    <>
+      <MaterialCommunityIcons name={icon} size={20} color={colors.accent} />
+      <Text style={styles.title}>{title}</Text>
+      {collapsible && (
+        <MaterialCommunityIcons name={open ? 'chevron-up' : 'chevron-down'} size={24} color={colors.textMuted} />
+      )}
+    </>
+  );
   return (
     <View style={styles.section}>
-      <View style={styles.header}>
-        <MaterialCommunityIcons name={icon} size={20} color={colors.accent} />
-        <Text style={styles.title}>{title}</Text>
-      </View>
-      {children}
+      {collapsible ? (
+        <Pressable
+          style={({ pressed }) => [styles.header, pressed && { opacity: 0.6 }]}
+          onPress={() => setOpen((o) => !o)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          accessibilityLabel={title}
+        >
+          {header}
+        </Pressable>
+      ) : (
+        <View style={styles.header}>{header}</View>
+      )}
+      {(!collapsible || open) && children}
     </View>
   );
 }
@@ -38,7 +71,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { color: colors.text, fontSize: 17, fontWeight: '900' },
+  title: { flex: 1, color: colors.text, fontSize: 17, fontWeight: '900' },
   help: { color: colors.textMuted, fontSize: 12 },
   subtitle: {
     color: colors.accent,

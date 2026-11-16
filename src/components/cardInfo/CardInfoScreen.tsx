@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRawCard, getRulings, type RawCard, type Ruling } from '@/api/scryfall';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { CardSynergy } from '@/components/cardInfo/CardSynergy';
+import { Section as BaseSection } from '@/components/cardInfo/Section';
 import { ManaCost } from '@/components/ManaCost';
 import { useAppState } from '@/context/AppState';
 import { colors, formatEur } from '@/theme';
@@ -209,16 +210,9 @@ export function CardInfoScreen({ id, onClose }: { id: string; onClose: () => voi
   );
 }
 
-function Section({ title, icon, children }: { title: string; icon: IconName; children: ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <MaterialCommunityIcons name={icon} size={20} color={colors.accent} />
-        <Text style={styles.sectionTitle}>{title}</Text>
-      </View>
-      {children}
-    </View>
-  );
+/** Every block of this screen folds by tapping its title. */
+function Section(props: { title: string; icon: IconName; children: ReactNode }) {
+  return <BaseSection collapsible {...props} />;
 }
 
 function Fields({ fields, source }: { fields: FieldDef[]; source: RawCard }) {
@@ -428,16 +422,6 @@ const styles = StyleSheet.create({
   image: { width: 260, aspectRatio: 1 / CARD_RATIO, borderRadius: 14 },
   imageHalf: { width: 220 },
   intro: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  section: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-    gap: 12,
-  },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
   sectionHelp: { color: colors.textMuted, fontSize: 12 },
   field: { gap: 3, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   label: { color: colors.accent, fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },

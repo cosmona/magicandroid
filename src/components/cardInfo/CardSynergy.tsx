@@ -62,7 +62,7 @@ export function CardSynergy({ name, canBeCommander }: { name: string; canBeComma
 
   return (
     <>
-      <Section title="Uso en Commander" icon="chart-box-outline">
+      <Section collapsible title="Uso en Commander" icon="chart-box-outline">
         <SectionHelp>
           Datos de EDHREC, que recopila cientos de miles de mazos de Commander publicados en internet.
         </SectionHelp>
@@ -72,7 +72,7 @@ export function CardSynergy({ name, canBeCommander }: { name: string; canBeComma
       </Section>
 
       {canBeCommander && (commander.status !== 'done' || cmd) && (
-        <Section title="Como comandante" icon="crown-outline">
+        <Section collapsible title="Como comandante" icon="crown-outline">
           <SectionHelp>
             Las cartas que más se juegan en los mazos que la llevan de comandante, ordenadas por sinergia: cuánto más
             aparecen en sus mazos que en la media de mazos de sus colores.
@@ -83,7 +83,7 @@ export function CardSynergy({ name, canBeCommander }: { name: string; canBeComma
         </Section>
       )}
 
-      <Section title="Combos" icon="puzzle-outline">
+      <Section collapsible title="Combos" icon="puzzle-outline">
         <SectionHelp>
           Combinaciones de cartas que juntas consiguen algo enorme (maná infinito, ganar la partida…), de Commander
           Spellbook. Las más jugadas primero.

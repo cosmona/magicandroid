@@ -19,7 +19,8 @@ te dice cuánto cuestan y te ayuda a comprar las que te faltan.
 8. [Precios y Cardmarket](#8-precios-y-cardmarket)
 9. [Sinergias y combos](#9-sinergias-y-combos)
 10. [Estadísticas y mano de prueba](#10-estadísticas-y-mano-de-prueba)
-11. [Preguntas frecuentes](#11-preguntas-frecuentes)
+11. [Contador de vidas](#11-contador-de-vidas)
+12. [Preguntas frecuentes](#12-preguntas-frecuentes)
 
 ---
 
@@ -37,7 +38,8 @@ te dice cuánto cuestan y te ayuda a comprar las que te faltan.
 De arriba a abajo:
 
 1. **Cabecera:** «Magic Swipe» y el botón ⚙ de [Ajustes](#7-ajustes).
-2. **Pestañas:** **Construir** (cartas) y **Colección** (estantería). La activa se ve en amarillo.
+2. **Pestañas:** **Construir** (cartas), **Colección** (estantería) y **Vidas** (corazón, el
+   [contador de vidas](#11-contador-de-vidas)). La activa se ve en amarillo.
 3. El contenido de la pestaña.
 
 La app siempre se abre en **Construir**.
@@ -155,6 +157,7 @@ Las tierras básicas y las cartas que permiten cualquier número de copias respe
 
 El botón **ⓘ** (en el mazo y en la colección) abre una pantalla con **todo lo que Scryfall sabe de esa impresión**.
 Debajo de cada dato hay una explicación de qué significa.
+Cada bloque se **pliega y despliega** tocando su título (flecha a la derecha), para ir directo a lo que buscas.
 
 - **Carta:** nombre, coste, tipo, texto Oracle (el oficial y actualizado) y texto impreso, fuerza/resistencia,
   colores, identidad de color, palabras clave…
@@ -262,6 +265,9 @@ Se abre una pantalla con dos pestañas:
 - **Recomendadas:** las cartas de más sinergia para el **comandante** del mazo que aún no tienes, con **＋** para
   añadirlas (en tu idioma si existe). Necesita un formato con comandante y haberlo elegido con 👑. Con dos comandantes
   se usa el primero.
+  - Tres vistas con los botones de arriba: **Lista** (con su sinergia y uso), **Galería** (imágenes en 3 columnas) y
+    **Pasar cartas**: las recomendadas te llegan a la mano una a una, como en Construir. Derecha (o ✓) la añade al
+    mazo, izquierda (o ✕) la descarta. Llega hasta las 100 de más sinergia y cuenta cuántas llevas añadidas.
 
 Estas webs no son oficiales: si cambian, alguna sección puede dejar de cargar hasta que se actualice la app.
 
@@ -295,7 +301,28 @@ Baraja el mazo y roba 7 cartas, como al empezar una partida (sin el comandante, 
 - **Robar:** roba la siguiente carta, para ver cómo sigue la partida turno a turno.
 - Toca una carta para verla en grande. Debajo verás la probabilidad de que la mano inicial traiga entre 2 y 4 tierras.
 
-## 11. Preguntas frecuentes
+## 11. Contador de vidas
+
+La pestaña **Vidas** es un contador para partidas de 2 a 6 jugadores. Deja el móvil en el centro de la mesa: los
+jugadores de la fila de arriba ven sus números del derecho desde el otro lado. Mientras estás en esta pestaña la
+pantalla no se apaga.
+
+- **Vidas:** toca la mitad **izquierda** de tu recuadro para restar 1 y la **derecha** para sumar 1. Mantén pulsado
+  para restar o sumar 10. Encima del número aparece el cambio acumulado (por ejemplo «−5») durante un momento.
+- **Veneno y daño de comandante:** el botón de abajo de cada recuadro muestra tu veneno y el mayor daño de comandante
+  que has recibido. Al tocarlo puedes cambiar tu nombre y color, el **veneno** y el **daño de comandante** recibido de
+  cada rival. El daño de comandante también resta vidas.
+- **Eliminado:** el recuadro marca ☠ cuando un jugador se queda sin vidas, llega a 10 de veneno o recibe 21 de daño
+  del mismo comandante.
+- **Menú (⚙ amarillo del centro):**
+  - **Nueva partida:** elige el número de jugadores y las vidas iniciales (20, 25, 30 o 40; Commander usa 40). Se
+    mantienen los nombres y colores.
+  - **¿Quién empieza?:** sortea un jugador y le pone una 👑.
+  - **Dado de 6, dado de 20 y moneda.**
+
+La partida se guarda sola: si cambias de pestaña o cierras la app, sigue donde la dejaste.
+
+## 12. Preguntas frecuentes
 
 **¿Dónde se guardan mis mazos?** En el móvil. Si desinstalas la app, se pierden.
 

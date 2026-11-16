@@ -65,7 +65,7 @@ durante el render o desde callbacks asíncronos) y los valores compartidos de Re
 src/
 ├── app/                      # Rutas (Expo Router)
 │   ├── _layout.tsx           # Raíz: gestos, SQLite, AppState, pantalla de carga
-│   └── (tabs)/               # Pestañas: _layout (AppTabBar), index = Construir, collection
+│   └── (tabs)/               # Pestañas: _layout (AppTabBar), index = Construir, collection, life = Vidas
 ├── api/scryfall.ts           # Cliente de Scryfall: búsquedas, idiomas, artes, precios, sets, símbolos…
 ├── collection/organize.ts    # Filtros y agrupaciones de la colección (funciones puras)
 ├── components/
@@ -96,6 +96,7 @@ flowchart TD
   Stack --> Tabs["(tabs)/_layout.tsx<br/>tabBarPosition: top + AppTabBar"]
   Tabs --> Build["index.tsx · Construir"]
   Tabs --> Coll["collection.tsx · Colección"]
+  Tabs --> Life["life.tsx · Vidas"]
   Build --> TopBar[TopBar · filtros]
   Build --> Swipe[SwipeArea]
   Build --> Bar[DeckBar]
@@ -106,7 +107,12 @@ flowchart TD
 - Las **pestañas van arriba** (`tabBarPosition: 'top'`) con una barra propia, `AppTabBar`, que dibuja la cabecera
   «Magic Swipe» + ⚙ y un control segmentado con el `title` y el `tabBarIcon` de cada pantalla. Por eso las pantallas no
   reservan el margen superior; el inferior lo reservan `DeckBar` y la colección.
-- **Nueva herramienta** (p. ej. contador de vidas): un archivo en `src/app/(tabs)/` y un `<Tabs.Screen>` en su layout.
+- **Nueva herramienta**: un archivo en `src/app/(tabs)/` y un `<Tabs.Screen>` en su layout.
+- **Vidas** (`components/life/LifeCounterScreen`, lógica pura en `src/life/game.ts`): `LifeGame` (vidas iniciales y
+  jugadores con vidas, veneno y daño de comandante recibido de cada jugador) guardado como JSON en la tabla `settings`
+  (clave `lifeCounter`). `tableRows` decide la disposición por número de jugadores; la fila de arriba se gira 180°.
+  Cada recuadro son dos `Pressable` (mitad izquierda −1, derecha +1, pulsación larga ±10) con el número encima sin
+  recibir toques. `useFocusEffect` + `expo-keep-awake` mantienen la pantalla encendida solo en esta pestaña.
 - Lo que se abre encima (filtros, mazo, historial, ajustes) son **hojas inferiores**, no pantallas, para que la pila de
   cartas no se desmonte y conserve su posición.
 - La **ficha completa** (`cardInfo/CardInfoScreen`) es un `Modal` a pantalla completa, porque se abre desde dentro de la
@@ -163,8 +169,8 @@ Todo pasa por `src/api/scryfall.ts`:
   traducen; las piezas genéricas (`requires`) van con los requisitos, no con las cartas.
 
 UI: `cardInfo/CardSynergy` (secciones de la ficha), `deck/DeckSynergyScreen` (pantalla del mazo, `Modal` con pestañas
-Combos / Recomendadas y ＋ que añade al mazo) y piezas compartidas en `synergy/SynergyParts` (`ComboView`, `EntryRow`,
-`useCardImages` por id o por nombre). `cardInfo/Section` es el bloque con título que usan ambas pantallas.
+Combos / Recomendadas y ＋ que añade al mazo; las recomendadas en lista, galería o `RecommendSwipe`, que reutiliza `SwipeCard` con la lista fija al entrar y por eso envuelve el `Modal` en `GestureHandlerRootView`) y piezas compartidas en `synergy/SynergyParts` (`ComboView`, `EntryRow`,
+`useCardImages` por id o por nombre). `cardInfo/Section` es el bloque con título que usan ambas pantallas (con `collapsible` se pliega tocando el título; la ficha completa lo usa en todos sus bloques).
 
 ## 7. Datos: SQLite
 

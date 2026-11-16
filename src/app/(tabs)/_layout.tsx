@@ -32,6 +32,7 @@ export default function TabsLayout() {
         options={{ title: 'Construir', tabBarIcon: icon('cards-playing-outline', 'cards-playing') }}
       />
       <Tabs.Screen name="collection" options={{ title: 'Colección', tabBarIcon: icon('bookshelf') }} />
+      <Tabs.Screen name="life" options={{ title: 'Vidas', tabBarIcon: icon('heart-outline', 'heart') }} />
     </Tabs>
   );
 }
