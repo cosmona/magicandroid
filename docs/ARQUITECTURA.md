@@ -174,11 +174,12 @@ Combos / Recomendadas y ＋ que añade al mazo; las recomendadas en lista, galer
 
 ## 7. Datos: SQLite
 
-`src/db/database.ts` contiene el esquema, las migraciones y todas las consultas (sin ORM). Versión actual: **4**.
+`src/db/database.ts` contiene el esquema, las migraciones y todas las consultas (sin ORM). Versión actual: **5**.
 
 ```mermaid
 erDiagram
   decks ||--o{ deck_cards : contiene
+  decks ||--o{ deck_sideboard : banquillo
   decks {
     int id PK
     text name
@@ -203,6 +204,12 @@ erDiagram
     text legalities
     int is_commander
   }
+  deck_sideboard {
+    int deck_id FK
+    text oracle_id PK
+    text scryfall_id
+    int quantity
+  }
   collection_cards {
     text scryfall_id PK
     text oracle_id
@@ -223,6 +230,13 @@ erDiagram
 ```
 
 - **Mazo**: una fila por carta (`oracle_id`, la carta como concepto) con la impresión elegida (`scryfall_id`).
+- **Banquillo** (v5, `deck_sideboard`): mismas columnas que `deck_cards` en su propia tabla, así una carta puede
+  estar en el mazo y en el banquillo. `getSideboard`, `addCardToSideboard`, `changeSideboardQuantity` y `moveCopy`
+  (pasa una copia entre tablas copiando las columnas). `AppState.activeSideboard`; no entra en tamaño, curva,
+  estadísticas ni mano de prueba. `validateDeck(format, cards, sideboard)`: en construido máx. 15 y el límite de 4 copias
+  suma el banquillo. Formato **`limited`** (Limitado, `DECK_ONLY_FORMATS`: no se busca en Scryfall): mínimo 40, sin
+  límite de copias ni legalidad, ~17 tierras en `recommendLands`. Importar crea `limited` con ~40 cartas sin
+  comandante y mete el *Sideboard* en el banquillo.
 - **Colección**: una fila por **impresión** (edición + idioma). «Cuántas tengo» de una carta suma por `oracle_id`.
 - **Migraciones**: `PRAGMA user_version`. Para cambiar el esquema se sube `DATABASE_VERSION` y se añade un paso
   `if (version === N)`; los pasos existentes **no se tocan**.
@@ -294,6 +308,8 @@ animados a mano chocaban con botones y listas.
   (solo si el nombre coincide; los códigos propios de Arena no existen en Scryfall) y el resto por nombre (cara
   frontal). Opcionalmente pasa cada carta al idioma preferido (`getCardInLanguage`). Con comandante el mazo se crea en
   formato `commander` y `setCommander`.
+- **🌐 en toda carta ampliada**: `LanguagePill` (en `LanguagePicker`, acepta `Card`, id de Scryfall o `{ name }` inglés → `CardRef`) abre `LanguagePickerModal`. En la vista grande del mazo y de la colección cambia la carta guardada (`setDeckCardPrinting` / `changeCollectionPrinting`); en la ficha ⓘ recarga la pantalla con esa impresión (`shownId`); en recomendadas (pasar cartas) la elegida se añade sin re-traducir (`keepLanguage`); en combos, mano de prueba e historial solo cambia la imagen mostrada.
+- **Cambiar arte o idioma** (botón lápiz en mazo y colección, un solo botón porque la fila no tiene sitio para dos): `PrintingPicker` pregunta *Arte* / *Idioma* y abre `ArtPickerModal` o `LanguagePickerModal` (en `ArtPicker` / `LanguagePicker`, aceptan una `Card` o un id de Scryfall que cargan primero) + `setDeckCardPrinting` (cambia `scryfall_id`, nombre impreso, imagen y rareza de la fila; mismo `oracle_id`, y la portada si era esa imagen) o `changeCollectionPrinting` (mueve las copias a la otra impresión, sumándolas si ya existe).
 - **`ShareDeckModal`** (botón Compartir): dibuja la imagen del mazo en una `View` normal (portada `art_crop`, comandante
   o las 3 cartas más caras, `deckStats`, lista por tipos, pie con el logo), espera a que carguen las imágenes remotas
   (máx. 6 s) y la captura con `react-native-view-shot` (`captureRef`, PNG de 1080 px de ancho) para compartirla con

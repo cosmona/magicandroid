@@ -64,7 +64,9 @@ export function ShareDeckModal({
 }) {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const { prefs } = useAppState();
+  const { prefs, activeSideboard } = useAppState();
+  // The deck being shared is always the active one: its sideboard is in the app state.
+  const sideboard = activeSideboard;
   const shotRef = useRef<ComponentRef<typeof View>>(null);
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState(false);
@@ -119,11 +121,14 @@ export function ShareDeckModal({
 
   const shareText = () =>
     Share.share({
-      message: `${deck.name} (${formatLabel(deck.format)})\n` + cards.map((c) => `${c.quantity} ${c.name}`).join('\n'),
+      message:
+        `${deck.name} (${formatLabel(deck.format)})\n` +
+        cards.map((c) => `${c.quantity} ${c.name}`).join('\n') +
+        (sideboard.length ? '\n\nBanquillo\n' + sideboard.map((c) => `${c.quantity} ${c.name}`).join('\n') : ''),
     });
 
   const copyForArena = async () => {
-    const { text, skipped } = arenaDeckList(cards, usesCommander);
+    const { text, skipped } = arenaDeckList(cards, usesCommander, sideboard);
     await Clipboard.setStringAsync(text);
     setArenaNote(
       'Copiado. En MTG Arena: Mazos → Importar.' +

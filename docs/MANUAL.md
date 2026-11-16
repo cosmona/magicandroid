@@ -44,6 +44,11 @@ De arriba a abajo:
 
 La app siempre se abre en **Construir**.
 
+**Idioma de cualquier carta:** siempre que veas una carta en grande (en Construir, el historial, el mazo, la colección,
+la ficha ⓘ, los combos, las recomendadas o la mano de prueba) tienes el botón **🌐 Idioma ▾** para verla en otro
+idioma. En el **mazo** y la **colección** cambia la carta guardada (como ✏️ → Idioma); en las recomendadas, la carta se
+añade en el idioma que elijas; en el resto solo cambia lo que ves.
+
 ## 3. Construir: las cartas en la mano
 
 ### Pasar cartas
@@ -106,6 +111,7 @@ La hoja del mazo tiene tres posiciones:
 - **≈ precio** del mazo en Cardmarket.
 - **📦 «Te faltan N de tu colección»** (amarillo) o «Las tienes todas» (verde): compara el mazo con tu colección.
 - **Vistas:** los tres iconos de la derecha cambian entre **lista**, **galería** y **grande**.
+  En la galería las miniaturas no tienen botones: toca una carta para verla en grande con todos sus botones debajo.
 - **⋯ / ⌃:** oculta o muestra la fila de botones del mazo, para ganar espacio.
 - **Recuadro de validación:** «✓ Mazo válido» o «⚠ N problemas». Tócalo para ver la lista de problemas y las cartas
   afectadas (toca una carta para verla).
@@ -133,9 +139,22 @@ lealtad, precio, cuántas tienes en tu colección y sus problemas de validación
 | **− N +** | Cambia el número de copias. Bajar a 0 la quita |
 | 👑 | Elegir comandante (solo en formatos con comandante) |
 | ⓘ | Abre la [ficha completa](#5-ficha-completa-de-una-carta) |
+| Lápiz | **Cambiar el arte o el idioma**: elige *Arte* (otra ilustración o edición) o *Idioma* (la carta en otro idioma). Mantiene las copias y el comandante; si era la portada del mazo, la portada cambia con ella |
 | Imagen | Usar la carta como portada del mazo |
 | Compartir | Enviar la **imagen** de la carta (y copiar su enlace de Scryfall para pegarlo al lado), enviar solo el **enlace de Scryfall** o copiarlo |
+| Bandeja ↓ | Pasar una copia al **banquillo** (no aparece en formatos con comandante) |
 | Papelera | Quitarla del mazo (pide confirmación) |
+
+### Banquillo
+
+Debajo de las cartas del mazo aparece el **Banquillo** cuando tiene cartas (se pliega tocando su título). Son las
+cartas que llevas aparte: el sideboard de los formatos construidos (hasta 15) o el resto de tu pool en un draft.
+
+- No cuenta para el tamaño del mazo, la curva, las estadísticas ni la mano de prueba.
+- En cada carta: **− N +** para las copias y **bandeja ↑** para pasar una copia al mazo. Desde el mazo, la **bandeja ↓**
+  la pasa al banquillo.
+- En los formatos construidos el máximo de 4 copias cuenta también las del banquillo.
+- Al compartir como texto o copiar para Arena se incluye el banquillo.
 
 ### Deshacer
 
@@ -153,7 +172,8 @@ Puedes añadir lo que quieras: el mazo nunca te lo impide, solo te avisa.
 | Brawl (Arena) | Como Commander, con 100 cartas; el comandante puede ser una criatura o un planeswalker legendario |
 | Standard Brawl (Arena) | Igual que Brawl, con 60 cartas |
 | Historic, Timeless, Alchemy (Arena) | Como Estándar: mínimo 60 cartas, máximo 4 copias y legalidad |
-| Estándar, Pioneer, Modern, Legacy, Vintage, Pauper, Premodern, Penny | Mínimo 60 cartas, máximo 4 copias (1 si está restringida en Vintage) y legalidad |
+| Estándar, Pioneer, Modern, Legacy, Vintage, Pauper, Premodern, Penny | Mínimo 60 cartas, máximo 4 copias contando el banquillo (1 si está restringida en Vintage), banquillo de hasta 15 y legalidad |
+| Limitado (draft / sellado) | Mínimo 40 cartas. Sin límite de copias ni de legalidad: juegas lo que abriste. «Recomendar maná» apunta a unas 17 tierras |
 | Libre | Sin comprobaciones |
 
 Las tierras básicas y las cartas que permiten cualquier número de copias respetan su propia regla. En los formatos de
@@ -185,8 +205,11 @@ Bolt», «1x Sol Ring (CMR) 472»):
   se busca por su edición y número o por su nombre impreso.
 - Con **En tu idioma** activado se busca cada carta en tu idioma (tarda un poco con listas largas).
 - Si la lista tiene sección *Commander* (o la etiqueta de comandante de Archidekt), el mazo se crea en formato
-  Commander con su comandante 👑. Si no, en formato Libre: cámbialo con ✏️.
-- El banquillo (*Sideboard*, *Maybeboard*) no se importa. Al terminar verás las cartas que no se encontraron.
+  Commander con su comandante 👑. Si tiene unas 40 cartas (un **draft o sellado**, por ejemplo de Arena), en formato
+  **Limitado**. Si no, en formato Libre: cámbialo con ✏️.
+- El **banquillo** (*Sideboard* / *Banquillo*) va al [banquillo del mazo](#banquillo); en un draft de Arena es el
+  resto de tu pool. Al importar a la **colección** el banquillo no se importa. Lo de *Maybeboard* nunca se importa.
+- Al terminar verás las cartas que no se encontraron.
 
 ## 5. Ficha completa de una carta
 
@@ -243,6 +266,7 @@ copias y su valor: **Color**, **Tipo**, **Edición** (de la más nueva a la más
 | **− N +** | Copias que tienes. Bajar a 0 la quita (se puede deshacer) |
 | ⓘ | [Ficha completa](#5-ficha-completa-de-una-carta) |
 | Cartas | Añadirla al mazo activo |
+| Lápiz | **Cambiar el arte o el idioma**: pasa tus copias a otra impresión de la carta, con otra ilustración o en otro idioma (si ya tenías esa, se suman) |
 | Compartir | Enviar la **imagen** de la carta (y copiar su enlace de Scryfall para pegarlo al lado), enviar solo el **enlace de Scryfall** o copiarlo |
 | Papelera | Quitarla de la colección (pide confirmación y se puede deshacer) |
 
@@ -291,14 +315,16 @@ Scryfall no sabe qué cartas funcionan bien juntas, así que la app lo consulta 
   media de mazos de sus colores: +30 % significa que es una elección muy propia de ese comandante.
 - **Combos:** los 10 combos más jugados en los que participa. Cada uno muestra sus cartas, qué consigue (maná
   infinito, ganar la partida…), el maná para empezar y en cuántos mazos se juega. «Cómo funciona» despliega los
-  requisitos y los pasos (en inglés); el enlace lleva a Commander Spellbook.
+  requisitos y los pasos (en inglés); el enlace lleva a Commander Spellbook. Toca una carta del combo para verla en
+  grande.
 
 ### En el mazo (botón de la pieza de puzle)
 
 Se abre una pantalla con dos pestañas:
 
 - **Combos:** los que el mazo ya tiene completos y los que están **a una carta** (la que falta, marcada en amarillo).
-  Funciona con cualquier formato.
+  Funciona con cualquier formato. Toca una carta para verla en grande; la que falta tiene un **＋** (en su miniatura
+  y en la vista grande) que la añade al mazo, en tu idioma si existe, y pasa a «Añadida».
 - **Recomendadas:** las cartas de más sinergia para el **comandante** del mazo que aún no tienes, con **＋** para
   añadirlas (en tu idioma si existe). Necesita un formato con comandante y haberlo elegido con 👑. Con dos comandantes
   se usa el primero.
@@ -322,8 +348,9 @@ El botón del **gráfico de barras** del mazo abre una pantalla con dos pestaña
   colores que andan cortos. Antes de añadirlas te enseña cuántas de cada tipo; después puedes **deshacer**. En
   Commander solo usa los colores del comandante; si con las tierras el mazo pasa de 100 cartas, te avisa y el
   aviso de reglas del mazo te lo recordará hasta que quites hechizos.
-- **Curva de maná:** cuántas cartas hay de cada coste, separando criaturas y otros hechizos. La última columna junta
-  las de coste 7 o más.
+- **Curva de maná:** cuántas cartas hay de cada coste, separando criaturas (amarillo) y otros hechizos (azul), cada parte con su número. La última columna junta
+  las de coste 7 o más. Las cartas partidas y las Habitaciones (dos costes, como «Tienda de muñecas // Galería de
+  porcelana») cuentan por su mitad más barata, que es lo que puedes lanzar antes.
 - **Colores:** qué parte de los símbolos de maná de los costes es de cada color, y cuántas tierras pueden dar ese color.
   Si un color tiene muchos símbolos y pocas tierras, te costará lanzar esas cartas.
 - **Tipos:** cuántas criaturas, tierras, instantáneos, etc. lleva el mazo.

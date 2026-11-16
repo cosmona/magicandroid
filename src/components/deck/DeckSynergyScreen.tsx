@@ -14,7 +14,7 @@ import { Image } from 'expo-image';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getCardInLanguage, getCardsByIds, type Card } from '@/api/scryfall';
+import { getCardInLanguage, getCardsByIds, getCardsByNames, type Card } from '@/api/scryfall';
 import {
   edhrecCommanderUrl,
   findDeckCombos,
@@ -25,6 +25,7 @@ import {
 } from '@/api/synergy';
 import { Section, SectionHelp, SubTitle } from '@/components/cardInfo/Section';
 import { ComboView, count, EntryRow, pct, useCardImages } from '@/components/synergy/SynergyParts';
+import { LanguagePill } from '@/components/LanguagePicker';
 import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
 import type { DeckCard } from '@/db/database';
@@ -70,20 +71,21 @@ export function DeckSynergyScreen({
   const inDeck = useMemo(() => new Set(cards.map((c) => front(c.name))), [cards]);
 
   // ---- Combos (Commander Spellbook) ----
-  const comboKey = [...commanders, '|', ...main].join('\n');
+  // The deck as it was when the screen opened: adding a combo piece from here marks it as added
+  // instead of reloading (and re-scrolling) the whole list.
+  const [comboQuery] = useState(() => ({ main, commanders, key: [...commanders, '|', ...main].join('\n') }));
+  const comboKey = comboQuery.key;
   const [combos, setCombos] = useState<Load<DeckCombos>>({ key: '', status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    findDeckCombos(main, commanders)
-      .then((data) => !cancelled && setCombos({ key: comboKey, status: 'done', data }))
-      .catch(() => !cancelled && setCombos({ key: comboKey, status: 'error' }));
+    findDeckCombos(comboQuery.main, comboQuery.commanders)
+      .then((data) => !cancelled && setCombos({ key: comboQuery.key, status: 'done', data }))
+      .catch(() => !cancelled && setCombos({ key: comboQuery.key, status: 'error' }));
     return () => {
       cancelled = true;
     };
-    // The key covers `main` and `commanders`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [comboKey, attempt]);
+  }, [comboQuery, attempt]);
   const comboState = combos.key === comboKey ? combos : { status: 'loading' as const, data: undefined };
   const [almostShown, setAlmostShown] = useState(ALMOST_PAGE);
 
@@ -110,18 +112,41 @@ export function DeckSynergyScreen({
   // Added from here during this visit (the deck list updates behind).
   const [adding, setAdding] = useState<string | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
-  const add = async (id: string, known?: Card) => {
+  /** `keepLanguage`: the printing was picked by hand, don't switch it to the preferred language. */
+  const add = async (id: string, known?: Card, keepLanguage = false) => {
     setAdding(id);
     try {
       const card = known ?? (await getCardsByIds([id]))[0];
       if (card) {
         const printing =
-          prefs.language !== 'en' ? ((await getCardInLanguage(card, prefs.language).catch(() => null)) ?? card) : card;
+          prefs.language !== 'en' && !keepLanguage
+            ? ((await getCardInLanguage(card, prefs.language).catch(() => null)) ?? card)
+            : card;
         await onAdd(printing);
         setAdded((prev) => new Set(prev).add(id));
       }
     } finally {
       setAdding(null);
+    }
+  };
+
+  // Combo pieces added from here, by name (Commander Spellbook gives English names).
+  const [addedNames, setAddedNames] = useState<Set<string>>(new Set());
+  const [addingName, setAddingName] = useState<string | null>(null);
+  const addByName = async (name: string) => {
+    setAddingName(name);
+    try {
+      const [card] = await getCardsByNames([name]);
+      if (card) {
+        const printing =
+          prefs.language !== 'en' ? ((await getCardInLanguage(card, prefs.language).catch(() => null)) ?? card) : card;
+        await onAdd(printing);
+        setAddedNames((prev) => new Set(prev).add(name));
+      }
+    } catch {
+      // Stays with its ＋ so it can be tried again.
+    } finally {
+      setAddingName(null);
     }
   };
 
@@ -185,7 +210,7 @@ export function DeckSynergyScreen({
           <RecommendSwipe
             entries={notInDeck.slice(0, SWIPE_COUNT)}
             bottomInset={insets.bottom}
-            onAdd={(e, card) => add(e.id, card)}
+            onAdd={(e, card, keepLanguage) => add(e.id, card, keepLanguage)}
           />
         ) : (
           <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
@@ -216,7 +241,15 @@ export function DeckSynergyScreen({
                       <Text style={styles.value}>Ninguno.</Text>
                     ) : (
                       almostList.map(({ combo, missing }) => (
-                        <ComboView key={combo.id} combo={combo} missing={missing} images={comboImages} />
+                        <ComboView
+                          key={combo.id}
+                          combo={combo}
+                          missing={missing}
+                          images={comboImages}
+                          onAdd={addByName}
+                          added={addedNames}
+                          adding={addingName}
+                        />
                       ))
                     )}
                     {comboState.data.almost.length > almostShown && (
@@ -339,7 +372,7 @@ function RecommendSwipe({
 }: {
   entries: EdhrecEntry[];
   bottomInset: number;
-  onAdd: (entry: EdhrecEntry, card: Card) => Promise<void>;
+  onAdd: (entry: EdhrecEntry, card: Card, keepLanguage: boolean) => Promise<void>;
 }) {
   const [list] = useState(entries);
   const [cards, setCards] = useState<Map<string, Card> | null>(null);
@@ -365,10 +398,12 @@ function RecommendSwipe({
   const entry = deck[pos];
   const card = entry && cards?.get(entry.id);
   const next = deck[pos + 1] && cards?.get(deck[pos + 1].id);
+  // Languages picked by hand with the 🌐 pill, by EDHREC id.
+  const [picked, setPicked] = useState<Record<string, Card>>({});
 
   const onSwiped = (dir: SwipeDirection) => {
     if (dir === 'right' && entry && card) {
-      onAdd(entry, card).catch(() => {});
+      onAdd(entry, picked[entry.id] ?? card, !!picked[entry.id]).catch(() => {});
       setAddedCount((n) => n + 1);
     }
     setPos((p) => p + 1);
@@ -397,6 +432,7 @@ function RecommendSwipe({
     );
   }
 
+  const shown = picked[entry.id] ?? card;
   const inclusion = entry.potentialDecks ? entry.numDecks / entry.potentialDecks : 0;
   return (
     <View style={{ flex: 1, paddingBottom: bottomInset + 12 }}>
@@ -411,6 +447,7 @@ function RecommendSwipe({
           </Text>
           {' · '}en el {pct(inclusion)} de sus mazos
         </Text>
+        <LanguagePill card={card} lang={shown.lang} onPick={(c) => setPicked((prev) => ({ ...prev, [entry.id]: c }))} />
       </View>
       <View style={styles.swipeArea} onLayout={onLayout}>
         {size.width > 0 && (
@@ -422,7 +459,7 @@ function RecommendSwipe({
                 contentFit="contain"
               />
             )}
-            <SwipeCard key={card.id} ref={cardRef} card={card} showBack={false} onSwiped={onSwiped} />
+            <SwipeCard key={shown.id} ref={cardRef} card={shown} showBack={false} onSwiped={onSwiped} />
           </View>
         )}
       </View>

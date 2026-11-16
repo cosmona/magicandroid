@@ -24,7 +24,7 @@ import {
   TYPE_LABELS,
   typeIcon,
 } from '@/icons';
-import { colors, FORMATS } from '@/theme';
+import { colors, DECK_ONLY_FORMATS, FORMATS } from '@/theme';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic'];
 
@@ -42,7 +42,7 @@ const ORDERS: { key: SortOrder; label: string }[] = [
   { key: 'usd', label: 'Precio' },
 ];
 
-const FORMAT_OPTIONS: SelectOption<string>[] = FORMATS.filter((f) => f.key).map((f) => ({
+const FORMAT_OPTIONS: SelectOption<string>[] = FORMATS.filter((f) => f.key && !DECK_ONLY_FORMATS.includes(f.key)).map((f) => ({
   value: f.key!,
   label: f.label,
   icon: f.icon,

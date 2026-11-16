@@ -12,6 +12,8 @@ import { DeckPicker } from '@/components/deck/DeckPicker';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
 import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/components/CardControls';
 import { CardShareSheet, type ShareableCard } from '@/components/CardShareSheet';
+import { PrintingPicker } from '@/components/PrintingPicker';
+import { LanguagePill } from '@/components/LanguagePicker';
 import { DeckSummary } from '@/components/deck/DeckSummary';
 import { DeckStatsScreen } from '@/components/deck/DeckStatsScreen';
 import { ShareDeckModal } from '@/components/deck/ShareDeckModal';
@@ -24,6 +26,8 @@ import { UNNAMED_DECK, useAppState, type DeckView } from '@/context/AppState';
 import {
   addCardToDeck,
   changeQuantity,
+  changeSideboardQuantity,
+  moveCopy,
   clearDeck,
   createDeck,
   deleteDeck,
@@ -34,6 +38,7 @@ import {
   snapshotDeck,
   type DeckSnapshot,
   setCommander,
+  setDeckCardPrinting,
   setDeckCover,
   updateCardData,
   updateDeck,
@@ -56,14 +61,17 @@ const VIEWS: { key: DeckView; label: string; icon: IconName }[] = [
  */
 export function DeckSheet() {
   const db = useSQLiteContext();
-  const { activeDeck, activeCards, setActiveDeckId, refresh, prefs, setPrefs } = useAppState();
+  const { activeDeck, activeCards, activeSideboard, setActiveDeckId, refresh, prefs, setPrefs } = useAppState();
   const [mode, setMode] = useState<DeckView>(prefs.deckView);
   const [editing, setEditing] = useState(false);
-  const [preview, setPreview] = useState<DeckCard | null>(null);
+  // Oracle id of the card shown enlarged; the card itself is read from the deck so its
+  // quantity / commander update live while the buttons under it are used.
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const validation = useMemo(
-    () => validateDeck(activeDeck?.format ?? null, activeCards),
-    [activeDeck?.format, activeCards],
+    () => validateDeck(activeDeck?.format ?? null, activeCards, activeSideboard),
+    [activeDeck?.format, activeCards, activeSideboard],
   );
+  const preview = previewId ? (activeCards.find((c) => c.oracleId === previewId) ?? null) : null;
   const previewIssues = preview ? validation.cardIssues[preview.oracleId] : undefined;
 
   // Copies of each deck card in the user's collection (any printing).
@@ -99,6 +107,7 @@ export function DeckSheet() {
   const [showStats, setShowStats] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [shareCard, setShareCard] = useState<ShareableCard | null>(null);
+  const [printingCard, setPrintingCard] = useState<DeckCard | null>(null);
   // "Mis mazos" drops down from the cover, like a select.
   const [picking, setPicking] = useState(false);
   // Printing shown in the full Scryfall info screen.
@@ -190,8 +199,10 @@ export function DeckSheet() {
         removeCard(c);
       }),
     cover: (c) => deckId && run(setDeckCover(db, deckId, c.imageUrl)),
+    printing: (c) => setPrintingCard(c),
+    toSide: (c) => deckId && run(moveCopy(db, deckId, c.oracleId, 'side')),
     share: (c) => setShareCard({ scryfallId: c.scryfallId, name: displayName(c), imageUrl: c.imageUrl }),
-    preview: (c) => setPreview(c),
+    preview: (c) => setPreviewId(c.oracleId),
     info: (c) => setInfoId(c.scryfallId),
     commander: (c) => deckId && run(setCommander(db, deckId, c.oracleId, !c.isCommander)),
   };
@@ -273,7 +284,7 @@ export function DeckSheet() {
           validation={validation}
           format={activeDeck.format}
           cards={activeCards}
-          onOpenCard={setPreview}
+          onOpenCard={(c) => setPreviewId(c.oracleId)}
         />
       )}
 
@@ -330,6 +341,16 @@ export function DeckSheet() {
         keyExtractor={(c) => c.oracleId}
         numColumns={mode === 'gallery' ? 3 : 1}
         ListHeaderComponent={listHeader}
+        ListFooterComponent={
+          activeDeck && activeSideboard.length > 0 ? (
+            <SideboardSection
+              cards={activeSideboard}
+              onAdd={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, 1))}
+              onSub={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, -1))}
+              onToMain={(c) => run(moveCopy(db, activeDeck.id, c.oracleId, 'main'))}
+            />
+          ) : undefined
+        }
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 24 }}
         columnWrapperStyle={mode === 'gallery' ? styles.galleryRow : undefined}
@@ -396,6 +417,14 @@ export function DeckSheet() {
       {undo && <UndoBar label={undo.label} onUndo={runUndo} />}
       {infoId && <CardInfoScreen id={infoId} onClose={() => setInfoId(null)} />}
       {shareCard && <CardShareSheet card={shareCard} onClose={() => setShareCard(null)} />}
+      {printingCard && deckId && (
+        <PrintingPicker
+          scryfallId={printingCard.scryfallId}
+          name={displayName(printingCard)}
+          onClose={() => setPrintingCard(null)}
+          onPick={(printing) => run(setDeckCardPrinting(db, deckId, printingCard.imageUrl, printing))}
+        />
+      )}
       {showShare && activeDeck && (
         <ShareDeckModal
           deck={activeDeck}
@@ -434,8 +463,8 @@ export function DeckSheet() {
         />
       )}
 
-      <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setPreview(null)}>
+      <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreviewId(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setPreviewId(null)}>
           {preview?.imageUrl && (
             <Image
               source={{ uri: preview.imageUrl }}
@@ -443,6 +472,14 @@ export function DeckSheet() {
               placeholderContentFit="contain"
               style={styles.modalImage}
               contentFit="contain"
+            />
+          )}
+          {preview && deckId && (
+            <LanguagePill
+              card={preview.scryfallId}
+              onPick={(c) => {
+                if (c.id !== preview.scryfallId) run(setDeckCardPrinting(db, deckId, preview.imageUrl, c));
+              }}
             />
           )}
           {preview && validation.checked && (
@@ -457,6 +494,23 @@ export function DeckSheet() {
                 <Text style={styles.bannerText}>✓ Sin problemas en {formatLabel(activeDeck?.format ?? null)}</Text>
               )}
             </View>
+          )}
+          {/* The same buttons as in the list: the gallery tiles are too small for them. Buttons that
+              open another screen close this one first. */}
+          {preview && (
+            <Pressable style={styles.previewControls} onPress={() => {}}>
+              <CardControls
+                card={preview}
+                crown={validation.usesCommander}
+                actions={{
+                  ...actions,
+                  info: (c) => (setPreviewId(null), actions.info(c)),
+                  share: (c) => (setPreviewId(null), actions.share(c)),
+                  printing: (c) => (setPreviewId(null), actions.printing(c)),
+                  confirmRemove: (c) => (setPreviewId(null), actions.confirmRemove(c)),
+                }}
+              />
+            </Pressable>
           )}
         </Pressable>
       </Modal>
@@ -511,6 +565,10 @@ interface CardActions {
   /** Trash button: asks first, then the removal can be undone. */
   confirmRemove: (c: DeckCard) => void;
   cover: (c: DeckCard) => void;
+  /** Pick another printing of the card: artwork or language. */
+  printing: (c: DeckCard) => void;
+  /** Moves one copy to the sideboard. */
+  toSide: (c: DeckCard) => void;
   share: (c: DeckCard) => void;
   preview: (c: DeckCard) => void;
   /** Opens the screen with everything Scryfall knows about the card. */
@@ -751,6 +809,61 @@ function statsOf(d?: CardDetails): { label: string; value: string } | null {
 }
 
 /** Quantity stepper + icon buttons under a deck card (same look as the header's actions). */
+/**
+ * The deck's sideboard under its cards (collapsible): not counted in size, curve or stats.
+ * Each card: copies and a button that moves one copy to the main deck.
+ */
+function SideboardSection({
+  cards,
+  onAdd,
+  onSub,
+  onToMain,
+}: {
+  cards: DeckCard[];
+  onAdd: (c: DeckCard) => void;
+  onSub: (c: DeckCard) => void;
+  onToMain: (c: DeckCard) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const total = cards.reduce((n, c) => n + c.quantity, 0);
+  return (
+    <View style={styles.side}>
+      <Pressable style={styles.sideHeader} onPress={() => setOpen((o) => !o)} accessibilityRole="button">
+        <MaterialCommunityIcons name="tray-full" size={20} color={colors.accent} />
+        <Text style={styles.sideTitle}>Banquillo ({total})</Text>
+        <MaterialCommunityIcons name={open ? 'chevron-up' : 'chevron-down'} size={22} color={colors.textMuted} />
+      </Pressable>
+      {open &&
+        cards.map((c) => (
+          <View key={c.oracleId} style={styles.sideRow}>
+            <View style={styles.sideThumb}>
+              {c.imageUrl && (
+                <Image source={{ uri: smallImageUrl(c.imageUrl) }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sideName} numberOfLines={1}>
+                {displayName(c)}
+              </Text>
+              <Text style={styles.sideType} numberOfLines={1}>
+                {c.typeLine}
+              </Text>
+            </View>
+            <QuantityStepper value={c.quantity} onSub={() => onSub(c)} onAdd={() => onAdd(c)} />
+            <Pressable
+              style={styles.sideMove}
+              onPress={() => onToMain(c)}
+              hitSlop={4}
+              accessibilityLabel="Pasar una copia al mazo"
+            >
+              <MaterialCommunityIcons name="tray-arrow-up" size={20} color={colors.text} />
+            </Pressable>
+          </View>
+        ))}
+    </View>
+  );
+}
+
 function CardControls({ card, actions, crown }: { card: DeckCard; actions: CardActions; crown: boolean }) {
   return (
     <CardControlsRow>
@@ -764,6 +877,15 @@ function CardControls({ card, actions, crown }: { card: DeckCard; actions: CardA
         />
       )}
       <CardIconButton icon="information-outline" hint="Ficha completa" onPress={() => actions.info(card)} />
+      <CardIconButton icon="pencil-outline" hint="Cambiar arte o idioma" onPress={() => actions.printing(card)} />
+      {/* Commander-style decks have no sideboard (the crown takes that place). */}
+      {!crown && (
+        <CardIconButton
+          icon="tray-arrow-down"
+          hint="Pasar una copia al banquillo"
+          onPress={() => actions.toSide(card)}
+        />
+      )}
       <CardIconButton icon="image-outline" hint="Usar como portada" onPress={() => actions.cover(card)} />
       <CardIconButton icon="share-variant-outline" hint="Compartir" onPress={() => actions.share(card)} />
       <CardIconButton
@@ -778,6 +900,38 @@ function CardControls({ card, actions, crown }: { card: DeckCard; actions: CardA
 
 const styles = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: colors.surface },
+  side: {
+    marginTop: 16,
+    marginHorizontal: 12,
+    padding: 10,
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  sideHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sideTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '900' },
+  sideRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sideThumb: {
+    width: 34,
+    aspectRatio: 488 / 680,
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: colors.surfaceAlt,
+  },
+  sideName: { color: colors.text, fontWeight: '800' },
+  sideType: { color: colors.textMuted, fontSize: 11 },
+  sideMove: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+  },
   top: { borderBottomWidth: 1, borderBottomColor: colors.border },
   titleRow: { paddingHorizontal: 14 },
   // Under the cover + name: collection status, view switch, buttons toggle.
@@ -972,5 +1126,6 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 12,
   },
-  modalImage: { width: '100%', aspectRatio: 488 / 680, borderRadius: 16 },
+  modalImage: { width: '100%', maxHeight: '62%', aspectRatio: 488 / 680, borderRadius: 16 },
+  previewControls: { alignSelf: 'stretch' },
 });

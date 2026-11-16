@@ -1,5 +1,5 @@
 // Deck statistics and sample-hand helpers (pure functions, no React).
-import { mainType, type TypeKey } from '@/collection/organize';
+import { mainType, manaValue, type TypeKey } from '@/collection/organize';
 import type { DeckCard } from '@/db/database';
 
 export type ManaColor = 'W' | 'U' | 'B' | 'R' | 'G' | 'C';
@@ -59,6 +59,20 @@ function costSymbols(manaCost: string | null): ManaColor[] {
   return out;
 }
 
+/**
+ * Mana value for the curve. Split cards and Rooms ("{1}{W} // {4}{W}{W}") count as the sum of
+ * both halves for Scryfall, but each half is cast on its own: use the cheaper one. Other cards
+ * (adventures, double-faced) keep Scryfall's value, which is already the main / front face.
+ */
+export function curveCost(card: Pick<DeckCard, 'cmc' | 'manaCost'>): number {
+  const halves = (card.manaCost ?? '').split(' // ').filter((h) => h.includes('{'));
+  if (halves.length < 2) return card.cmc;
+  const values = halves.map((h) => manaValue(h));
+  // Only split cards / Rooms add both halves up; adventures and double-faced cards don't.
+  if (values.reduce((a, b) => a + b, 0) !== card.cmc) return card.cmc;
+  return Math.min(...values);
+}
+
 export function deckStats(cards: DeckCard[]): DeckStats {
   const curve = Array.from({ length: CURVE_MAX + 1 }, () => ({ creatures: 0, others: 0 }));
   const symbols = emptyColors();
@@ -79,8 +93,9 @@ export function deckStats(cards: DeckCard[]): DeckStats {
       lands += n;
       continue;
     }
-    costSum += card.cmc * n;
-    const column = curve[Math.min(Math.floor(card.cmc), CURVE_MAX)];
+    const cost = curveCost(card);
+    costSum += cost * n;
+    const column = curve[Math.min(Math.floor(cost), CURVE_MAX)];
     if (type === 'creature') column.creatures += n;
     else column.others += n;
     for (const c of costSymbols(card.manaCost)) symbols[c] += n;
@@ -191,9 +206,20 @@ function apportion(n: number, weights: Record<BasicColor, number>): Record<Basic
  *   if the deck goes over it (the validation banner then says so). null = constructed (60+).
  * - `identity`: commander color identity ("WG"), restricts the colors; null = use the mana symbols.
  */
-export function recommendLands(stats: DeckStats, deckSize: number | null, identity: string | null): LandPlan {
+export function recommendLands(
+  stats: DeckStats,
+  deckSize: number | null,
+  identity: string | null,
+  limited = false,
+): LandPlan {
   const nonLands = stats.total - stats.lands;
-  const target = deckSize !== null ? Math.round(deckSize * 0.37) : Math.max(24, Math.round((nonLands + 24) * 0.4));
+  // Limited (40 cards): ~17 lands. Constructed: ~40 % and at least 24. Commander: 37 %.
+  const target =
+    deckSize !== null
+      ? Math.round(deckSize * 0.37)
+      : limited
+        ? Math.max(16, Math.round(Math.max(40, nonLands + 17) * 0.425))
+        : Math.max(24, Math.round((nonLands + 24) * 0.4));
   const needed = Math.max(0, target - stats.lands);
   const count = needed;
 

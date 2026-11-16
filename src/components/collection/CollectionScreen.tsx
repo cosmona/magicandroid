@@ -44,12 +44,15 @@ import {
   type GroupBy,
 } from '@/collection/organize';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
+import { PrintingPicker } from '@/components/PrintingPicker';
+import { LanguagePill } from '@/components/LanguagePicker';
 import { CardShareSheet, type ShareableCard } from '@/components/CardShareSheet';
 import { ImportListModal } from '@/components/ImportListModal';
 import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/components/CardControls';
 import { useAppState } from '@/context/AppState';
 import {
   addToCollection,
+  changeCollectionPrinting,
   changeCollectionQuantity,
   getCollection,
   addCardToDeck,
@@ -93,7 +96,7 @@ export function CollectionScreen() {
     cards: [],
     loading: false,
   });
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<CollectionCard | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -261,6 +264,7 @@ export function CollectionScreen() {
 
   const [infoId, setInfoId] = useState<string | null>(null);
   const [shareCard, setShareCard] = useState<ShareableCard | null>(null);
+  const [printingCard, setPrintingCard] = useState<CollectionCard | null>(null);
 
   /** Adds this printing to the active deck (creating "Mazo sin nombre" if there's none). */
   const addToDeck = async (card: CollectionCard) => {
@@ -446,7 +450,7 @@ export function CollectionScreen() {
             return (
               <View style={styles.galleryRow}>
                 {item.cards.map((card) => (
-                  <Pressable key={card.scryfallId} style={styles.galleryItem} onPress={() => setPreview(card.imageUrl)}>
+                  <Pressable key={card.scryfallId} style={styles.galleryItem} onPress={() => setPreview(card)}>
                     {card.imageUrl && (
                       <Image
                         source={{ uri: smallImageUrl(card.imageUrl) }}
@@ -466,7 +470,7 @@ export function CollectionScreen() {
           return (
             <View style={styles.row}>
               <View style={styles.rowTop}>
-                <Pressable onPress={() => setPreview(card.imageUrl)}>
+                <Pressable onPress={() => setPreview(card)}>
                   {card.imageUrl && (
                     <Image
                       source={{ uri: smallImageUrl(card.imageUrl) }}
@@ -502,6 +506,11 @@ export function CollectionScreen() {
                   icon="cards-playing-outline"
                   hint="Añadir al mazo activo"
                   onPress={() => addToDeck(card)}
+                />
+                <CardIconButton
+                  icon="pencil-outline"
+                  hint="Cambiar arte o idioma"
+                  onPress={() => setPrintingCard(card)}
                 />
                 <CardIconButton
                   icon="share-variant-outline"
@@ -558,6 +567,17 @@ export function CollectionScreen() {
           }}
         />
       )}
+      {printingCard && (
+        <PrintingPicker
+          scryfallId={printingCard.scryfallId}
+          name={displayName(printingCard)}
+          onClose={() => setPrintingCard(null)}
+          onPick={async (printing) => {
+            await changeCollectionPrinting(db, printingCard.scryfallId, printing);
+            load();
+          }}
+        />
+      )}
       {shareCard && <CardShareSheet card={shareCard} onClose={() => setShareCard(null)} />}
 
       {toast && (
@@ -568,13 +588,25 @@ export function CollectionScreen() {
 
       <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setPreview(null)}>
-          {preview && (
+          {preview?.imageUrl && (
             <Image
-              source={{ uri: preview }}
-              placeholder={{ uri: smallImageUrl(preview) }}
+              source={{ uri: preview.imageUrl }}
+              placeholder={{ uri: smallImageUrl(preview.imageUrl) }}
               placeholderContentFit="contain"
               style={styles.modalImage}
               contentFit="contain"
+            />
+          )}
+          {preview && (
+            <LanguagePill
+              card={preview.scryfallId}
+              lang={preview.lang}
+              onPick={async (c) => {
+                if (c.id === preview.scryfallId) return;
+                setPreview(null);
+                await changeCollectionPrinting(db, preview.scryfallId, c);
+                load();
+              }}
             />
           )}
         </Pressable>

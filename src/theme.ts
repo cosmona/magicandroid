@@ -39,6 +39,7 @@ export interface FormatOption {
 /** Same legality list as the web app (Data.tsx) plus Standard and Pioneer. */
 export const FORMATS: FormatOption[] = [
   { key: null, label: 'Libre', icon: FORMAT_ICONS.generic },
+  { key: 'limited', label: 'Limitado (draft / sellado)', icon: FORMAT_ICONS.generic },
   { key: 'standard', label: 'Estándar', icon: FORMAT_ICONS.generic },
   { key: 'pioneer', label: 'Pioneer', icon: FORMAT_ICONS.generic },
   { key: 'commander', label: 'Commander', icon: FORMAT_ICONS.commander },
@@ -59,6 +60,9 @@ export const FORMATS: FormatOption[] = [
   { key: 'brawl', label: 'Brawl (Arena)', icon: FORMAT_ICONS.commander },
   { key: 'standardbrawl', label: 'Standard Brawl (Arena)', icon: FORMAT_ICONS.commander },
 ];
+
+/** Formats Scryfall can't search (`f:`): only for checking decks. */
+export const DECK_ONLY_FORMATS = ['limited'];
 
 /** Formats that only exist in MTG Arena: searching them looks at Arena cards (`game:arena`). */
 export const ARENA_FORMATS = ['historic', 'timeless', 'alchemy', 'brawl', 'standardbrawl'];

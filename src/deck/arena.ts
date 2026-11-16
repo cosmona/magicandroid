@@ -29,17 +29,23 @@ export function arenaName(card: Pick<DeckCard, 'name' | 'typeLine'>): string {
 
 /**
  * Deck list in MTG Arena's import format ("Commander" section for Brawl-style decks, then
- * "Deck", one "N Name" per line, English names). Cards that aren't on Arena are left out and
+ * "Deck" and "Sideboard", one "N Name" per line, English names). Cards that aren't on Arena are left out and
  * returned in `skipped` (Arena would refuse the whole import).
  */
-export function arenaDeckList(cards: DeckCard[], usesCommander: boolean): { text: string; skipped: DeckCard[] } {
-  const skipped = cards.filter((c) => !onArena(c));
+export function arenaDeckList(
+  cards: DeckCard[],
+  usesCommander: boolean,
+  sideboard: DeckCard[] = [],
+): { text: string; skipped: DeckCard[] } {
+  const skipped = [...cards, ...sideboard].filter((c) => !onArena(c));
   const ok = cards.filter((c) => onArena(c));
+  const side = sideboard.filter((c) => onArena(c));
   const line = (c: DeckCard) => `${c.quantity} ${arenaName(c)}`;
   const commanders = usesCommander ? ok.filter((c) => c.isCommander) : [];
   const main = ok.filter((c) => !commanders.includes(c));
   const parts: string[] = [];
   if (commanders.length) parts.push(['Commander', ...commanders.map(line)].join('\n'));
   parts.push(['Deck', ...main.map(line)].join('\n'));
+  if (side.length) parts.push(['Sideboard', ...side.map(line)].join('\n'));
   return { text: parts.join('\n\n'), skipped };
 }

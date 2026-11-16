@@ -108,8 +108,12 @@ export function SheetDragArea({ children }: { children: ReactNode }) {
  * with the back button. Children stay mounted until the closing animation ends.
  */
 export function BottomSheet({ visible, onClose, heightRatio = 0.9, expandable = false, children }: Props) {
-  const { height } = useWindowDimensions();
+  const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  // The Modal draws under the status and navigation bars (translucent), which on Android can be
+  // taller than the window size reports: measure the real area so full screen reaches the top.
+  const [areaHeight, setAreaHeight] = useState(0);
+  const height = areaHeight || windowHeight;
   // Expandable sheets are laid out at full size and pushed down to their open height.
   const openHeight = height * heightRatio;
   const sheetHeight = expandable ? Math.max(openHeight, height - insets.top) : openHeight;
@@ -154,7 +158,13 @@ export function BottomSheet({ visible, onClose, heightRatio = 0.9, expandable = 
       navigationBarTranslucent
     >
       {/* Modals render in their own window, so they need their own gesture root. */}
-      <GestureHandlerRootView style={styles.root}>
+      <GestureHandlerRootView
+        style={styles.root}
+        onLayout={(e) => {
+          const h = Math.round(e.nativeEvent.layout.height);
+          if (h && h !== areaHeight) setAreaHeight(h);
+        }}
+      >
         <Animated.View style={[styles.backdrop, backdropStyle]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>

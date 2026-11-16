@@ -16,7 +16,14 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCardInLanguage, resolveCardList, type Card } from '@/api/scryfall';
 import { useAppState } from '@/context/AppState';
-import { addCardToDeck, addToCollection, changeQuantity, createDeck, setCommander } from '@/db/database';
+import {
+  addCardToDeck,
+  addCardToSideboard,
+  addToCollection,
+  changeQuantity,
+  createDeck,
+  setCommander,
+} from '@/db/database';
 import { parseDeckList } from '@/deck/importList';
 import { colors } from '@/theme';
 
@@ -50,6 +57,11 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
   const parsed = useMemo(() => parseDeckList(text), [text]);
   const copies = parsed.cards.reduce((n, c) => n + c.quantity, 0);
   const hasCommander = parsed.cards.some((c) => c.commander);
+  const sideCopies = parsed.sideboard.reduce((n, c) => n + c.quantity, 0);
+  // ~40 cards without a commander: a draft / sealed deck (Arena exports the rest of the pool as sideboard).
+  const looksLimited = !hasCommander && copies >= 38 && copies <= 45;
+  // The sideboard only goes into decks; the collection gets the main list.
+  const withSide = target === 'deck';
 
   const paste = async () => {
     const clip = await Clipboard.getStringAsync();
@@ -59,7 +71,8 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
   const run = async () => {
     try {
       setStep({ kind: 'working', message: 'Buscando las cartas en Scryfall…' });
-      const found = await resolveCardList(parsed.cards);
+      const lines = withSide ? [...parsed.cards, ...parsed.sideboard] : parsed.cards;
+      const found = await resolveCardList(lines);
 
       // In the preferred language when asked (one lookup per different card; slow for big lists).
       const localized = new Map<string, Card>();
@@ -78,16 +91,18 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
       let deckId: number | null = null;
       if (target === 'deck') {
         const name = deckName.trim() || parsed.name || 'Mazo importado';
-        deckId = await createDeck(db, name, hasCommander ? 'commander' : null);
+        deckId = await createDeck(db, name, hasCommander ? 'commander' : looksLimited ? 'limited' : null);
       }
-      for (const [i, line] of parsed.cards.entries()) {
+      for (const [i, line] of lines.entries()) {
         const english = found[i];
         if (!english) {
           notFound.push(line.name);
           continue;
         }
         const card = localized.get(english.id) ?? english;
-        if (deckId !== null) {
+        if (deckId !== null && i >= parsed.cards.length) {
+          await addCardToSideboard(db, deckId, card, line.quantity);
+        } else if (deckId !== null) {
           await addCardToDeck(db, deckId, card);
           if (line.quantity > 1) await changeQuantity(db, deckId, card.oracleId, line.quantity - 1);
           if (line.commander) await setCommander(db, deckId, card.oracleId, true);
@@ -152,7 +167,7 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
           >
             <Text style={styles.help}>
               Pega una lista exportada de MTG Arena, Moxfield, Archidekt o MTGO, o escríbela con una carta por línea («4
-              Lightning Bolt»). Los nombres van en inglés. El banquillo (sideboard) no se importa.
+              Lightning Bolt»). Los nombres en inglés o en el idioma de la exportación de Arena.
             </Text>
             <Pressable style={styles.button} onPress={paste}>
               <MaterialCommunityIcons name="content-paste" size={20} color={colors.text} />
@@ -173,7 +188,13 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
               {copies > 0
                 ? `${copies} cartas en ${parsed.cards.length} líneas` +
                   (hasCommander ? ' · con comandante' : '') +
-                  (parsed.skipped ? ` · ${parsed.skipped} del banquillo no se importan` : '') +
+                  (sideCopies
+                    ? withSide
+                      ? ` · ${sideCopies} en el banquillo`
+                      : ` · ${sideCopies} del banquillo no se importan`
+                    : '') +
+                  (withSide && looksLimited ? ' · se creará en formato Limitado' : '') +
+                  (parsed.skipped ? ` · ${parsed.skipped} de «quizás» no se importan` : '') +
                   (parsed.unreadable.length ? ` · ${parsed.unreadable.length} líneas no se entienden` : '')
                 : 'Aún no hay cartas.'}
             </Text>

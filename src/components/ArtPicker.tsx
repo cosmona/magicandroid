@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { getCardArts, smallImageUrl, type Card } from '@/api/scryfall';
+import { getCardArts, getCardsByIds, smallImageUrl, type Card } from '@/api/scryfall';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { colors } from '@/theme';
 
@@ -11,79 +11,115 @@ import { colors } from '@/theme';
  */
 export function ArtPicker({ card, onChange }: { card: Card; onChange: (card: Card) => void }) {
   const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Pressable style={styles.pill} onPress={() => setOpen(true)} hitSlop={6}>
+        <Text style={styles.pillText}>🎨 Arte ▾</Text>
+      </Pressable>
+      {open && (
+        <ArtPickerModal
+          card={card}
+          onClose={() => setOpen(false)}
+          onPick={(item) => {
+            setOpen(false);
+            if (item.id !== card.id) onChange(item);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * The artworks of a card in a popup grid; `card` is the printing on screen or just its
+ * Scryfall id (deck and collection rows), loaded first. Calls `onPick` with the chosen printing.
+ */
+export function ArtPickerModal({
+  card,
+  onPick,
+  onClose,
+}: {
+  card: Card | string;
+  onPick: (card: Card) => void;
+  onClose: () => void;
+}) {
+  const [base, setBase] = useState<Card | null>(typeof card === 'string' ? null : card);
   const [options, setOptions] = useState<Card[] | null>(null);
   const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
-  const show = () => {
-    setOpen(true);
-    setOptions(null);
-    setError(false);
-    getCardArts(card)
-      .then(setOptions)
-      .catch(() => setError(true));
-  };
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const current = typeof card === 'string' ? ((await getCardsByIds([card]))[0] ?? null) : card;
+      if (!current) throw new Error('not found');
+      if (cancelled) return;
+      setBase(current);
+      const arts = await getCardArts(current);
+      if (!cancelled) setOptions(arts);
+    })().catch(() => !cancelled && setError(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [card, attempt]);
 
   const pick = (item: Card) => {
-    setOpen(false);
-    if (item.id !== card.id) {
-      if (item.imageUrl) Image.prefetch(item.imageUrl);
-      onChange(item);
-    }
+    if (item.imageUrl) Image.prefetch(item.imageUrl);
+    onPick(item);
   };
 
   return (
-    <>
-      <Pressable style={styles.pill} onPress={show} hitSlop={6}>
-        <Text style={styles.pillText}>🎨 Arte ▾</Text>
-      </Pressable>
-
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <Text style={styles.title}>
-              {options ? `Artes disponibles · ${options.length}` : 'Artes disponibles'}
-            </Text>
-            {error ? (
-              <Text style={styles.message}>No se pudieron cargar los artes. Inténtalo de nuevo.</Text>
-            ) : !options ? (
-              <ActivityIndicator color={colors.accent} style={{ padding: 24 }} />
-            ) : options.length === 1 ? (
-              <Text style={styles.message}>Esta carta solo tiene un arte.</Text>
-            ) : (
-              <FlatList
-                data={options}
-                numColumns={3}
-                keyExtractor={(c) => c.id}
-                contentContainerStyle={styles.grid}
-                renderItem={({ item }) => (
-                  <Pressable style={styles.cell} onPress={() => pick(item)}>
-                    <View style={[styles.thumbFrame, item.id === card.id && styles.thumbSelected]}>
-                      <Image
-                        source={item.imageUrl ? smallImageUrl(item.imageUrl) : undefined}
-                        style={styles.thumb}
-                        contentFit="cover"
-                        recyclingKey={item.id}
-                        transition={120}
-                      />
-                    </View>
-                    <Text style={styles.caption} numberOfLines={1}>
-                      {item.set.toUpperCase()}
-                      {item.releasedAt ? ` · ${item.releasedAt.slice(0, 4)}` : ''}
-                      {item.lang !== card.lang ? ` · ${item.lang.toUpperCase()}` : ''}
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
+          <Text style={styles.title}>{options ? `Artes disponibles · ${options.length}` : 'Artes disponibles'}</Text>
+          {error ? (
+            <Pressable
+              onPress={() => {
+                setError(false);
+                setAttempt((a) => a + 1);
+              }}
+            >
+              <Text style={styles.message}>No se pudieron cargar los artes. Toca para reintentar.</Text>
+            </Pressable>
+          ) : !options || !base ? (
+            <ActivityIndicator color={colors.accent} style={{ padding: 24 }} />
+          ) : options.length === 1 ? (
+            <Text style={styles.message}>Esta carta solo tiene un arte.</Text>
+          ) : (
+            <FlatList
+              data={options}
+              numColumns={3}
+              keyExtractor={(c) => c.id}
+              contentContainerStyle={styles.grid}
+              renderItem={({ item }) => (
+                <Pressable style={styles.cell} onPress={() => pick(item)}>
+                  <View style={[styles.thumbFrame, item.id === base.id && styles.thumbSelected]}>
+                    <Image
+                      source={item.imageUrl ? smallImageUrl(item.imageUrl) : undefined}
+                      style={styles.thumb}
+                      contentFit="cover"
+                      recyclingKey={item.id}
+                      transition={120}
+                    />
+                  </View>
+                  <Text style={styles.caption} numberOfLines={1}>
+                    {item.set.toUpperCase()}
+                    {item.releasedAt ? ` · ${item.releasedAt.slice(0, 4)}` : ''}
+                    {item.lang !== base.lang ? ` · ${item.lang.toUpperCase()}` : ''}
+                  </Text>
+                  {item.setName && (
+                    <Text style={styles.setName} numberOfLines={1}>
+                      {item.setName}
                     </Text>
-                    {item.setName && (
-                      <Text style={styles.setName} numberOfLines={1}>
-                        {item.setName}
-                      </Text>
-                    )}
-                  </Pressable>
-                )}
-              />
-            )}
-          </Pressable>
+                  )}
+                </Pressable>
+              )}
+            />
+          )}
         </Pressable>
-      </Modal>
-    </>
+      </Pressable>
+    </Modal>
   );
 }
 

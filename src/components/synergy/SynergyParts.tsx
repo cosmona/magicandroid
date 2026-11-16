@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { getCardsByIds, getCardsByNames, smallImageUrl } from '@/api/scryfall';
+import { getCardsByIds, getCardsByNames, smallImageUrl, type Card } from '@/api/scryfall';
 import type { Combo, EdhrecEntry } from '@/api/synergy';
+import { LanguagePill } from '@/components/LanguagePicker';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { ManaCost } from '@/components/ManaCost';
 import { colors } from '@/theme';
@@ -50,33 +51,74 @@ export function useCardImages(keys: string[], by: 'id' | 'name'): Record<string,
   return images;
 }
 
-/** One combo: its cards (missing ones marked), what it does, mana to start it, steps on demand. */
+/** Scryfall image URL of another size ("small" thumbnails → "large" for the big view). */
+const resize = (url: string, size: 'normal' | 'large') => url.replace(/\/(small|normal|large)\//, `/${size}/`);
+
+/**
+ * One combo: its cards (missing ones marked), what it does, mana to start it, steps on demand.
+ * Tapping a card shows it big. With `onAdd`, missing cards get a ＋ (on the tile and in the big
+ * view) that adds them to the deck; `added` / `adding` are the names already added / in progress.
+ */
 export function ComboView({
   combo,
   images,
   missing = [],
-  onPressCard,
+  onAdd,
+  added,
+  adding,
 }: {
   combo: Combo;
   images: Record<string, string>;
   /** Cards of the combo that aren't in the deck. */
   missing?: string[];
-  onPressCard?: (name: string) => void;
+  onAdd?: (name: string) => void;
+  added?: Set<string>;
+  adding?: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  const [big, setBig] = useState<string | null>(null);
+  // The big card in another language, picked with the 🌐 pill (only changes what's shown).
+  const [bigPrinting, setBigPrinting] = useState<Card | null>(null);
+  const openBig = (name: string | null) => {
+    setBig(name);
+    setBigPrinting(null);
+  };
+  const canAdd = (name: string) => !!onAdd && missing.includes(name) && !added?.has(name);
+  const bigUri = big ? (images[big] ?? images[big.split(' // ')[0]]) : undefined;
   return (
     <View style={styles.combo}>
       <View style={styles.comboCards}>
         {combo.cards.map((name) => {
-          const isMissing = missing.includes(name);
+          const isAdded = !!added?.has(name);
+          const isMissing = missing.includes(name) && !isAdded;
           const uri = images[name] ?? images[name.split(' // ')[0]];
           return (
-            <Pressable key={name} style={styles.comboCard} onPress={() => onPressCard?.(name)}>
+            <Pressable key={name} style={styles.comboCard} onPress={() => openBig(name)}>
               <View style={[styles.comboImage, isMissing && styles.missingImage]}>
                 {uri && <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+                {isAdded ? (
+                  <View style={styles.tileBadge}>
+                    <MaterialCommunityIcons name="check-circle" size={24} color={colors.add} />
+                  </View>
+                ) : adding === name ? (
+                  <View style={styles.tileBadge}>
+                    <ActivityIndicator color={colors.accent} />
+                  </View>
+                ) : (
+                  canAdd(name) && (
+                    <Pressable
+                      style={[styles.tileBadge, styles.tileAdd]}
+                      onPress={() => onAdd?.(name)}
+                      hitSlop={6}
+                      accessibilityLabel={`Añadir ${name} al mazo`}
+                    >
+                      <MaterialCommunityIcons name="plus" size={18} color={colors.bg} />
+                    </Pressable>
+                  )
+                )}
               </View>
               <Text style={[styles.comboCardName, isMissing && { color: colors.undo }]} numberOfLines={2}>
-                {isMissing ? 'Falta: ' : ''}
+                {isMissing ? 'Falta: ' : isAdded ? 'Añadida: ' : ''}
                 {name}
               </Text>
             </Pressable>
@@ -112,6 +154,40 @@ export function ComboView({
           <Text style={styles.linkText}>Commander Spellbook</Text>
         </Pressable>
       </View>
+      {big && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => openBig(null)}>
+          <Pressable style={styles.bigBackdrop} onPress={() => openBig(null)}>
+            {(bigPrinting?.imageUrl || bigUri) && (
+              <Image
+                source={{ uri: resize(bigPrinting?.imageUrl ?? bigUri!, 'large') }}
+                placeholder={bigPrinting ? undefined : { uri: bigUri }}
+                placeholderContentFit="contain"
+                style={styles.bigImage}
+                contentFit="contain"
+              />
+            )}
+            <Text style={styles.bigName}>{bigPrinting?.printedName ?? big}</Text>
+            <LanguagePill card={{ name: big }} lang={bigPrinting?.lang} onPick={setBigPrinting} />
+            {added?.has(big) ? (
+              <Text style={[styles.bigName, { color: colors.add }]}>✓ Añadida al mazo</Text>
+            ) : canAdd(big) ? (
+              <Pressable
+                style={styles.bigAdd}
+                onPress={() => onAdd?.(big)}
+                disabled={adding === big}
+                accessibilityLabel={`Añadir ${big} al mazo`}
+              >
+                {adding === big ? (
+                  <ActivityIndicator color={colors.bg} />
+                ) : (
+                  <MaterialCommunityIcons name="plus" size={20} color={colors.bg} />
+                )}
+                <Text style={styles.bigAddText}>Añadir al mazo</Text>
+              </Pressable>
+            ) : null}
+          </Pressable>
+        </Modal>
+      )}
       {open && (
         <View style={styles.steps}>
           {!!combo.prerequisites && (
@@ -188,7 +264,36 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.surfaceAlt,
   },
-  missingImage: { borderWidth: 2, borderColor: colors.undo, opacity: 0.7 },
+  missingImage: { borderWidth: 2, borderColor: colors.undo },
+  tileBadge: { position: 'absolute', right: 3, bottom: 3 },
+  tileAdd: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+  },
+  bigBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  bigImage: { width: '100%', maxHeight: '70%', aspectRatio: 1 / CARD_RATIO, borderRadius: 16 },
+  bigName: { color: colors.text, fontSize: 16, fontWeight: '800', textAlign: 'center' },
+  bigAdd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 48,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
+  },
+  bigAddText: { color: colors.bg, fontWeight: '900', fontSize: 15 },
   comboCardName: { color: colors.text, fontSize: 11, fontWeight: '700' },
   results: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   result: {

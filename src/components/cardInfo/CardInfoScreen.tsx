@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRawCard, getRulings, type RawCard, type Ruling } from '@/api/scryfall';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { CardSynergy } from '@/components/cardInfo/CardSynergy';
+import { LanguagePill } from '@/components/LanguagePicker';
 import { Section as BaseSection } from '@/components/cardInfo/Section';
 import { ManaCost } from '@/components/ManaCost';
 import { useAppState } from '@/context/AppState';
@@ -63,10 +64,12 @@ export function CardInfoScreen({ id, onClose }: { id: string; onClose: () => voi
   const [rulings, setRulings] = useState<Ruling[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  // The printing shown: starts as `id`, the 🌐 pill switches it to another language.
+  const [shownId, setShownId] = useState(id);
 
   useEffect(() => {
     let cancelled = false;
-    getRawCard(id)
+    getRawCard(shownId)
       .then((c) => {
         if (cancelled) return;
         setCard(c);
@@ -81,7 +84,7 @@ export function CardInfoScreen({ id, onClose }: { id: string; onClose: () => voi
     return () => {
       cancelled = true;
     };
-  }, [id, attempt]);
+  }, [shownId, attempt]);
 
   const retry = useCallback(() => {
     setError(null);
@@ -143,6 +146,18 @@ export function CardInfoScreen({ id, onClose }: { id: string; onClose: () => voi
                 ))}
               </ScrollView>
             )}
+            <View style={{ alignItems: 'center' }}>
+              <LanguagePill
+                card={shownId}
+                lang={typeof card.lang === 'string' ? card.lang : undefined}
+                onPick={(c) => {
+                  if (c.id === shownId) return;
+                  setCard(null);
+                  setRulings(null);
+                  setShownId(c.id);
+                }}
+              />
+            </View>
             <Text style={styles.intro}>
               Todo lo que Scryfall sabe de esta impresión. Debajo de cada dato tienes qué significa.
             </Text>

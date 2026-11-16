@@ -45,7 +45,9 @@ export function DeckFormModal({ title, initialName = '', initialFormat = null, o
               ? 'Sin comprobaciones de formato.'
               : SINGLETON_FORMATS.includes(format)
                 ? 'Se comprobará: comandante, tamaño, 1 copia por carta, identidad de color y legalidad.'
-                : 'Se comprobará: mínimo 60 cartas, máximo 4 copias y legalidad.'}
+                : format === 'limited'
+                  ? 'Se comprobará: mínimo 40 cartas. Sin límite de copias ni de legalidad (juegas lo que abriste).'
+                  : 'Se comprobará: mínimo 60 cartas, máximo 4 copias (contando el banquillo), banquillo de hasta 15 y legalidad.'}
           </Text>
           <View style={styles.row}>
             <Button label="Cancelar" variant="secondary" onPress={onCancel} style={{ flex: 1 }} />

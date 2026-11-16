@@ -80,7 +80,7 @@ function commanderPairOk(a: DeckCard, b: DeckCard): boolean {
  * Checks a deck against its format: size, copies, legality and, for Commander-style
  * formats, commander choice and color identity. Purely informative.
  */
-export function validateDeck(format: string | null, cards: DeckCard[]): DeckValidation {
+export function validateDeck(format: string | null, cards: DeckCard[], sideboard: DeckCard[] = []): DeckValidation {
   const cardIssues: Record<string, string[]> = {};
   const issues: string[] = [];
   const flag = (card: DeckCard, msg: string) => (cardIssues[card.oracleId] ??= []).push(msg);
@@ -94,11 +94,16 @@ export function validateDeck(format: string | null, cards: DeckCard[]): DeckVali
   const commanders = cards.filter((c) => c.isCommander);
 
   // ---- Size ----
+  const limited = format === 'limited';
+  const sideTotal = sideboard.reduce((n, c) => n + c.quantity, 0);
   if (usesCommander) {
     const size = commanderDeckSize(format);
     if (total !== size) issues.push(`Debe tener exactamente ${size} cartas (ahora ${total}).`);
-  } else if (total < 60) {
-    issues.push(`Debe tener al menos 60 cartas (ahora ${total}).`);
+  } else if (limited) {
+    if (total < 40) issues.push(`Debe tener al menos 40 cartas (ahora ${total}).`);
+  } else {
+    if (total < 60) issues.push(`Debe tener al menos 60 cartas (ahora ${total}).`);
+    if (sideTotal > 15) issues.push(`El banquillo puede tener como máximo 15 cartas (ahora ${sideTotal}).`);
   }
 
   // ---- Commander ----
@@ -128,16 +133,24 @@ export function validateDeck(format: string | null, cards: DeckCard[]): DeckVali
   }
 
   // ---- Per card: copies, legality, color identity ----
-  const formatLimit = usesCommander ? 1 : 4;
+  // Limited: whatever you opened, as many copies as you have, no legality.
+  const formatLimit = usesCommander ? 1 : limited ? Infinity : 4;
+  // In constructed the copy limit counts the sideboard too.
+  const sideCopies = new Map(sideboard.map((c) => [c.oracleId, c.quantity]));
   for (const card of cards) {
     const legal = parseLegalities(card);
-    const status = legal?.[format];
+    const status = limited ? undefined : legal?.[format];
     if (status === 'banned') flag(card, `Prohibida en ${name}.`);
     else if (status === 'not_legal') flag(card, `No es legal en ${name}.`);
 
     const limit = status === 'restricted' && format === 'vintage' ? 1 : (textCopyLimit(card) ?? formatLimit);
-    if (card.quantity > limit)
-      flag(card, `${card.quantity} copias: máximo ${limit}${status === 'restricted' ? ' (restringida)' : ''}.`);
+    const copies = card.quantity + (usesCommander ? 0 : (sideCopies.get(card.oracleId) ?? 0));
+    if (copies > limit)
+      flag(
+        card,
+        `${copies} copias${copies > card.quantity ? ' (con el banquillo)' : ''}: máximo ${limit}` +
+          `${status === 'restricted' ? ' (restringida)' : ''}.`,
+      );
 
     if (identity && !card.isCommander && card.colorIdentity !== null) {
       const outside = card.colorIdentity.split('').filter((c) => c && !identity!.has(c));

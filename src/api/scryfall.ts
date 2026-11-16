@@ -2,7 +2,7 @@
 // Scryfall requires a User-Agent + Accept header and asks clients to keep
 // requests ~100 ms apart, so every request goes through `scryfallFetch`.
 
-import { ARENA_FORMATS } from '@/theme';
+import { ARENA_FORMATS, DECK_ONLY_FORMATS } from '@/theme';
 
 const BASE_URL = 'https://api.scryfall.com';
 const HEADERS = { 'User-Agent': 'MagicSwipe/1.0', Accept: 'application/json' };
@@ -166,7 +166,7 @@ export function buildQuery(f: Filters, anyLanguage = false): string {
   if (f.cmcMax !== null) parts.push(`cmc<=${f.cmcMax}`);
   if (f.rarities.length) parts.push(anyOf(f.rarities.map((r) => `r:${r}`)));
   for (const k of f.keywords) parts.push(`keyword:"${k}"`);
-  if (f.format) parts.push(`f:${f.format}`);
+  if (f.format && !DECK_ONLY_FORMATS.includes(f.format)) parts.push(`f:${f.format}`);
   if (f.set) parts.push(`e:${f.set}`);
   if (anyLanguage) parts.push('lang:any');
   return parts.filter(Boolean).join(' ');

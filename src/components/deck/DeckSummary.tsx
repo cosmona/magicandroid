@@ -23,8 +23,8 @@ export function DeckSummary({
   onPressCover?: () => void;
   pickerOpen?: boolean;
 }) {
-  const { activeDeck, activeCards, prefs } = useAppState();
-  const validation = validateDeck(activeDeck?.format ?? null, activeCards);
+  const { activeDeck, activeCards, activeSideboard, prefs } = useAppState();
+  const validation = validateDeck(activeDeck?.format ?? null, activeCards, activeSideboard);
   const details = useCardDetails(activeCards.map((c) => c.scryfallId));
   const price = priceTotal(activeCards, details);
   const status = !validation.checked || !activeCards.length ? '' : validation.valid ? ' · ✓ válido' : ' · ⚠ revisar';

@@ -1,7 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { displayName, smallImageUrl, type Card } from '@/api/scryfall';
+import { LanguagePill } from '@/components/LanguagePicker';
 import { colors } from '@/theme';
 
 /** What happened to a card the user already swiped. */
@@ -53,6 +63,7 @@ interface Thumb {
 export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore, onSelect }: Props) {
   const { width } = useWindowDimensions();
   const [preview, setPreview] = useState<Thumb | null>(null);
+  const [previewPrinting, setPreviewPrinting] = useState<Card | null>(null);
   // Upcoming cards shown after the current one; grows as the user scrolls down.
   const [ahead, setAhead] = useState(UPCOMING);
   const wantedCount = index + 1 + ahead;
@@ -142,7 +153,10 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore, onS
                 thumb={t}
                 width={thumbWidth}
                 onPress={() => onSelect(t.position)}
-                onLongPress={() => setPreview(t)}
+                onLongPress={() => {
+                  setPreview(t);
+                  setPreviewPrinting(null);
+                }}
               />
             ))}
           </View>
@@ -154,7 +168,7 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore, onS
           {preview && (
             <>
               <Image
-                source={{ uri: preview.card.imageUrl ?? undefined }}
+                source={{ uri: previewPrinting?.imageUrl ?? preview.card.imageUrl ?? undefined }}
                 // Shows the cached thumbnail instantly while the full image loads.
                 placeholder={preview.card.imageUrl ? { uri: smallImageUrl(preview.card.imageUrl) } : undefined}
                 placeholderContentFit="contain"
@@ -162,8 +176,13 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore, onS
                 contentFit="contain"
                 transition={150}
               />
+              <LanguagePill
+                card={preview.card}
+                lang={previewPrinting?.lang ?? preview.card.lang}
+                onPick={setPreviewPrinting}
+              />
               <Text style={styles.previewText}>
-                {displayName(preview.card)} ·{' '}
+                {displayName(previewPrinting ?? preview.card)} ·{' '}
                 {preview.decision ? DECISION_TEXT[preview.decision] : STATUS_TEXT[preview.status]}
               </Text>
             </>

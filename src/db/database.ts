@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Card } from '@/api/scryfall';
 
 export const DATABASE_NAME = 'magicswipe.db';
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 5;
 
 /** Runs on every app start (SQLiteProvider onInit). Schema changes = bump version + add a step. */
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
@@ -80,6 +80,31 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     `);
     version = 4;
   }
+  if (version === 4) {
+    // Each deck's sideboard: same columns as deck_cards, its own table so a card can be in both.
+    await db.execAsync(`
+      CREATE TABLE deck_sideboard (
+        deck_id INTEGER NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+        oracle_id TEXT NOT NULL,
+        scryfall_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        printed_name TEXT,
+        type_line TEXT NOT NULL,
+        mana_cost TEXT,
+        cmc REAL NOT NULL DEFAULT 0,
+        image_url TEXT,
+        oracle_text TEXT,
+        rarity TEXT,
+        color_identity TEXT,
+        legalities TEXT,
+        is_commander INTEGER NOT NULL DEFAULT 0,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        added_at INTEGER NOT NULL,
+        PRIMARY KEY (deck_id, oracle_id)
+      );
+    `);
+    version = 5;
+  }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
 
@@ -100,11 +125,9 @@ const DECK_SELECT = `
       (SELECT image_url FROM deck_cards WHERE deck_id = d.id ORDER BY added_at LIMIT 1)) AS coverImage
   FROM decks d`;
 
-export const getDecks = (db: SQLiteDatabase) =>
-  db.getAllAsync<Deck>(`${DECK_SELECT} ORDER BY d.created_at DESC`);
+export const getDecks = (db: SQLiteDatabase) => db.getAllAsync<Deck>(`${DECK_SELECT} ORDER BY d.created_at DESC`);
 
-export const getDeck = (db: SQLiteDatabase, id: number) =>
-  db.getFirstAsync<Deck>(`${DECK_SELECT} WHERE d.id = ?`, id);
+export const getDeck = (db: SQLiteDatabase, id: number) => db.getFirstAsync<Deck>(`${DECK_SELECT} WHERE d.id = ?`, id);
 
 export async function createDeck(db: SQLiteDatabase, name: string, format: string | null) {
   const r = await db.runAsync(
@@ -123,11 +146,13 @@ export const setDeckCover = (db: SQLiteDatabase, id: number, imageUrl: string | 
   db.runAsync('UPDATE decks SET cover_image = ? WHERE id = ?', imageUrl, id);
 
 /** Empties a deck (keeps the deck itself). */
+/** Empties the deck: main deck and sideboard. */
 export const clearDeck = (db: SQLiteDatabase, id: number) =>
-  db.runAsync('DELETE FROM deck_cards WHERE deck_id = ?', id);
+  db.execAsync(
+    `DELETE FROM deck_cards WHERE deck_id = ${Number(id)}; DELETE FROM deck_sideboard WHERE deck_id = ${Number(id)};`,
+  );
 
-export const deleteDeck = (db: SQLiteDatabase, id: number) =>
-  db.runAsync('DELETE FROM decks WHERE id = ?', id);
+export const deleteDeck = (db: SQLiteDatabase, id: number) => db.runAsync('DELETE FROM decks WHERE id = ?', id);
 
 // ---------- Deck cards ----------
 
@@ -199,6 +224,94 @@ export async function addCardToDeck(db: SQLiteDatabase, deckId: number, card: Ca
   return 1;
 }
 
+// ---------- Sideboard ----------
+
+export const getSideboard = (db: SQLiteDatabase, deckId: number) =>
+  db.getAllAsync<DeckCard>(
+    `SELECT oracle_id AS oracleId, scryfall_id AS scryfallId, name, printed_name AS printedName,
+            type_line AS typeLine, mana_cost AS manaCost, cmc, image_url AS imageUrl,
+            oracle_text AS oracleText, rarity, quantity, color_identity AS colorIdentity,
+            legalities, is_commander AS isCommander
+     FROM deck_sideboard WHERE deck_id = ? ORDER BY cmc, name`,
+    deckId,
+  );
+
+/** Adds `count` copies of `card` to the deck's sideboard. */
+export const addCardToSideboard = (db: SQLiteDatabase, deckId: number, card: Card, count = 1) =>
+  db.runAsync(
+    `INSERT INTO deck_sideboard (deck_id, oracle_id, scryfall_id, name, printed_name, type_line,
+       mana_cost, cmc, image_url, oracle_text, rarity, color_identity, legalities, quantity, added_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(deck_id, oracle_id) DO UPDATE SET quantity = quantity + excluded.quantity`,
+    deckId,
+    card.oracleId,
+    card.id,
+    card.name,
+    card.printedName,
+    card.typeLine,
+    card.manaCost,
+    card.cmc,
+    card.imageUrl,
+    card.oracleText,
+    card.rarity,
+    card.colorIdentity.join(''),
+    JSON.stringify(card.legalities),
+    count,
+    Date.now(),
+  );
+
+/** Changes a sideboard card's quantity by `delta`; removes it at 0. */
+export async function changeSideboardQuantity(db: SQLiteDatabase, deckId: number, oracleId: string, delta: number) {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      'UPDATE deck_sideboard SET quantity = quantity + ? WHERE deck_id = ? AND oracle_id = ?',
+      delta,
+      deckId,
+      oracleId,
+    );
+    await db.runAsync('DELETE FROM deck_sideboard WHERE deck_id = ? AND quantity <= 0', deckId);
+  });
+}
+
+/** Moves one copy between the main deck and the sideboard (`to`), keeping its printing. */
+export async function moveCopy(db: SQLiteDatabase, deckId: number, oracleId: string, to: 'main' | 'side') {
+  const [from, dest] = to === 'side' ? ['deck_cards', 'deck_sideboard'] : ['deck_sideboard', 'deck_cards'];
+  await db.withTransactionAsync(async () => {
+    const has = await db.getFirstAsync<{ quantity: number }>(
+      `SELECT quantity FROM ${from} WHERE deck_id = ? AND oracle_id = ?`,
+      deckId,
+      oracleId,
+    );
+    if (!has) return;
+    const there = await db.getFirstAsync<{ quantity: number }>(
+      `SELECT quantity FROM ${dest} WHERE deck_id = ? AND oracle_id = ?`,
+      deckId,
+      oracleId,
+    );
+    if (there) {
+      await db.runAsync(
+        `UPDATE ${dest} SET quantity = quantity + 1 WHERE deck_id = ? AND oracle_id = ?`,
+        deckId,
+        oracleId,
+      );
+    } else {
+      await db.runAsync(
+        `INSERT INTO ${dest} (deck_id, oracle_id, scryfall_id, name, printed_name, type_line, mana_cost, cmc, image_url, oracle_text, rarity, color_identity, legalities, quantity, added_at)
+         SELECT deck_id, oracle_id, scryfall_id, name, printed_name, type_line, mana_cost, cmc, image_url, oracle_text, rarity, color_identity, legalities, 1, ? FROM ${from} WHERE deck_id = ? AND oracle_id = ?`,
+        Date.now(),
+        deckId,
+        oracleId,
+      );
+    }
+    await db.runAsync(
+      `UPDATE ${from} SET quantity = quantity - 1 WHERE deck_id = ? AND oracle_id = ?`,
+      deckId,
+      oracleId,
+    );
+    await db.runAsync(`DELETE FROM ${from} WHERE deck_id = ? AND quantity <= 0`, deckId);
+  });
+}
+
 /** Marks/unmarks a card as (one of) the deck's commander(s). */
 export const setCommander = (db: SQLiteDatabase, deckId: number, oracleId: string, on: boolean) =>
   db.runAsync(
@@ -237,6 +350,8 @@ export type Row = Record<string, string | number | null>;
 export interface DeckSnapshot {
   deck: Row | null;
   cards: Row[];
+  /** Sideboard rows (whole-deck snapshots only). */
+  side?: Row[];
 }
 
 export async function snapshotDeck(
@@ -248,7 +363,8 @@ export async function snapshotDeck(
   const cards = opts.oracleId
     ? await db.getAllAsync<Row>('SELECT * FROM deck_cards WHERE deck_id = ? AND oracle_id = ?', deckId, opts.oracleId)
     : await db.getAllAsync<Row>('SELECT * FROM deck_cards WHERE deck_id = ?', deckId);
-  return { deck, cards };
+  const side = opts.oracleId ? [] : await db.getAllAsync<Row>('SELECT * FROM deck_sideboard WHERE deck_id = ?', deckId);
+  return { deck, cards, side };
 }
 
 /** Puts the rows back as they were (same deck id, quantities, commander…). */
@@ -263,6 +379,33 @@ export async function restoreSnapshot(db: SQLiteDatabase, snap: DeckSnapshot): P
   await db.withTransactionAsync(async () => {
     if (snap.deck) await insert('decks', snap.deck, 'INSERT OR IGNORE');
     for (const card of snap.cards) await insert('deck_cards', card, 'INSERT OR REPLACE');
+    for (const card of snap.side ?? []) await insert('deck_sideboard', card, 'INSERT OR REPLACE');
+  });
+}
+
+/**
+ * Swaps a deck card for another printing of it (other artwork / language): same oracle id, so
+ * quantity and commander stay. A deck cover that showed the old printing follows it.
+ */
+export async function setDeckCardPrinting(db: SQLiteDatabase, deckId: number, oldImage: string | null, card: Card) {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `UPDATE deck_cards SET scryfall_id = ?, printed_name = ?, image_url = ?, rarity = ?
+       WHERE deck_id = ? AND oracle_id = ?`,
+      card.id,
+      card.printedName,
+      card.imageUrl,
+      card.rarity,
+      deckId,
+      card.oracleId,
+    );
+    if (oldImage && card.imageUrl)
+      await db.runAsync(
+        'UPDATE decks SET cover_image = ? WHERE id = ? AND cover_image = ?',
+        card.imageUrl,
+        deckId,
+        oldImage,
+      );
   });
 }
 
@@ -270,12 +413,7 @@ export const removeCardFromDeck = (db: SQLiteDatabase, deckId: number, oracleId:
   db.runAsync('DELETE FROM deck_cards WHERE deck_id = ? AND oracle_id = ?', deckId, oracleId);
 
 /** Changes a card's quantity by `delta`; removes the row when it reaches 0. */
-export async function changeQuantity(
-  db: SQLiteDatabase,
-  deckId: number,
-  oracleId: string,
-  delta: number,
-) {
+export async function changeQuantity(db: SQLiteDatabase, deckId: number, oracleId: string, delta: number) {
   await db.withTransactionAsync(async () => {
     await db.runAsync(
       'UPDATE deck_cards SET quantity = quantity + ? WHERE deck_id = ? AND oracle_id = ?',
@@ -339,14 +477,24 @@ export async function addToCollection(db: SQLiteDatabase, card: Card, count = 1)
   return row?.quantity ?? count;
 }
 
+/** Moves all copies of a collection printing to another printing of the same card (merging if owned). */
+export async function changeCollectionPrinting(db: SQLiteDatabase, fromId: string, card: Card) {
+  if (fromId === card.id) return;
+  await db.withTransactionAsync(async () => {
+    const row = await db.getFirstAsync<{ quantity: number }>(
+      'SELECT quantity FROM collection_cards WHERE scryfall_id = ?',
+      fromId,
+    );
+    if (!row) return;
+    await addToCollection(db, card, row.quantity);
+    await db.runAsync('DELETE FROM collection_cards WHERE scryfall_id = ?', fromId);
+  });
+}
+
 /** Changes a printing's quantity by `delta`; removes it at 0. */
 export async function changeCollectionQuantity(db: SQLiteDatabase, scryfallId: string, delta: number) {
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      'UPDATE collection_cards SET quantity = quantity + ? WHERE scryfall_id = ?',
-      delta,
-      scryfallId,
-    );
+    await db.runAsync('UPDATE collection_cards SET quantity = quantity + ? WHERE scryfall_id = ?', delta, scryfallId);
     await db.runAsync('DELETE FROM collection_cards WHERE quantity <= 0');
   });
 }
@@ -386,10 +534,7 @@ export async function getOwnedCounts(db: SQLiteDatabase, oracleIds: string[]): P
 // ---------- Settings (key/value) ----------
 
 export async function getSetting(db: SQLiteDatabase, key: string): Promise<string | null> {
-  const row = await db.getFirstAsync<{ value: string }>(
-    'SELECT value FROM settings WHERE key = ?',
-    key,
-  );
+  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', key);
   return row?.value ?? null;
 }
 

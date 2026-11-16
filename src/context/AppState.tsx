@@ -1,16 +1,10 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { DEFAULT_FILTERS, type Filters } from '@/api/scryfall';
 import {
   createDeck,
   getDeckCards,
+  getSideboard,
   getDecks,
   getSetting,
   setSetting,
@@ -65,6 +59,8 @@ interface AppState {
   activeDeck: Deck | null;
   /** Cards of the active deck. */
   activeCards: DeckCard[];
+  /** Sideboard of the active deck (not counted in size, curve or stats). */
+  activeSideboard: DeckCard[];
   setActiveDeckId: (id: number | null) => void;
   /** Reload decks + active deck cards from SQLite. Call after any write. */
   refresh: (deckId?: number | null) => Promise<void>;
@@ -85,6 +81,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [activeDeckId, setActiveDeckIdState] = useState<number | null>(null);
   const [activeCards, setActiveCards] = useState<DeckCard[]>([]);
+  const [activeSideboard, setActiveSideboard] = useState<DeckCard[]>([]);
   const [filters, setFiltersState] = useState<Filters>(DEFAULT_FILTERS);
   const [prefs, setPrefsState] = useState<Prefs>(DEFAULT_PREFS);
 
@@ -94,6 +91,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       const exists = deckId !== null && list.some((d) => d.id === deckId);
       setDecks(list);
       setActiveCards(exists ? await getDeckCards(db, deckId) : []);
+      setActiveSideboard(exists ? await getSideboard(db, deckId) : []);
       if (deckId !== null && !exists) {
         setActiveDeckIdState(null);
         setSetting(db, 'activeDeckId', null);
@@ -126,10 +124,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   );
 
   // `deckId` lets callers that just created/activated a deck refresh it before state catches up.
-  const refresh = useCallback(
-    (deckId: number | null = activeDeckId) => load(deckId),
-    [load, activeDeckId],
-  );
+  const refresh = useCallback((deckId: number | null = activeDeckId) => load(deckId), [load, activeDeckId]);
 
   const activeDeck = decks.find((d) => d.id === activeDeckId) ?? null;
 
@@ -163,6 +158,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         decks,
         activeDeck,
         activeCards,
+        activeSideboard,
         setActiveDeckId,
         refresh,
         ensureActiveDeck,

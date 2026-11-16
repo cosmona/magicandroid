@@ -4,9 +4,10 @@ import { Image } from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSQLiteContext } from 'expo-sqlite';
-import { getCardInLanguage, getCardsByNames } from '@/api/scryfall';
+import { getCardInLanguage, getCardsByNames, type Card } from '@/api/scryfall';
 import { mainType, TYPE_GROUP_LABELS } from '@/collection/organize';
 import { Section, SectionHelp } from '@/components/cardInfo/Section';
+import { LanguagePill } from '@/components/LanguagePicker';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
 import {
@@ -153,8 +154,10 @@ function StatsView({ stats, children }: { stats: DeckStats; children: ReactNode 
 
       <Section title="Curva de maná" icon="chart-bar">
         <SectionHelp>
-          Cuántas cartas hay de cada coste (las tierras no cuentan). Una curva que sube rápido y baja pronto permite
-          jugar algo en cada turno.
+          Cada columna es un coste de maná (el número de abajo: 1, 2, 3…). El número de arriba y la altura de la barra
+          dicen cuántas cartas de tu mazo cuestan eso; dentro, la parte amarilla son criaturas y la azul otros hechizos,
+          cada una con su número. Las tierras no cuentan. Lo ideal es tener muchas cartas baratas (2-3) y pocas caras,
+          para poder jugar algo cada turno.
         </SectionHelp>
         <View style={styles.legend}>
           <Swatch color={CREATURE_COLOR} label="Criaturas" />
@@ -179,7 +182,9 @@ function StatsView({ stats, children }: { stats: DeckStats; children: ReactNode 
                         styles.curveTop,
                         { height: `${(c.others / curveMax) * 100}%`, backgroundColor: OTHER_COLOR },
                       ]}
-                    />
+                    >
+                      <Text style={styles.segmentCount}>{c.others}</Text>
+                    </View>
                   )}
                   {c.creatures > 0 && (
                     <View
@@ -188,7 +193,9 @@ function StatsView({ stats, children }: { stats: DeckStats; children: ReactNode 
                         c.others === 0 && styles.curveTop,
                         { height: `${(c.creatures / curveMax) * 100}%`, backgroundColor: CREATURE_COLOR },
                       ]}
-                    />
+                    >
+                      <Text style={styles.segmentCount}>{c.creatures}</Text>
+                    </View>
                   )}
                 </View>
                 <Text style={styles.curveLabel}>{i === CURVE_MAX ? `${CURVE_MAX}+` : i}</Text>
@@ -196,6 +203,7 @@ function StatsView({ stats, children }: { stats: DeckStats; children: ReactNode 
             );
           })}
         </View>
+        <Text style={styles.axisCaption}>Coste de maná →</Text>
       </Section>
 
       <Section title="Colores" icon="palette-outline">
@@ -291,7 +299,7 @@ function LandRecommender({
   const deckSize = usesCommander ? commanderDeckSize(activeDeck?.format ?? null) : null;
   const leaders = cards.filter((c) => usesCommander && c.isCommander && c.colorIdentity !== null);
   const identity = leaders.length ? leaders.map((c) => c.colorIdentity).join('') : null;
-  const plan = recommendLands(stats, deckSize, identity);
+  const plan = recommendLands(stats, deckSize, identity, activeDeck?.format === 'limited');
 
   const add = async (p: LandPlan) => {
     if (!activeDeck) return;
@@ -470,6 +478,8 @@ function SampleHand({
   const library = useMemo(() => buildLibrary(cards, usesCommander), [cards, usesCommander]);
   const [game, setGame] = useState<Game>(() => deal(library, 0));
   const [preview, setPreview] = useState<DeckCard | null>(null);
+  // The previewed card in another language (only what's shown).
+  const [previewPrinting, setPreviewPrinting] = useState<Card | null>(null);
 
   const hand = game.order.slice(0, game.drawn);
   const kept = hand.filter((c) => !game.bottom.includes(c.key));
@@ -486,6 +496,7 @@ function SampleHand({
       game.mulligans > 0 && game.drawn === HAND_SIZE && index < HAND_SIZE && (choosing || game.bottom.includes(c.key));
     if (!picking) {
       setPreview(c.card);
+      setPreviewPrinting(null);
       return;
     }
     setGame((g) => {
@@ -582,9 +593,14 @@ function SampleHand({
 
       {preview && (
         <Pressable style={styles.previewBackdrop} onPress={() => setPreview(null)} accessibilityLabel="Cerrar">
-          {preview.imageUrl && (
-            <Image source={{ uri: preview.imageUrl }} style={styles.previewImage} contentFit="contain" />
+          {(previewPrinting?.imageUrl ?? preview.imageUrl) && (
+            <Image
+              source={{ uri: previewPrinting?.imageUrl ?? preview.imageUrl! }}
+              style={styles.previewImage}
+              contentFit="contain"
+            />
           )}
+          <LanguagePill card={preview.scryfallId} lang={previewPrinting?.lang} onPick={setPreviewPrinting} />
         </Pressable>
       )}
     </>
@@ -731,8 +747,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  curveSegment: { width: '100%' },
+  // Tall enough for its number even when it's a single card.
+  curveSegment: { width: '100%', minHeight: 16, alignItems: 'center', justifyContent: 'center' },
+  segmentCount: { color: colors.bg, fontSize: 10, fontWeight: '900' },
   curveTop: { borderTopLeftRadius: 4, borderTopRightRadius: 4 },
+  axisCaption: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: -6 },
   curveLabel: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 4 },
 
   barRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -807,6 +826,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+    gap: 12,
   },
-  previewImage: { width: '100%', aspectRatio: 1 / CARD_RATIO, borderRadius: 16 },
+  previewImage: { width: '100%', maxHeight: '75%', aspectRatio: 1 / CARD_RATIO, borderRadius: 16 },
 });

@@ -60,6 +60,7 @@ son siempre las cartas.
 | **Brawl · Standard Brawl** (Arena) | Como Commander (100 / 60 cartas), con criatura o planeswalker legendario de comandante |
 | **Historic · Timeless · Alchemy** (Arena) | Como Estándar |
 | **Estándar · Pioneer · Modern · Legacy · Vintage · Pauper · Premodern · Penny** | Mínimo 60 cartas, máximo 4 copias (1 si está restringida en Vintage) y legalidad |
+| **Limitado** (draft / sellado) | Mínimo 40 cartas, sin límite de copias |
 | **Libre** | Sin comprobaciones |
 
 Las tierras básicas y las cartas con *"any number of cards named"* o *"up to N cards named"* respetan sus propias reglas.
