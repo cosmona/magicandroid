@@ -46,6 +46,7 @@ import {
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
 import { PrintingPicker } from '@/components/PrintingPicker';
 import { LanguagePill } from '@/components/LanguagePicker';
+import { InDeckBadge } from '@/components/deck/InDeckBadge';
 import { CardShareSheet, type ShareableCard } from '@/components/CardShareSheet';
 import { ImportListModal } from '@/components/ImportListModal';
 import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/components/CardControls';
@@ -87,7 +88,8 @@ const MAX_RESULTS = 20;
  */
 export function CollectionScreen({ search }: { search?: { q: string; t: string } } = {}) {
   const db = useSQLiteContext();
-  const { prefs, ensureActiveDeck, refresh } = useAppState();
+  const { prefs, setPrefs, ensureActiveDeck, refresh } = useAppState();
+  const place = prefs.collectionPlace;
   const [cards, setCards] = useState<CollectionCard[]>([]);
   const [query, setQuery] = useState('');
   // Opened from elsewhere to look for a card ("Ver en mi colección"): put it in the search box.
@@ -116,9 +118,9 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const [sets, setSets] = useState<Record<string, MtgSet>>({});
 
   const load = useCallback(async () => {
-    setCards(await getCollection(db));
+    setCards(await getCollection(db, place));
     setInDecks(await getDeckOracleIds(db));
-  }, [db]);
+  }, [db, place]);
 
   // Set names and dates, for the edition grouping/filter (cached for the app run).
   useEffect(() => {
@@ -154,7 +156,8 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   // Collection value on Cardmarket (live prices from Scryfall; hidden offline).
   const details = useCardDetails(cards.map((c) => c.scryfallId));
   const value = priceTotal(cards, details);
-  const showPrices = prefs.pricesCollection;
+  // Arena cards have no Cardmarket price.
+  const showPrices = prefs.pricesCollection && place === 'paper';
   // Grouping/filtering by price only while prices are shown.
   const effectiveGroup: GroupBy = !showPrices && groupBy === 'price' ? 'none' : groupBy;
   const effectiveFilter = useMemo(
@@ -229,7 +232,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const add = async (card: Card) => {
     const printing =
       prefs.language !== 'en' ? ((await getCardInLanguage(card, prefs.language).catch(() => null)) ?? card) : card;
-    const quantity = await addToCollection(db, printing);
+    const quantity = await addToCollection(db, printing, place);
     showToast(`📦 ${displayName(printing)} (${quantity})`);
     load();
   };
@@ -247,8 +250,8 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   };
 
   const remove = async (card: CollectionCard) => {
-    const row = await snapshotCollectionCard(db, card.scryfallId);
-    await removeFromCollection(db, card.scryfallId);
+    const row = await snapshotCollectionCard(db, card.scryfallId, place);
+    await removeFromCollection(db, card.scryfallId, place);
     load();
     if (row) {
       clearTimeout(undoTimer.current);
@@ -264,7 +267,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   // Going below 1 copy removes it: undoable like the trash button.
   const change = async (card: CollectionCard, delta: number) => {
     if (card.quantity + delta <= 0) return remove(card);
-    await changeCollectionQuantity(db, card.scryfallId, delta);
+    await changeCollectionQuantity(db, card.scryfallId, delta, place);
     load();
   };
 
@@ -289,8 +292,27 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
 
   const header = (
     <View>
+      <View style={styles.placeSwitch}>
+        {(
+          [
+            { key: 'paper', label: 'Papel', icon: 'package-variant-closed' },
+            { key: 'arena', label: 'MTG Arena', icon: 'gamepad-variant-outline' },
+          ] as const
+        ).map((p) => (
+          <Pressable
+            key={p.key}
+            style={[styles.placeOption, place === p.key && styles.placeOptionOn]}
+            onPress={() => place !== p.key && setPrefs({ ...prefs, collectionPlace: p.key })}
+            accessibilityRole="button"
+            accessibilityState={{ selected: place === p.key }}
+          >
+            <MaterialCommunityIcons name={p.icon} size={18} color={place === p.key ? colors.bg : colors.textMuted} />
+            <Text style={[styles.placeText, place === p.key && { color: colors.bg }]}>{p.label}</Text>
+          </Pressable>
+        ))}
+      </View>
       <View style={styles.titleRow}>
-        <Text style={styles.title}>📦 Mi colección</Text>
+        <Text style={styles.title}>{place === 'arena' ? '🎮 Mi colección de Arena' : '📦 Mi colección'}</Text>
         <Text style={styles.stats}>
           {stats.total} cartas · {stats.unique} distintas
           {showPrices && value.priced > 0 && <Text style={styles.value}> · ≈ {formatEur(value.eur)}</Text>}
@@ -322,9 +344,12 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         >
           <MaterialCommunityIcons name="import" size={24} color={colors.accent} />
         </Pressable>
-        <Pressable style={styles.scanButton} onPress={() => setScanning(true)} hitSlop={6}>
-          <Text style={styles.scanIcon}>📷</Text>
-        </Pressable>
+        {/* The scanner reads physical cards: paper only. */}
+        {place === 'paper' && (
+          <Pressable style={styles.scanButton} onPress={() => setScanning(true)} hitSlop={6}>
+            <Text style={styles.scanIcon}>📷</Text>
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.toolbar}>
@@ -582,7 +607,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           name={displayName(printingCard)}
           onClose={() => setPrintingCard(null)}
           onPick={async (printing) => {
-            await changeCollectionPrinting(db, printingCard.scryfallId, printing);
+            await changeCollectionPrinting(db, printingCard.scryfallId, printing, place);
             load();
           }}
         />
@@ -606,6 +631,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
               contentFit="contain"
             />
           )}
+          {preview && <InDeckBadge oracleId={preview.oracleId} />}
           {preview && (
             <LanguagePill
               card={preview.scryfallId}
@@ -613,7 +639,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
               onPick={async (c) => {
                 if (c.id === preview.scryfallId) return;
                 setPreview(null);
-                await changeCollectionPrinting(db, preview.scryfallId, c);
+                await changeCollectionPrinting(db, preview.scryfallId, c, place);
                 load();
               }}
             />
@@ -628,6 +654,28 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', padding: 14 },
   title: { color: colors.accent, fontSize: 20, fontWeight: '900' },
+  placeSwitch: {
+    flexDirection: 'row',
+    gap: 4,
+    padding: 4,
+    marginHorizontal: 14,
+    marginTop: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  placeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 34,
+    borderRadius: 9,
+  },
+  placeOptionOn: { backgroundColor: colors.accent },
+  placeText: { color: colors.textMuted, fontWeight: '800' },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 14 },
   scanButton: {
     width: 46,

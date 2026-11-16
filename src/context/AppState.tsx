@@ -11,6 +11,7 @@ import {
   setSetting,
   type Deck,
   type DeckCard,
+  type Place,
 } from '@/db/database';
 
 /** Name given to a deck auto-created by the first right swipe (like the web's "(Not Saved)"). */
@@ -31,6 +32,8 @@ export interface Prefs {
   deckView: DeckView;
   /** How the deck sheet groups the cards. */
   deckGroup: DeckGroupBy;
+  /** Collection in use everywhere ("La tengo", missing cards): paper or MTG Arena. */
+  collectionPlace: Place;
   /** Hide Android's navigation buttons (swipe up from the bottom edge to show them). */
   hideNavBar: boolean;
   /** Deck sheet's action buttons and deck picker hidden (more room for the cards). */
@@ -48,6 +51,7 @@ export const DEFAULT_PREFS: Prefs = {
   haptics: true,
   deckView: 'list',
   deckGroup: 'type',
+  collectionPlace: 'paper',
   hideNavBar: false,
   deckToolsHidden: false,
   pricesDeck: true,

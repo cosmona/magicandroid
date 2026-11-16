@@ -42,6 +42,7 @@ son siempre las cartas.
 | 🧩 **Sinergias y combos** | Cómo se juega cada carta en Commander y sus cartas afines ([EDHREC](https://edhrec.com)), sus combos y los que tu mazo tiene o está a una carta de tener ([Commander Spellbook](https://commanderspellbook.com)), y recomendaciones para tu comandante. |
 | 📊 **Estadísticas y mano de prueba** | Curva de maná, colores (símbolos frente a tierras que los dan), tipos y aviso de tierras. **Recomendar maná** añade las tierras básicas que faltan, repartidas por colores (como en Arena). Roba una mano de 7, haz mulligan y roba turno a turno. |
 | 🖼️ **Compartir como imagen** | Una imagen del mazo lista para WhatsApp o redes: portada, comandante, curva, colores y la lista por tipos. |
+| 🎮 **Colección de Arena** | Separada de la de papel: marca lo que tienes en Arena (o importa tus mazos de Arena) y cada mazo te dice cuántos **comodines** de cada rareza necesitas. |
 | 🎮 **MTG Arena** | Formatos de Arena, filtro «Solo cartas de Arena» y **copiar el mazo para Arena** (Mazos → Importar), avisando de las cartas que no existen allí. |
 | 📥 **Importar listas** | Pega un mazo exportado de Arena, Moxfield, Archidekt o MTGO (o cualquier lista «4 Nombre») para crear un mazo o sumarlo a la colección. |
 | 🪙 **Fichas** | Las fichas y emblemas que crean las cartas de tu mazo, con su imagen. |

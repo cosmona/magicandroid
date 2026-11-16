@@ -1,0 +1,58 @@
+import { StyleSheet, Text, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useAppState } from '@/context/AppState';
+import { colors } from '@/theme';
+
+const front = (name: string) => name.split(' // ')[0].trim().toLowerCase();
+
+/**
+ * "En «Mazo»: 2" / "No está en «Mazo»" for any enlarged card: whether the deck being built
+ * (the active one) has it, in the main deck and/or the sideboard. Matched by oracle id, or by
+ * English name when only that is known (combos). Nothing without an active deck.
+ */
+export function InDeckBadge({ oracleId, name }: { oracleId?: string; name?: string }) {
+  const { activeDeck, activeCards, activeSideboard } = useAppState();
+  if (!activeDeck || (!oracleId && !name)) return null;
+
+  const match = (c: { oracleId: string; name: string }) =>
+    oracleId ? c.oracleId === oracleId : front(c.name) === front(name!);
+  const main = activeCards.find(match)?.quantity ?? 0;
+  const side = activeSideboard.find(match)?.quantity ?? 0;
+  const inDeck = main + side > 0;
+
+  const text = !inDeck
+    ? `No está en «${activeDeck.name}»`
+    : main > 0
+      ? `En «${activeDeck.name}»: ${main}${side ? ` (+${side} en el banquillo)` : ''}`
+      : `En el banquillo de «${activeDeck.name}»: ${side}`;
+
+  return (
+    <View style={[styles.badge, inDeck ? styles.inDeck : styles.notInDeck]}>
+      <MaterialCommunityIcons
+        name={inDeck ? 'cards-playing' : 'cards-playing-outline'}
+        size={16}
+        color={inDeck ? colors.bg : colors.textMuted}
+      />
+      <Text style={[styles.text, inDeck && { color: colors.bg }]} numberOfLines={1}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 6,
+    maxWidth: '100%',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  inDeck: { backgroundColor: colors.accent, borderColor: colors.accent },
+  notInDeck: { borderColor: colors.border, backgroundColor: colors.surface },
+  text: { color: colors.textMuted, fontWeight: '800', fontSize: 13, flexShrink: 1 },
+});

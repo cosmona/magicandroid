@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Card } from '@/api/scryfall';
 
 export const DATABASE_NAME = 'magicswipe.db';
-const DATABASE_VERSION = 5;
+const DATABASE_VERSION = 6;
 
 /** Runs on every app start (SQLiteProvider onInit). Schema changes = bump version + add a step. */
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
@@ -104,6 +104,37 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
       );
     `);
     version = 5;
+  }
+  if (version === 5) {
+    // Two collections: paper (the cards you hold) and MTG Arena. Same printing can be in both,
+    // so the key becomes (scryfall_id, place). Existing cards are paper.
+    await db.execAsync(`
+      CREATE TABLE collection_cards_v6 (
+        scryfall_id TEXT NOT NULL,
+        place TEXT NOT NULL DEFAULT 'paper',
+        oracle_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        printed_name TEXT,
+        type_line TEXT NOT NULL,
+        mana_cost TEXT,
+        cmc REAL NOT NULL DEFAULT 0,
+        image_url TEXT,
+        rarity TEXT,
+        set_code TEXT NOT NULL,
+        lang TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        added_at INTEGER NOT NULL,
+        PRIMARY KEY (scryfall_id, place)
+      );
+      INSERT INTO collection_cards_v6 (scryfall_id, place, oracle_id, name, printed_name, type_line, mana_cost, cmc,
+        image_url, rarity, set_code, lang, quantity, added_at)
+        SELECT scryfall_id, 'paper', oracle_id, name, printed_name, type_line, mana_cost, cmc, image_url, rarity,
+          set_code, lang, quantity, added_at FROM collection_cards;
+      DROP TABLE collection_cards;
+      ALTER TABLE collection_cards_v6 RENAME TO collection_cards;
+      CREATE INDEX collection_cards_oracle ON collection_cards (oracle_id, place);
+    `);
+    version = 6;
   }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
@@ -427,6 +458,9 @@ export async function changeQuantity(db: SQLiteDatabase, deckId: number, oracleI
 
 // ---------- Collection ----------
 
+/** Which collection: the paper cards you hold, or your MTG Arena cards. */
+export type Place = 'paper' | 'arena';
+
 export interface CollectionCard {
   scryfallId: string;
   oracleId: string;
@@ -441,22 +475,24 @@ export interface CollectionCard {
   quantity: number;
 }
 
-export const getCollection = (db: SQLiteDatabase) =>
+export const getCollection = (db: SQLiteDatabase, place: Place) =>
   db.getAllAsync<CollectionCard>(
     `SELECT scryfall_id AS scryfallId, oracle_id AS oracleId, name, printed_name AS printedName,
             type_line AS typeLine, mana_cost AS manaCost, image_url AS imageUrl, rarity,
             set_code AS setCode, lang, quantity
-     FROM collection_cards ORDER BY COALESCE(printed_name, name)`,
+     FROM collection_cards WHERE place = ? ORDER BY COALESCE(printed_name, name)`,
+    place,
   );
 
 /** Adds `count` copies of this exact printing to the collection; returns the new total. */
-export async function addToCollection(db: SQLiteDatabase, card: Card, count = 1): Promise<number> {
+export async function addToCollection(db: SQLiteDatabase, card: Card, place: Place, count = 1): Promise<number> {
   await db.runAsync(
-    `INSERT INTO collection_cards (scryfall_id, oracle_id, name, printed_name, type_line, mana_cost,
+    `INSERT INTO collection_cards (scryfall_id, place, oracle_id, name, printed_name, type_line, mana_cost,
        cmc, image_url, rarity, set_code, lang, quantity, added_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(scryfall_id) DO UPDATE SET quantity = quantity + excluded.quantity`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(scryfall_id, place) DO UPDATE SET quantity = quantity + excluded.quantity`,
     card.id,
+    place,
     card.oracleId,
     card.name,
     card.printedName,
@@ -471,30 +507,37 @@ export async function addToCollection(db: SQLiteDatabase, card: Card, count = 1)
     Date.now(),
   );
   const row = await db.getFirstAsync<{ quantity: number }>(
-    'SELECT quantity FROM collection_cards WHERE scryfall_id = ?',
+    'SELECT quantity FROM collection_cards WHERE scryfall_id = ? AND place = ?',
     card.id,
+    place,
   );
   return row?.quantity ?? count;
 }
 
 /** Moves all copies of a collection printing to another printing of the same card (merging if owned). */
-export async function changeCollectionPrinting(db: SQLiteDatabase, fromId: string, card: Card) {
+export async function changeCollectionPrinting(db: SQLiteDatabase, fromId: string, card: Card, place: Place) {
   if (fromId === card.id) return;
   await db.withTransactionAsync(async () => {
     const row = await db.getFirstAsync<{ quantity: number }>(
-      'SELECT quantity FROM collection_cards WHERE scryfall_id = ?',
+      'SELECT quantity FROM collection_cards WHERE scryfall_id = ? AND place = ?',
       fromId,
+      place,
     );
     if (!row) return;
-    await addToCollection(db, card, row.quantity);
-    await db.runAsync('DELETE FROM collection_cards WHERE scryfall_id = ?', fromId);
+    await addToCollection(db, card, place, row.quantity);
+    await db.runAsync('DELETE FROM collection_cards WHERE scryfall_id = ? AND place = ?', fromId, place);
   });
 }
 
 /** Changes a printing's quantity by `delta`; removes it at 0. */
-export async function changeCollectionQuantity(db: SQLiteDatabase, scryfallId: string, delta: number) {
+export async function changeCollectionQuantity(db: SQLiteDatabase, scryfallId: string, delta: number, place: Place) {
   await db.withTransactionAsync(async () => {
-    await db.runAsync('UPDATE collection_cards SET quantity = quantity + ? WHERE scryfall_id = ?', delta, scryfallId);
+    await db.runAsync(
+      'UPDATE collection_cards SET quantity = quantity + ? WHERE scryfall_id = ? AND place = ?',
+      delta,
+      scryfallId,
+      place,
+    );
     await db.runAsync('DELETE FROM collection_cards WHERE quantity <= 0');
   });
 }
@@ -507,33 +550,37 @@ export async function removeOneFromCollection(
   db: SQLiteDatabase,
   oracleId: string,
   preferId: string,
+  place: Place,
 ): Promise<boolean> {
   const row =
     (await db.getFirstAsync<{ id: string }>(
-      'SELECT scryfall_id AS id FROM collection_cards WHERE scryfall_id = ?',
+      'SELECT scryfall_id AS id FROM collection_cards WHERE scryfall_id = ? AND place = ?',
       preferId,
+      place,
     )) ??
     (await db.getFirstAsync<{ id: string }>(
-      'SELECT scryfall_id AS id FROM collection_cards WHERE oracle_id = ? ORDER BY added_at DESC LIMIT 1',
+      'SELECT scryfall_id AS id FROM collection_cards WHERE oracle_id = ? AND place = ? ORDER BY added_at DESC LIMIT 1',
       oracleId,
+      place,
     ));
   if (!row) return false;
-  await changeCollectionQuantity(db, row.id, -1);
+  await changeCollectionQuantity(db, row.id, -1, place);
   return true;
 }
 
 /** Copies of one printing in the collection. */
-export async function getPrintingCount(db: SQLiteDatabase, scryfallId: string): Promise<number> {
+export async function getPrintingCount(db: SQLiteDatabase, scryfallId: string, place: Place): Promise<number> {
   const row = await db.getFirstAsync<{ quantity: number }>(
-    'SELECT quantity FROM collection_cards WHERE scryfall_id = ?',
+    'SELECT quantity FROM collection_cards WHERE scryfall_id = ? AND place = ?',
     scryfallId,
+    place,
   );
   return row?.quantity ?? 0;
 }
 
 /** Raw collection row, to put back with `restoreCollectionRow` (undo). */
-export const snapshotCollectionCard = (db: SQLiteDatabase, scryfallId: string) =>
-  db.getFirstAsync<Row>('SELECT * FROM collection_cards WHERE scryfall_id = ?', scryfallId);
+export const snapshotCollectionCard = (db: SQLiteDatabase, scryfallId: string, place: Place) =>
+  db.getFirstAsync<Row>('SELECT * FROM collection_cards WHERE scryfall_id = ? AND place = ?', scryfallId, place);
 
 export async function restoreCollectionRow(db: SQLiteDatabase, row: Row): Promise<void> {
   const cols = Object.keys(row);
@@ -543,8 +590,8 @@ export async function restoreCollectionRow(db: SQLiteDatabase, row: Row): Promis
   );
 }
 
-export const removeFromCollection = (db: SQLiteDatabase, scryfallId: string) =>
-  db.runAsync('DELETE FROM collection_cards WHERE scryfall_id = ?', scryfallId);
+export const removeFromCollection = (db: SQLiteDatabase, scryfallId: string, place: Place) =>
+  db.runAsync('DELETE FROM collection_cards WHERE scryfall_id = ? AND place = ?', scryfallId, place);
 
 /** Oracle ids of every card in any deck (for the collection's "in a deck / free" filter). */
 export async function getDeckOracleIds(db: SQLiteDatabase): Promise<Set<string>> {
@@ -553,11 +600,16 @@ export async function getDeckOracleIds(db: SQLiteDatabase): Promise<Set<string>>
 }
 
 /** Copies owned of each card (any printing/language), by oracle id. */
-export async function getOwnedCounts(db: SQLiteDatabase, oracleIds: string[]): Promise<Record<string, number>> {
+export async function getOwnedCounts(
+  db: SQLiteDatabase,
+  oracleIds: string[],
+  place: Place,
+): Promise<Record<string, number>> {
   if (!oracleIds.length) return {};
   const rows = await db.getAllAsync<{ oracleId: string; owned: number }>(
     `SELECT oracle_id AS oracleId, SUM(quantity) AS owned FROM collection_cards
-     WHERE oracle_id IN (${oracleIds.map(() => '?').join(',')}) GROUP BY oracle_id`,
+     WHERE place = ? AND oracle_id IN (${oracleIds.map(() => '?').join(',')}) GROUP BY oracle_id`,
+    place,
     ...oracleIds,
   );
   return Object.fromEntries(rows.map((r) => [r.oracleId, r.owned]));

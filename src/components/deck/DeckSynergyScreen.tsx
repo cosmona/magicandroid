@@ -25,8 +25,10 @@ import {
 } from '@/api/synergy';
 import { Section, SectionHelp, SubTitle } from '@/components/cardInfo/Section';
 import { ComboView, count, EntryRow, pct, useCardImages } from '@/components/synergy/SynergyParts';
+import { CardBigView } from '@/components/CardBigView';
 import { LanguagePill } from '@/components/LanguagePicker';
 import { OwnPill } from '@/components/collection/OwnButton';
+import { InDeckBadge } from '@/components/deck/InDeckBadge';
 import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
 import type { DeckCard } from '@/db/database';
@@ -63,6 +65,7 @@ export function DeckSynergyScreen({
   const { prefs } = useAppState();
   const [tab, setTab] = useState<Tab>('combos');
   const [recView, setRecView] = useState<RecView>('list');
+  const [bigId, setBigId] = useState<string | null>(null);
 
   const commanders = useMemo(
     () => (usesCommander ? cards.filter((c) => c.isCommander).map((c) => c.name) : []),
@@ -331,6 +334,7 @@ export function DeckSynergyScreen({
                       entry={e}
                       image={recImages[e.id]}
                       metric="synergy"
+                      onPress={() => setBigId(e.id)}
                       right={
                         added.has(e.id) ? (
                           <MaterialCommunityIcons name="check-circle" size={28} color={colors.add} />
@@ -357,6 +361,7 @@ export function DeckSynergyScreen({
             )}
           </ScrollView>
         )}
+        {bigId && <CardBigView id={bigId} onClose={() => setBigId(null)} />}
       </GestureHandlerRootView>
     </Modal>
   );
@@ -456,6 +461,7 @@ function RecommendSwipe({
           />
           <OwnPill card={shown} />
         </View>
+        <InDeckBadge oracleId={shown.oracleId} />
       </View>
       <View style={styles.swipeArea} onLayout={onLayout}>
         {size.width > 0 && (

@@ -6,6 +6,7 @@ import { getCardsByIds, getCardsByNames, smallImageUrl, type Card } from '@/api/
 import type { Combo, EdhrecEntry } from '@/api/synergy';
 import { LanguagePill } from '@/components/LanguagePicker';
 import { OwnPill } from '@/components/collection/OwnButton';
+import { InDeckBadge } from '@/components/deck/InDeckBadge';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { ManaCost } from '@/components/ManaCost';
 import { colors } from '@/theme';
@@ -172,6 +173,7 @@ export function ComboView({
               <LanguagePill card={{ name: big }} lang={bigPrinting?.lang} onPick={setBigPrinting} />
               <OwnPill card={bigPrinting ?? { name: big }} />
             </View>
+            <InDeckBadge name={big} />
             {added?.has(big) ? (
               <Text style={[styles.bigName, { color: colors.add }]}>✓ Añadida al mazo</Text>
             ) : canAdd(big) ? (
@@ -214,37 +216,47 @@ export function EntryRow({
   image,
   metric,
   right,
+  onPress,
 }: {
   entry: EdhrecEntry;
   image?: string;
   /** synergy: "+27 % de sinergia"; inclusion: "en el 45 % de sus mazos". */
   metric: 'synergy' | 'inclusion';
   right?: ReactNode;
+  /** Tapping the card (image + name): usually opens it big. */
+  onPress?: () => void;
 }) {
   const inclusion = entry.potentialDecks ? entry.numDecks / entry.potentialDecks : 0;
   return (
     <View style={styles.entry}>
-      <View style={styles.entryImage}>
-        {image && <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />}
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={styles.entryName} numberOfLines={1}>
-          {entry.name}
-        </Text>
-        {metric === 'synergy' ? (
-          <Text style={styles.small}>
-            <Text style={styles.synergy}>
-              {(entry.synergy ?? 0) >= 0 ? '+' : ''}
-              {pct(entry.synergy ?? 0)} de sinergia
+      <Pressable
+        style={({ pressed }) => [styles.entryMain, pressed && { opacity: 0.6 }]}
+        onPress={onPress}
+        disabled={!onPress}
+        accessibilityLabel={onPress ? `Ver ${entry.name} en grande` : undefined}
+      >
+        <View style={styles.entryImage}>
+          {image && <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={styles.entryName} numberOfLines={1}>
+            {entry.name}
+          </Text>
+          {metric === 'synergy' ? (
+            <Text style={styles.small}>
+              <Text style={styles.synergy}>
+                {(entry.synergy ?? 0) >= 0 ? '+' : ''}
+                {pct(entry.synergy ?? 0)} de sinergia
+              </Text>
+              {' · '}en el {pct(inclusion)} de sus mazos
             </Text>
-            {' · '}en el {pct(inclusion)} de sus mazos
-          </Text>
-        ) : (
-          <Text style={styles.small}>
-            En {count(entry.numDecks)} mazos ({pct(inclusion)})
-          </Text>
-        )}
-      </View>
+          ) : (
+            <Text style={styles.small}>
+              En {count(entry.numDecks)} mazos ({pct(inclusion)})
+            </Text>
+          )}
+        </View>
+      </Pressable>
       {right}
     </View>
   );
@@ -331,6 +343,7 @@ const styles = StyleSheet.create({
   stepsTitle: { color: colors.accent, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
   stepsText: { color: colors.text, fontSize: 13, lineHeight: 19 },
   entry: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  entryMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   entryImage: {
     width: 40,
     aspectRatio: 1 / CARD_RATIO,

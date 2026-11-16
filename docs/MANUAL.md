@@ -47,10 +47,16 @@ De arriba a abajo:
 
 La app siempre se abre en **Construir**.
 
+**¿Está en mi mazo?** Siempre que veas una carta en grande, una etiqueta te dice si está en el mazo que estás
+construyendo: «En «Krenko Goblins»: 2» (dorada; también avisa si hay copias en el banquillo) o «No está en «Krenko
+Goblins»» (gris).
+
 **La tengo en cualquier carta:** donde veas una carta en grande (mazo, ficha ⓘ, combos, recomendadas, mano de prueba,
-historial) está el botón **La tengo** con las copias que ya tienes; cada toque añade una a tu colección. En las cartas
-del mazo, la línea de la colección («En tu colección: 2», «Te falta 1», «No la tienes») también tiene **＋ La tengo**, y
-en la vista galería una cajita verde (las tienes todas) o amarilla (te faltan) en la esquina.
+historial, listas de sinergias) está el botón **La tengo**. Cada toque añade una copia a tu colección; cuando ya tienes
+alguna pasa a verde con «Tienes N ＋» y a su izquierda aparece **−** para quitar una. En las cartas del mazo, la línea de
+la colección («En tu colección: 2», «Te falta 1», «No la tienes») tiene **−** y **＋** (o «＋ La tengo»), y en la vista
+galería una cajita verde (las tienes todas) o amarilla (te faltan) en la esquina. Al quitar se quita primero esa
+edición e idioma y, si no la tienes, la última copia que añadiste de esa carta.
 
 **Código de colores** (igual en toda la app):
 
@@ -126,7 +132,8 @@ Pulsa **Buscar** para aplicar los filtros.
 ### La barra del mazo
 
 Abajo del todo está la barra del mazo activo: portada, nombre, formato, número de cartas, si es válido y su precio
-aproximado. **Tócala o deslízala hacia arriba** para abrir el mazo.
+aproximado. **Tócala o deslízala hacia arriba** para abrir el mazo. Con el mazo cerrado la portada es pequeña, para dejar
+más sitio a las cartas; al abrirlo crece hasta su tamaño normal (y vuelve a encogerse al cerrarlo).
 
 ### Abrir, ampliar y cerrar
 
@@ -248,6 +255,8 @@ Bolt», «1x Sol Ring (CMR) 472»):
 - Vale también la exportación de Arena **en español** (cabeceras «Mazo», «Banquillo» y nombres en español): la carta
   se busca por su edición y número o por su nombre impreso.
 - Con **En tu idioma** activado se busca cada carta en tu idioma (tarda un poco con listas largas).
+- Con **La tengo en MTG Arena** activado (al importar un mazo), sus cartas se apuntan en tu
+  [colección de Arena](#papel-y-mtg-arena) si no las tenías ya.
 - Si la lista tiene sección *Commander* (o la etiqueta de comandante de Archidekt), el mazo se crea en formato
   Commander con su comandante 👑. Si tiene unas 40 cartas (un **draft o sellado**, por ejemplo de Arena), en formato
   **Limitado**. Si no, en formato Libre: cámbialo con ✏️.
@@ -280,7 +289,22 @@ Usa **←** para volver y **↗** para abrirla en Scryfall.
 
 <table><tr><td align="center"><img src="img/coleccion.jpg" width="240" alt="Tu colección"><br><sub>Tu colección</sub></td></tr></table>
 
-Aquí apuntas las cartas que tienes de verdad. Cada fila es una **impresión** concreta (edición + idioma).
+Aquí apuntas las cartas que tienes. Cada fila es una **impresión** concreta (edición + idioma).
+
+### Papel y MTG Arena
+
+Tienes **dos colecciones separadas**: la de **papel** (tus cartas físicas) y la de **MTG Arena**. Arriba de la pestaña
+eliges cuál ves con **Papel | MTG Arena**. La que elijas es la que usa toda la app:
+
+- Los botones **La tengo** (en Arena dicen «La tengo en Arena», con un mando) suman y restan en esa colección.
+- El aviso del mazo («Faltan N») compara el mazo con esa colección.
+- En **Arena** no hay precios ni Cardmarket: el aviso abre los **comodines** que necesitas para crear lo que te falta
+  (míticos, raros, infrecuentes y comunes; las tierras básicas no cuentan porque son gratis).
+- El escáner 📷 solo está en papel, porque lee cartas físicas.
+
+Arena no deja sacar tu colección desde el móvil, así que se va llenando así: al **importar un mazo** de Arena activa
+**«La tengo en MTG Arena»** y sus cartas se marcan como tuyas en Arena; lo demás, con los botones **La tengo**. También
+puedes importar una lista directamente a la colección de Arena (botón de importar con Arena seleccionado).
 
 ### Añadir cartas
 
@@ -367,6 +391,9 @@ Scryfall no sabe qué cartas funcionan bien juntas, así que la app lo consulta 
   infinito, ganar la partida…), el maná para empezar y en cuántos mazos se juega. «Cómo funciona» despliega los
   requisitos y los pasos (en inglés); el enlace lleva a Commander Spellbook. Toca una carta del combo para verla en
   grande.
+
+Toca cualquier carta de estas listas (comandantes, cartas que la acompañan, cartas de más sinergia) para verla en
+**grande**: puedes cambiar su idioma, marcar **La tengo** para tu colección o **Añadir al mazo** activo.
 
 ### En el mazo (botón de la pieza de puzle)
 

@@ -31,15 +31,23 @@ async function scryfallLink(card: ShareableCard): Promise<string> {
  * The card's large image as a file in the cache. Uses the native download first and, if that
  * fails, fetches the bytes and writes the file itself.
  */
+/**
+ * Scryfall's image server rejects (400) Android's generic HTTP client name ("okhttp/…"), as its
+ * API does: identify the app like every other Scryfall request.
+ */
+const IMAGE_HEADERS = { 'User-Agent': 'MagicSwipe/1.0', Accept: 'image/*' };
+
 async function downloadImage(imageUrl: string, id: string): Promise<File> {
   const url = imageUrl.replace('/normal/', '/large/');
   const file = new File(Paths.cache, `carta-${id}.jpg`);
-  if (file.exists && file.size) return file;
+  // A real card image is well over 20 KB; anything smaller is a failed earlier download (error page).
+  if (file.exists && file.size > 20_000) return file;
+  if (file.exists) file.delete();
   try {
-    return await File.downloadFileAsync(url, file, { idempotent: true });
+    return await File.downloadFileAsync(url, file, { idempotent: true, headers: IMAGE_HEADERS });
   } catch (e) {
     console.warn('[CardShareSheet] downloadFileAsync', e);
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: IMAGE_HEADERS });
     if (!res.ok) throw new Error(`Scryfall respondió ${res.status} al pedir la imagen.`);
     const bytes = new Uint8Array(await res.arrayBuffer());
     if (file.exists) file.delete();

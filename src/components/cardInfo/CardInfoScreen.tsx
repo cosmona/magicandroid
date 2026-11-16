@@ -8,6 +8,7 @@ import { CARD_RATIO } from '@/components/SwipeCard';
 import { CardSynergy } from '@/components/cardInfo/CardSynergy';
 import { LanguagePill } from '@/components/LanguagePicker';
 import { OwnPill } from '@/components/collection/OwnButton';
+import { InDeckBadge } from '@/components/deck/InDeckBadge';
 import { Section as BaseSection } from '@/components/cardInfo/Section';
 import { ManaCost } from '@/components/ManaCost';
 import { useAppState } from '@/context/AppState';
@@ -147,6 +148,7 @@ export function CardInfoScreen({ id, onClose }: { id: string; onClose: () => voi
                 ))}
               </ScrollView>
             )}
+            <InDeckBadge oracleId={typeof card.oracle_id === 'string' ? card.oracle_id : undefined} />
             <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
               <OwnPill card={shownId} />
               <LanguagePill

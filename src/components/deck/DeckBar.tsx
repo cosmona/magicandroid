@@ -33,7 +33,7 @@ export function DeckBar({ onOpen }: { onOpen: () => void }) {
     <GestureDetector gesture={gesture}>
       <View style={[styles.bar, { paddingBottom: 10 + insets.bottom }]}>
         <SheetGrip />
-        <DeckSummary />
+        <DeckSummary compact />
       </View>
     </GestureDetector>
   );

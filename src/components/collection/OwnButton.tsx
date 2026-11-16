@@ -6,6 +6,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { displayName, getCardsByIds, getCardsByNames, type Card } from '@/api/scryfall';
 import type { CardRef } from '@/components/LanguagePicker';
 import { addToCollection, getOwnedCounts, getPrintingCount, removeOneFromCollection } from '@/db/database';
+import { useAppState } from '@/context/AppState';
 import { colors } from '@/theme';
 
 async function resolve(ref: CardRef): Promise<Card | null> {
@@ -15,8 +16,8 @@ async function resolve(ref: CardRef): Promise<Card | null> {
 }
 
 /**
- * "La tengo" pill for any card view: shows how many copies (any printing) you own and adds
- * one copy of this printing to the collection on each tap. `card` can be the printing, its
+ * "La tengo" pill for any card view: shows how many copies (any printing) you own; tapping it
+ * adds one copy of this printing, and once you have some a "−" on its left removes one. `card` can be the printing, its
  * Scryfall id or its English name; `oracleId`, when known, avoids looking the card up just to count.
  */
 export function OwnPill({
@@ -26,10 +27,12 @@ export function OwnPill({
 }: {
   card: CardRef;
   oracleId?: string;
-  /** After adding: the new total of copies. */
+  /** After adding or removing: the new total of copies. */
   onAdded?: (total: number) => void;
 }) {
   const db = useSQLiteContext();
+  const place = useAppState().prefs.collectionPlace;
+  const arena = place === 'arena';
   const refKey = typeof card === 'string' ? card : 'id' in card ? card.id : `name:${card.name}`;
   const knownOracle = oracleId ?? (typeof card !== 'string' && 'id' in card ? card.oracleId : undefined);
   const [owned, setOwned] = useState<{ key: string; oracleId: string; count: number } | null>(null);
@@ -40,7 +43,7 @@ export function OwnPill({
     (async () => {
       const id = knownOracle ?? (await resolve(card))?.oracleId;
       if (!id) return;
-      const counts = await getOwnedCounts(db, [id]);
+      const counts = await getOwnedCounts(db, [id], place);
       if (!cancelled) setOwned({ key: refKey, oracleId: id, count: counts[id] ?? 0 });
     })().catch(() => {});
     return () => {
@@ -48,18 +51,20 @@ export function OwnPill({
     };
     // Keyed by identity: callers may pass a fresh `{ name }` on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db, refKey, knownOracle]);
+  }, [db, refKey, knownOracle, place]);
 
   const count = owned?.key === refKey ? owned.count : 0;
 
-  const add = async () => {
+  /** +1 adds this printing; −1 removes one copy (this printing first, else the last one added). */
+  const change = async (delta: 1 | -1) => {
     setBusy(true);
     try {
       const printing = await resolve(card);
       if (!printing) return;
-      await addToCollection(db, printing);
-      const counts = await getOwnedCounts(db, [printing.oracleId]);
-      const total = counts[printing.oracleId] ?? 1;
+      if (delta > 0) await addToCollection(db, printing, place);
+      else await removeOneFromCollection(db, printing.oracleId, printing.id, place);
+      const counts = await getOwnedCounts(db, [printing.oracleId], place);
+      const total = counts[printing.oracleId] ?? 0;
       setOwned({ key: refKey, oracleId: printing.oracleId, count: total });
       onAdded?.(total);
     } catch {
@@ -70,24 +75,42 @@ export function OwnPill({
   };
 
   return (
-    <Pressable
-      style={[styles.pill, count > 0 && styles.pillOwned, busy && { opacity: 0.6 }]}
-      onPress={add}
-      disabled={busy}
-      hitSlop={6}
-      accessibilityLabel={
-        count > 0 ? `Tienes ${count} en tu colección. Añadir otra` : 'La tengo: añadir a tu colección'
-      }
-    >
-      <MaterialCommunityIcons
-        name={count > 0 ? 'package-variant-closed-check' : 'package-variant-closed'}
-        size={16}
-        color={count > 0 ? colors.bg : colors.text}
-      />
-      <Text style={[styles.text, count > 0 && { color: colors.bg }]}>
-        {count > 0 ? `Tienes ${count} · +1` : 'La tengo'}
-      </Text>
-    </Pressable>
+    <View style={[styles.pill, styles.pillRow, count > 0 && styles.pillOwned, busy && { opacity: 0.6 }]}>
+      {count > 0 && (
+        <Pressable
+          onPress={() => change(-1)}
+          disabled={busy}
+          hitSlop={8}
+          style={styles.pillStep}
+          accessibilityLabel="Quitar una de tu colección"
+        >
+          <MaterialCommunityIcons name="minus" size={16} color={colors.bg} />
+        </Pressable>
+      )}
+      <Pressable
+        onPress={() => change(1)}
+        disabled={busy}
+        hitSlop={6}
+        style={styles.pillMain}
+        accessibilityLabel={
+          count > 0
+            ? `Tienes ${count} en tu colección${arena ? ' de Arena' : ''}. Añadir otra`
+            : `La tengo${arena ? ' en Arena' : ''}: añadir a tu colección`
+        }
+      >
+        <MaterialCommunityIcons
+          name={
+            arena ? 'gamepad-variant-outline' : count > 0 ? 'package-variant-closed-check' : 'package-variant-closed'
+          }
+          size={16}
+          color={count > 0 ? colors.bg : colors.text}
+        />
+        <Text style={[styles.text, count > 0 && { color: colors.bg }]}>
+          {count > 0 ? `Tienes ${count}${arena ? ' en Arena' : ''}` : arena ? 'La tengo en Arena' : 'La tengo'}
+        </Text>
+        {count > 0 && <MaterialCommunityIcons name="plus" size={16} color={colors.bg} />}
+      </Pressable>
+    </View>
   );
 }
 
@@ -98,20 +121,24 @@ export function OwnPill({
  */
 export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number }) {
   const db = useSQLiteContext();
+  const place = useAppState().prefs.collectionPlace;
+  const arena = place === 'arena';
   const [counts, setCounts] = useState<{ id: string; total: number; printing: number } | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = () =>
-    Promise.all([getOwnedCounts(db, [card.oracleId]), getPrintingCount(db, card.id)]).then(([all, printing]) => ({
-      id: card.id,
-      total: all[card.oracleId] ?? 0,
-      printing,
-    }));
+    Promise.all([getOwnedCounts(db, [card.oracleId], place), getPrintingCount(db, card.id, place)]).then(
+      ([all, printing]) => ({
+        id: card.id,
+        total: all[card.oracleId] ?? 0,
+        printing,
+      }),
+    );
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getOwnedCounts(db, [card.oracleId]), getPrintingCount(db, card.id)])
+    Promise.all([getOwnedCounts(db, [card.oracleId], place), getPrintingCount(db, card.id, place)])
       .then(([all, printing]) => {
         if (!cancelled) setCounts({ id: card.id, total: all[card.oracleId] ?? 0, printing });
       })
@@ -119,7 +146,7 @@ export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number 
     return () => {
       cancelled = true;
     };
-  }, [db, card.id, card.oracleId]);
+  }, [db, card.id, card.oracleId, place]);
 
   const total = counts?.id === card.id ? counts.total : 0;
   const printing = counts?.id === card.id ? counts.printing : 0;
@@ -127,8 +154,8 @@ export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number 
   const change = async (delta: 1 | -1) => {
     setBusy(true);
     try {
-      if (delta > 0) await addToCollection(db, card);
-      else await removeOneFromCollection(db, card.oracleId, card.id);
+      if (delta > 0) await addToCollection(db, card, place);
+      else await removeOneFromCollection(db, card.oracleId, card.id, place);
       setCounts(await load());
     } finally {
       setBusy(false);
@@ -144,10 +171,12 @@ export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number 
           pressed && { opacity: 0.6 },
         ]}
         onPress={() => setOpen(true)}
-        accessibilityLabel={total > 0 ? `La tengo: tienes ${total}` : 'La tengo'}
+        accessibilityLabel={`La tengo${arena ? ' en Arena' : ''}${total > 0 ? `: tienes ${total}` : ''}`}
       >
         <MaterialCommunityIcons
-          name={total > 0 ? 'package-variant-closed-check' : 'package-variant-closed'}
+          name={
+            arena ? 'gamepad-variant-outline' : total > 0 ? 'package-variant-closed-check' : 'package-variant-closed'
+          }
           size={22}
           color={total > 0 ? colors.add : colors.text}
         />
@@ -165,7 +194,7 @@ export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number 
               {displayName(card)}
             </Text>
             <Text style={styles.panelHelp}>
-              En tu colección: {total} {total === 1 ? 'copia' : 'copias'}
+              En tu colección{arena ? ' de Arena' : ''}: {total} {total === 1 ? 'copia' : 'copias'}
               {total > 0 ? ` (${printing} de esta edición e idioma)` : ''}
             </Text>
             <View style={styles.stepper}>
@@ -199,7 +228,7 @@ export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number 
               }}
             >
               <MaterialCommunityIcons name="bookshelf" size={20} color={colors.bg} />
-              <Text style={styles.galleryText}>Ver en mi colección</Text>
+              <Text style={styles.galleryText}>Ver en mi colección{arena ? ' de Arena' : ''}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -274,5 +303,12 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   pillOwned: { backgroundColor: colors.add, borderColor: colors.add },
+  pillRow: { paddingHorizontal: 6 },
+  pillMain: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 6 },
+  pillStep: {
+    paddingHorizontal: 6,
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(20,16,28,0.35)',
+  },
   text: { color: colors.text, fontWeight: '700', fontSize: 13 },
 });

@@ -87,7 +87,7 @@ function Scanner({ onClose, onAdded, onSearch }: Omit<Props, 'visible'>) {
   };
 
   const add = async (card: Card) => {
-    const quantity = await addToCollection(db, card);
+    const quantity = await addToCollection(db, card, 'paper');
     setCount((n) => n + 1);
     const message = `✓ ${displayName(card)} (tienes ${quantity})`;
     setLastAdded(message);

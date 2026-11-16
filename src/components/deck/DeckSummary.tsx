@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { artCropUrl } from '@/api/scryfall';
 import { UNNAMED_DECK, useAppState } from '@/context/AppState';
 import { priceTotal, useCardDetails } from '@/hooks/useCardDetails';
@@ -17,8 +18,11 @@ export function DeckSummary({
   right,
   onPressCover,
   pickerOpen = false,
+  compact = false,
 }: {
   right?: ReactNode;
+  /** Closed deck bar: cover at half size. It grows / shrinks when switching (sheet ⇄ bar). */
+  compact?: boolean;
   /** Tapping the cover (or its arrow) toggles the deck picker; without it the arrow is just a hint. */
   onPressCover?: () => void;
   pickerOpen?: boolean;
@@ -27,6 +31,18 @@ export function DeckSummary({
   const validation = validateDeck(activeDeck?.format ?? null, activeCards, activeSideboard);
   const details = useCardDetails(activeCards.map((c) => c.scryfallId));
   const price = priceTotal(activeCards, details);
+  // Starts at the other size and animates to its own: the bar's cover shrinks as the sheet
+  // closes, the sheet's grows as it opens.
+  const target = compact ? DECK_COVER_SIZE / 2 : DECK_COVER_SIZE;
+  const coverSize = useSharedValue(compact ? DECK_COVER_SIZE : DECK_COVER_SIZE / 2);
+  useEffect(() => {
+    coverSize.set(withTiming(target, { duration: 260, easing: Easing.out(Easing.cubic) }));
+  }, [coverSize, target]);
+  const coverStyle = useAnimatedStyle(() => ({
+    width: coverSize.get(),
+    height: coverSize.get(),
+    borderRadius: coverSize.get() / 6,
+  }));
   const status = !validation.checked || !activeCards.length ? '' : validation.valid ? ' · ✓ válido' : ' · ⚠ revisar';
 
   return (
@@ -39,7 +55,7 @@ export function DeckSummary({
         accessibilityLabel="Cambiar de mazo"
         accessibilityState={{ expanded: pickerOpen }}
       >
-        <View style={[styles.cover, pickerOpen && styles.coverOpen]}>
+        <Animated.View style={[styles.cover, coverStyle, pickerOpen && styles.coverOpen]}>
           {activeDeck?.coverImage && (
             <Image
               source={{ uri: artCropUrl(activeDeck.coverImage) }}
@@ -47,7 +63,7 @@ export function DeckSummary({
               contentFit="cover"
             />
           )}
-        </View>
+        </Animated.View>
         <MaterialCommunityIcons
           name={pickerOpen ? 'chevron-up' : 'chevron-down'}
           size={22}

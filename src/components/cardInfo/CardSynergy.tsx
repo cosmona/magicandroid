@@ -11,6 +11,7 @@ import {
   type EdhrecCard,
   type EdhrecCommander,
 } from '@/api/synergy';
+import { CardBigView } from '@/components/CardBigView';
 import { Section, SectionHelp, SubTitle } from '@/components/cardInfo/Section';
 import { ComboView, count, EntryRow, pct, useCardImages } from '@/components/synergy/SynergyParts';
 import { colors } from '@/theme';
@@ -44,6 +45,8 @@ export function CardSynergy({ name, canBeCommander }: { name: string; canBeComma
   const edhrec = useLoad(`card:${name}`, () => getEdhrecCard(name));
   const commander = useLoad(`cmd:${name}`, () => getEdhrecCommander(name), canBeCommander);
   const combos = useLoad(`combos:${name}`, () => getCardCombos(name, 10));
+  // Card from the lists shown big, with buttons to add it to the deck / collection.
+  const [bigId, setBigId] = useState<string | null>(null);
 
   const card = edhrec.status === 'done' ? edhrec.data : null;
   const cmd = canBeCommander && commander.status === 'done' ? commander.data : null;
@@ -67,7 +70,7 @@ export function CardSynergy({ name, canBeCommander }: { name: string; canBeComma
           Datos de EDHREC, que recopila cientos de miles de mazos de Commander publicados en internet.
         </SectionHelp>
         <Body state={edhrec} empty="EDHREC no tiene datos de esta carta (puede que no sea legal en Commander).">
-          {card && <EdhrecCardView card={card} name={name} images={entryImages} />}
+          {card && <EdhrecCardView card={card} name={name} images={entryImages} onOpen={setBigId} />}
         </Body>
       </Section>
 
@@ -78,7 +81,7 @@ export function CardSynergy({ name, canBeCommander }: { name: string; canBeComma
             aparecen en sus mazos que en la media de mazos de sus colores.
           </SectionHelp>
           <Body state={commander} empty="">
-            {cmd && <CommanderView cmd={cmd} name={name} images={entryImages} />}
+            {cmd && <CommanderView cmd={cmd} name={name} images={entryImages} onOpen={setBigId} />}
           </Body>
         </Section>
       )}
@@ -96,6 +99,7 @@ export function CardSynergy({ name, canBeCommander }: { name: string; canBeComma
           )}
         </Body>
       </Section>
+      {bigId && <CardBigView id={bigId} onClose={() => setBigId(null)} />}
     </>
   );
 }
@@ -107,7 +111,17 @@ function Body<T>({ state, empty, children }: { state: Load<T>; empty: string; ch
   return <>{children}</>;
 }
 
-function EdhrecCardView({ card, name, images }: { card: EdhrecCard; name: string; images: Record<string, string> }) {
+function EdhrecCardView({
+  card,
+  name,
+  images,
+  onOpen,
+}: {
+  card: EdhrecCard;
+  name: string;
+  images: Record<string, string>;
+  onOpen: (id: string) => void;
+}) {
   const inclusion = card.potentialDecks ? card.numDecks / card.potentialDecks : 0;
   return (
     <>
@@ -127,7 +141,7 @@ function EdhrecCardView({ card, name, images }: { card: EdhrecCard; name: string
         <>
           <SubTitle>Comandantes que más la usan</SubTitle>
           {card.topCommanders.slice(0, 8).map((e) => (
-            <EntryRow key={e.id} entry={e} image={images[e.id]} metric="inclusion" />
+            <EntryRow key={e.id} entry={e} image={images[e.id]} metric="inclusion" onPress={() => onOpen(e.id)} />
           ))}
         </>
       )}
@@ -135,7 +149,7 @@ function EdhrecCardView({ card, name, images }: { card: EdhrecCard; name: string
         <>
           <SubTitle>Se juega junto a</SubTitle>
           {card.topCards.slice(0, 8).map((e) => (
-            <EntryRow key={e.id} entry={e} image={images[e.id]} metric="inclusion" />
+            <EntryRow key={e.id} entry={e} image={images[e.id]} metric="inclusion" onPress={() => onOpen(e.id)} />
           ))}
         </>
       )}
@@ -144,7 +158,17 @@ function EdhrecCardView({ card, name, images }: { card: EdhrecCard; name: string
   );
 }
 
-function CommanderView({ cmd, name, images }: { cmd: EdhrecCommander; name: string; images: Record<string, string> }) {
+function CommanderView({
+  cmd,
+  name,
+  images,
+  onOpen,
+}: {
+  cmd: EdhrecCommander;
+  name: string;
+  images: Record<string, string>;
+  onOpen: (id: string) => void;
+}) {
   return (
     <>
       <View style={styles.stats}>
@@ -152,7 +176,7 @@ function CommanderView({ cmd, name, images }: { cmd: EdhrecCommander; name: stri
       </View>
       <SubTitle>Cartas de más sinergia</SubTitle>
       {cmd.cards.slice(0, 15).map((e) => (
-        <EntryRow key={e.id} entry={e} image={images[e.id]} metric="synergy" />
+        <EntryRow key={e.id} entry={e} image={images[e.id]} metric="synergy" onPress={() => onOpen(e.id)} />
       ))}
       <LinkButton label="Ver su página en EDHREC" url={edhrecCommanderUrl(name)} />
     </>

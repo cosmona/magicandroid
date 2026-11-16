@@ -174,7 +174,7 @@ Combos / Recomendadas y ＋ que añade al mazo; las recomendadas en lista, galer
 
 ## 7. Datos: SQLite
 
-`src/db/database.ts` contiene el esquema, las migraciones y todas las consultas (sin ORM). Versión actual: **5**.
+`src/db/database.ts` contiene el esquema, las migraciones y todas las consultas (sin ORM). Versión actual: **6**.
 
 ```mermaid
 erDiagram
@@ -237,7 +237,12 @@ erDiagram
   suma el banquillo. Formato **`limited`** (Limitado, `DECK_ONLY_FORMATS`: no se busca en Scryfall): mínimo 40, sin
   límite de copias ni legalidad, ~17 tierras en `recommendLands`. Importar crea `limited` con ~40 cartas sin
   comandante y mete el *Sideboard* en el banquillo.
-- **Colección**: una fila por **impresión** (edición + idioma). «Cuántas tengo» de una carta suma por `oracle_id`.
+- **Colección**: una fila por **impresión** (edición + idioma) **y lugar** (v6: columna `place`, `'paper'` o `'arena'`,
+  clave `(scryfall_id, place)`; la migración pasa lo anterior a papel). «Cuántas tengo» suma por `oracle_id` dentro del
+  lugar. Todas las consultas de colección reciben `place`; la app usa `prefs.collectionPlace` (selector Papel | MTG Arena
+  de la pestaña Colección). En Arena: sin precios, las básicas no faltan nunca y `MissingCardsModal arena` muestra
+  comodines por rareza. Importar un mazo con «La tengo en MTG Arena» completa la colección de Arena hasta las copias de
+  la lista.
 - **Migraciones**: `PRAGMA user_version`. Para cambiar el esquema se sube `DATABASE_VERSION` y se añade un paso
   `if (version === N)`; los pasos existentes **no se tocan**.
 - `PRAGMA foreign_keys = ON` en cada arranque: borrar un mazo borra sus cartas.
@@ -285,6 +290,7 @@ sequenceDiagram
 - **Hoja del mazo**: `BottomSheet fullScreen` (dos posiciones, abierta a pantalla completa o cerrada). El aviso de
   cartas que faltan va en el hueco `right` de `DeckSummary`; abrir / cerrar todos los grupos usa el mismo conjunto
   `collapsed` (con el banquillo como `SIDEBOARD_KEY`).
+- **`CardBigView`** (`components/`): carta ampliada a partir de su id de Scryfall (las listas de EDHREC en la ficha y en las recomendadas): idioma preferido, 🌐, `OwnPill` y «Añadir al mazo» (`ensureActiveDeck` + `addCardToDeck`).
 - **Globos de ayuda**: `components/Hint` (`useHint` / `HintButton`): pulsación larga en un botón de icono → `measureInWindow` y un `Modal` transparente con su nombre encima durante 1,6 s. Lo usan `CardIconButton`, los botones de acción del mazo y los de vista/agrupar.
 - **Arrastrar cartas** (mazo ⇄ banquillo): la imagen de cada carta (y la miniatura en galería y banquillo) va en un `Draggable` (en `DeckSheet`) con
   `usePanGesture({ activateAfterLongPress: 350 })`: un toque normal sigue desplazando la lista o pulsando botones; tras la

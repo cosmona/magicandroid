@@ -13,6 +13,7 @@ import { Image } from 'expo-image';
 import { displayName, smallImageUrl, type Card } from '@/api/scryfall';
 import { LanguagePill } from '@/components/LanguagePicker';
 import { OwnPill } from '@/components/collection/OwnButton';
+import { InDeckBadge } from '@/components/deck/InDeckBadge';
 import { colors } from '@/theme';
 
 /** What happened to a card the user already swiped. */
@@ -185,6 +186,7 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore, onS
                 />
                 <OwnPill card={previewPrinting ?? preview.card} />
               </View>
+              <InDeckBadge oracleId={preview.card.oracleId} />
               <Text style={styles.previewText}>
                 {displayName(previewPrinting ?? preview.card)} ·{' '}
                 {preview.decision ? DECISION_TEXT[preview.decision] : STATUS_TEXT[preview.status]}

@@ -19,6 +19,7 @@ import { HintButton } from '@/components/Hint';
 import { PrintingPicker } from '@/components/PrintingPicker';
 import { LanguagePill } from '@/components/LanguagePicker';
 import { OwnPill } from '@/components/collection/OwnButton';
+import { InDeckBadge } from '@/components/deck/InDeckBadge';
 import { DeckSummary } from '@/components/deck/DeckSummary';
 import { DeckStatsScreen } from '@/components/deck/DeckStatsScreen';
 import { ShareDeckModal } from '@/components/deck/ShareDeckModal';
@@ -31,6 +32,7 @@ import { UNNAMED_DECK, useAppState, type DeckView } from '@/context/AppState';
 import {
   addCardToDeck,
   addToCollection,
+  removeOneFromCollection,
   changeQuantity,
   changeSideboardQuantity,
   moveCopy,
@@ -113,15 +115,19 @@ export function DeckSheet() {
     getOwnedCounts(
       db,
       activeCards.map((c) => c.oracleId),
+      prefs.collectionPlace,
     ).then((counts) => {
       if (!cancelled) setOwned(counts);
     });
     return () => {
       cancelled = true;
     };
-  }, [db, activeCards, ownedVersion]);
+  }, [db, activeCards, ownedVersion, prefs.collectionPlace]);
+  const arena = prefs.collectionPlace === 'arena';
+  // In Arena basic lands are free: they never count as missing.
   const missingCards: MissingCard[] = owned
     ? activeCards
+        .filter((card) => !(arena && /\bBasic\b/.test(card.typeLine)))
         .map((card) => ({
           card,
           count: Math.max(0, card.quantity - (owned[card.oracleId] ?? 0)),
@@ -314,7 +320,11 @@ export function DeckSheet() {
     own: async (c) => {
       const [printing] = await getCardsByIds([c.scryfallId]).catch(() => []);
       if (!printing) return;
-      await addToCollection(db, printing);
+      await addToCollection(db, printing, prefs.collectionPlace);
+      setOwnedVersion((v) => v + 1);
+    },
+    unown: async (c) => {
+      await removeOneFromCollection(db, c.oracleId, c.scryfallId, prefs.collectionPlace);
       setOwnedVersion((v) => v + 1);
     },
     toSide: (c) => deckId && run(moveCopy(db, deckId, c.oracleId, 'side')),
@@ -337,7 +347,15 @@ export function DeckSheet() {
           right={
             activeDeck && missing !== null && activeCards.length > 0 ? (
               <HintButton
-                hint={missing ? 'Cartas que te faltan de tu colección: ver y comprar' : 'Tienes todas en tu colección'}
+                hint={
+                  missing
+                    ? arena
+                      ? 'Cartas que te faltan en Arena: comodines'
+                      : 'Cartas que te faltan de tu colección: ver y comprar'
+                    : arena
+                      ? 'Las tienes todas en Arena'
+                      : 'Tienes todas en tu colección'
+                }
                 style={[styles.ownedChip, { borderColor: missing ? colors.undo : colors.add }]}
                 onPress={() => missing && setShopping(true)}
               >
@@ -349,7 +367,9 @@ export function DeckSheet() {
                 <Text style={[styles.ownedChipValue, { color: missing ? colors.undo : colors.add }]}>
                   {missing ? `Faltan ${missing}` : 'Completo'}
                 </Text>
-                <Text style={styles.ownedChipLabel}>{missing ? 'de tu colección' : 'en tu colección'}</Text>
+                <Text style={styles.ownedChipLabel}>
+                  {arena ? 'en Arena' : missing ? 'de tu colección' : 'en tu colección'}
+                </Text>
               </HintButton>
             ) : undefined
           }
@@ -448,8 +468,8 @@ export function DeckSheet() {
           />
           {!!missing && (
             <Action
-              icon="cart-outline"
-              hint="Comprar en Cardmarket"
+              icon={arena ? 'gamepad-variant-outline' : 'cart-outline'}
+              hint={arena ? 'Comodines que te faltan en Arena' : 'Comprar en Cardmarket'}
               filled
               tone="warn"
               onPress={() => setShopping(true)}
@@ -656,6 +676,7 @@ export function DeckSheet() {
           missing={missingCards}
           details={details}
           showPrices={prefs.pricesShopping}
+          arena={arena}
           onClose={() => setShopping(false)}
         />
       )}
@@ -720,6 +741,7 @@ export function DeckSheet() {
               contentFit="contain"
             />
           )}
+          {preview && <InDeckBadge oracleId={preview.oracleId} />}
           {preview && (
             <OwnPill
               card={preview.scryfallId}
@@ -823,6 +845,8 @@ interface CardActions {
   toSide: (c: DeckCard) => void;
   /** "La tengo": adds this printing to the collection. */
   own: (c: DeckCard) => void;
+  /** Removes one copy of the card from the collection. */
+  unown: (c: DeckCard) => void;
   share: (c: DeckCard) => void;
   preview: (c: DeckCard) => void;
   /** Opens the screen with everything Scryfall knows about the card. */
@@ -851,30 +875,55 @@ interface CardProps {
  * "Tienes 2" / "Te falta 1 (tienes 1)" / "No la tienes" under a deck card, from the collection.
  * Tapping it ("+ La tengo") adds this printing to the collection.
  */
-function OwnedLine({ owned, needed, onOwn }: { owned?: number; needed: number; onOwn: () => void }) {
+function OwnedLine({
+  owned,
+  needed,
+  onOwn,
+  onUnown,
+}: {
+  owned?: number;
+  needed: number;
+  onOwn: () => void;
+  onUnown: () => void;
+}) {
+  const arena = useAppState().prefs.collectionPlace === 'arena';
   if (owned === undefined) return null;
   const short = needed - owned;
   return (
-    <Pressable
-      style={({ pressed }) => [styles.ownedLine, pressed && { opacity: 0.6 }]}
-      onPress={onOwn}
-      hitSlop={6}
-      accessibilityLabel="La tengo: añadir a tu colección"
-    >
+    <View style={styles.ownedLine}>
       <MaterialCommunityIcons
         name={short <= 0 ? 'package-variant-closed-check' : 'package-variant-closed'}
         size={15}
         color={short <= 0 ? colors.add : colors.undo}
       />
-      <Text style={[styles.owned, short > 0 && styles.ownedShort]}>
+      <Text style={[styles.owned, short > 0 && styles.ownedShort, { flexShrink: 1 }]}>
         {short <= 0
-          ? `En tu colección: ${owned}`
+          ? `${arena ? 'En Arena' : 'En tu colección'}: ${owned}`
           : owned > 0
             ? `Te ${short === 1 ? 'falta' : 'faltan'} ${short} (tienes ${owned})`
-            : 'No la tienes en tu colección'}
+            : arena
+              ? 'No la tienes en Arena'
+              : 'No la tienes en tu colección'}
       </Text>
-      <Text style={styles.ownAdd}>＋ La tengo</Text>
-    </Pressable>
+      {owned > 0 && (
+        <Pressable
+          onPress={onUnown}
+          hitSlop={8}
+          style={({ pressed }) => [styles.ownStep, pressed && { opacity: 0.6 }]}
+          accessibilityLabel="Quitar una de tu colección"
+        >
+          <Text style={styles.ownRemove}>−</Text>
+        </Pressable>
+      )}
+      <Pressable
+        onPress={onOwn}
+        hitSlop={8}
+        style={({ pressed }) => [styles.ownStep, pressed && { opacity: 0.6 }]}
+        accessibilityLabel="La tengo: añadir a tu colección"
+      >
+        <Text style={styles.ownAdd}>{owned > 0 ? '＋' : '＋ La tengo'}</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -1027,7 +1076,12 @@ function CardRow({ card, actions, issues, crown, owned, details, showPrice, drag
         {!!subtypes && <Datum label="Subtipos" value={subtypes} />}
       </View>
 
-      <OwnedLine owned={owned} needed={card.quantity} onOwn={() => actions.own(card)} />
+      <OwnedLine
+        owned={owned}
+        needed={card.quantity}
+        onOwn={() => actions.own(card)}
+        onUnown={() => actions.unown(card)}
+      />
       <CardIssues issues={issues} />
 
       <CardControls card={card} actions={actions} crown={crown} />
@@ -1059,7 +1113,12 @@ function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag
           </Text>
         </Pressable>
       </Draggable>
-      <OwnedLine owned={owned} needed={card.quantity} onOwn={() => actions.own(card)} />
+      <OwnedLine
+        owned={owned}
+        needed={card.quantity}
+        onOwn={() => actions.own(card)}
+        onUnown={() => actions.unown(card)}
+      />
       <CardIssues issues={issues} />
       <CardControls card={card} actions={actions} crown={crown} />
     </View>
@@ -1504,7 +1563,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ownedLine: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  ownAdd: { color: colors.accent, fontWeight: '800', fontSize: 12 },
+  ownAdd: { color: colors.add, fontWeight: '900', fontSize: 13 },
+  ownRemove: { color: colors.discard, fontWeight: '900', fontSize: 16 },
+  ownStep: {
+    minWidth: 30,
+    height: 26,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   galleryItem: { width: '100%', aspectRatio: 488 / 680 },
   groupButton: {
     width: 34,
