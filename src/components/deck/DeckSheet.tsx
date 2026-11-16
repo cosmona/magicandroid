@@ -342,7 +342,8 @@ export function DeckSheet() {
         numColumns={mode === 'gallery' ? 3 : 1}
         ListHeaderComponent={listHeader}
         ListFooterComponent={
-          activeDeck && activeSideboard.length > 0 ? (
+          // Always there for decks that can have one (so it can be found), and whenever it has cards.
+          activeDeck && activeCards.length > 0 && (!validation.usesCommander || activeSideboard.length > 0) ? (
             <SideboardSection
               cards={activeSideboard}
               onAdd={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, 1))}
@@ -833,6 +834,12 @@ function SideboardSection({
         <Text style={styles.sideTitle}>Banquillo ({total})</Text>
         <MaterialCommunityIcons name={open ? 'chevron-up' : 'chevron-down'} size={22} color={colors.textMuted} />
       </Pressable>
+      {open && cards.length === 0 && (
+        <Text style={styles.sideType}>
+          Vacío. Pasa cartas aquí con el botón de la bandeja ↓ de cada carta del mazo, o importa una lista con banquillo
+          (sideboard).
+        </Text>
+      )}
       {open &&
         cards.map((c) => (
           <View key={c.oracleId} style={styles.sideRow}>

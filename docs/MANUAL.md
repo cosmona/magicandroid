@@ -147,7 +147,8 @@ lealtad, precio, cuántas tienes en tu colección y sus problemas de validación
 
 ### Banquillo
 
-Debajo de las cartas del mazo aparece el **Banquillo** cuando tiene cartas (se pliega tocando su título). Son las
+Al final de la lista de cartas del mazo (baja del todo) está el **Banquillo** (se pliega tocando su título). En los
+mazos con comandante solo aparece si tiene cartas. Son las
 cartas que llevas aparte: el sideboard de los formatos construidos (hasta 15) o el resto de tu pool en un draft.
 
 - No cuenta para el tamaño del mazo, la curva, las estadísticas ni la mano de prueba.
