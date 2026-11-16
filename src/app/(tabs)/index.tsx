@@ -51,7 +51,7 @@ export default function MainScreen() {
         />
       </BottomSheet>
 
-      <BottomSheet visible={deckOpen} onClose={() => setDeckOpen(false)} heightRatio={0.85} expandable>
+      <BottomSheet visible={deckOpen} onClose={() => setDeckOpen(false)} fullScreen>
         <DeckSheet />
       </BottomSheet>
     </View>

@@ -499,6 +499,38 @@ export async function changeCollectionQuantity(db: SQLiteDatabase, scryfallId: s
   });
 }
 
+/**
+ * Removes one copy of a card from the collection: of the printing `preferId` if you have it,
+ * else of your most recently added printing of the card. False if you had none.
+ */
+export async function removeOneFromCollection(
+  db: SQLiteDatabase,
+  oracleId: string,
+  preferId: string,
+): Promise<boolean> {
+  const row =
+    (await db.getFirstAsync<{ id: string }>(
+      'SELECT scryfall_id AS id FROM collection_cards WHERE scryfall_id = ?',
+      preferId,
+    )) ??
+    (await db.getFirstAsync<{ id: string }>(
+      'SELECT scryfall_id AS id FROM collection_cards WHERE oracle_id = ? ORDER BY added_at DESC LIMIT 1',
+      oracleId,
+    ));
+  if (!row) return false;
+  await changeCollectionQuantity(db, row.id, -1);
+  return true;
+}
+
+/** Copies of one printing in the collection. */
+export async function getPrintingCount(db: SQLiteDatabase, scryfallId: string): Promise<number> {
+  const row = await db.getFirstAsync<{ quantity: number }>(
+    'SELECT quantity FROM collection_cards WHERE scryfall_id = ?',
+    scryfallId,
+  );
+  return row?.quantity ?? 0;
+}
+
 /** Raw collection row, to put back with `restoreCollectionRow` (undo). */
 export const snapshotCollectionCard = (db: SQLiteDatabase, scryfallId: string) =>
   db.getFirstAsync<Row>('SELECT * FROM collection_cards WHERE scryfall_id = ?', scryfallId);

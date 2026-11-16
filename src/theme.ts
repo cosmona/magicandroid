@@ -12,7 +12,26 @@ export const colors = {
   add: '#2ecc71',
   discard: '#e74c3c',
   undo: '#f1c40f',
+  info: '#5aa9e6',
 } as const;
+
+/**
+ * Color code of buttons and notices (the same meaning everywhere):
+ * - primary (gold): create / edit / main action of a screen.
+ * - info (blue): look things up (card info, stats, synergies, tokens).
+ * - owned (green): your collection, "you have it", valid.
+ * - warn (yellow): missing cards, things to check, buying.
+ * - danger (red): remove, empty, delete, errors.
+ * Neutral buttons (navigation, sharing, views) keep the text color.
+ */
+export type Tone = 'primary' | 'info' | 'owned' | 'warn' | 'danger';
+export const TONE_COLORS: Record<Tone, string> = {
+  primary: colors.accent,
+  info: colors.info,
+  owned: colors.add,
+  warn: colors.undo,
+  danger: colors.discard,
+};
 
 const FORMAT_ICONS = {
   commander: require('../assets/mtg/formats/commander.svg'),

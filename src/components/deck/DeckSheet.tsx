@@ -51,12 +51,14 @@ import {
   type DeckCard,
 } from '@/db/database';
 import { RARITY_LABELS } from '@/icons';
-import { colors, formatEur, formatLabel } from '@/theme';
+import { colors, formatEur, formatLabel, TONE_COLORS, type Tone } from '@/theme';
 import { validateDeck, type DeckValidation } from '@/validation';
 import { DECK_GROUP_OPTIONS, groupDeck, type DeckGroup, type DeckGroupBy } from '@/deck/group';
 
 /** Height of the drop zone that appears at the bottom while dragging a card. */
 const DROP_ZONE_HEIGHT = 84;
+/** Key of the sideboard in the collapsed set (it folds with the groups). */
+const SIDEBOARD_KEY = '__sideboard';
 const GHOST_WIDTH = 92;
 
 type Side = 'main' | 'side';
@@ -239,6 +241,9 @@ export function DeckSheet() {
     }
     return out;
   }, [groups, groupBy, collapsed, mode]);
+  const hasGroups = items.some((i) => i.type === 'header');
+  const openAll = () => setCollapsed(new Set());
+  const closeAll = () => setCollapsed(new Set([...groups.map((g) => g.key), SIDEBOARD_KEY]));
   const toggleGroup = (key: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -326,7 +331,29 @@ export function DeckSheet() {
   const header = (
     <View style={styles.top}>
       <View style={styles.titleRow}>
-        <DeckSummary onPressCover={() => setPicking((p) => !p)} pickerOpen={picking} />
+        <DeckSummary
+          onPressCover={() => setPicking((p) => !p)}
+          pickerOpen={picking}
+          right={
+            activeDeck && missing !== null && activeCards.length > 0 ? (
+              <HintButton
+                hint={missing ? 'Cartas que te faltan de tu colección: ver y comprar' : 'Tienes todas en tu colección'}
+                style={[styles.ownedChip, { borderColor: missing ? colors.undo : colors.add }]}
+                onPress={() => missing && setShopping(true)}
+              >
+                <MaterialCommunityIcons
+                  name={missing ? 'package-variant-closed' : 'package-variant-closed-check'}
+                  size={18}
+                  color={missing ? colors.undo : colors.add}
+                />
+                <Text style={[styles.ownedChipValue, { color: missing ? colors.undo : colors.add }]}>
+                  {missing ? `Faltan ${missing}` : 'Completo'}
+                </Text>
+                <Text style={styles.ownedChipLabel}>{missing ? 'de tu colección' : 'en tu colección'}</Text>
+              </HintButton>
+            ) : undefined
+          }
+        />
       </View>
 
       {/* Without a deck the picker is the only way forward: always show it then. */}
@@ -335,24 +362,16 @@ export function DeckSheet() {
       <View style={styles.titleRow}>
         {activeDeck && (
           <View style={styles.infoRow}>
-            {missing !== null && activeCards.length > 0 ? (
-              <View style={styles.ownedSummary}>
-                <MaterialCommunityIcons
-                  name="package-variant-closed"
-                  size={16}
-                  color={missing ? colors.undo : colors.add}
-                />
-                <Text
-                  style={[styles.ownedSummaryText, { color: missing ? colors.undo : colors.add }]}
-                  numberOfLines={1}
-                >
-                  {missing === 0
-                    ? 'Las tienes todas en tu colección'
-                    : `Te ${missing === 1 ? 'falta' : 'faltan'} ${missing} de tu colección`}
-                </Text>
-              </View>
-            ) : (
-              <View style={{ flex: 1 }} />
+            <View style={{ flex: 1 }} />
+            {hasGroups && (
+              <>
+                <HintButton hint="Abrir todos los grupos" style={styles.groupButton} onPress={openAll} hitSlop={4}>
+                  <MaterialCommunityIcons name="unfold-more-horizontal" size={18} color={colors.textMuted} />
+                </HintButton>
+                <HintButton hint="Cerrar todos los grupos" style={styles.groupButton} onPress={closeAll} hitSlop={4}>
+                  <MaterialCommunityIcons name="unfold-less-horizontal" size={18} color={colors.textMuted} />
+                </HintButton>
+              </>
             )}
             {activeCards.length > 0 && (
               <HintButton
@@ -418,6 +437,7 @@ export function DeckSheet() {
             icon={unnamed ? 'content-save-outline' : 'pencil-outline'}
             hint={unnamed ? 'Guardar' : 'Editar'}
             highlight={unnamed}
+            tone="primary"
             onPress={() => setEditing(true)}
           />
           <Action
@@ -427,18 +447,34 @@ export function DeckSheet() {
             disabled={!activeCards.length}
           />
           {!!missing && (
-            <Action icon="cart-outline" hint="Comprar en Cardmarket" filled onPress={() => setShopping(true)} />
+            <Action
+              icon="cart-outline"
+              hint="Comprar en Cardmarket"
+              filled
+              tone="warn"
+              onPress={() => setShopping(true)}
+            />
           )}
           {activeCards.length > 0 && (
-            <Action icon="chart-bar" hint="Estadísticas y mano de prueba" onPress={() => setShowStats(true)} />
+            <Action
+              icon="chart-bar"
+              hint="Estadísticas y mano de prueba"
+              tone="info"
+              onPress={() => setShowStats(true)}
+            />
           )}
           {activeCards.length > 0 && (
-            <Action icon="puzzle-outline" hint="Sinergias y combos" onPress={() => setShowSynergy(true)} />
+            <Action icon="puzzle-outline" hint="Sinergias y combos" tone="info" onPress={() => setShowSynergy(true)} />
           )}
           {tokens.length > 0 && (
-            <Action icon="cards-outline" hint={`Fichas (${tokens.length})`} onPress={() => setShowTokens(true)} />
+            <Action
+              icon="cards-outline"
+              hint={`Fichas (${tokens.length})`}
+              tone="info"
+              onPress={() => setShowTokens(true)}
+            />
           )}
-          <Action icon="broom" hint="Vaciar" onPress={clear} disabled={!activeCards.length} />
+          <Action icon="broom" hint="Vaciar" danger onPress={clear} disabled={!activeCards.length} />
           <Action icon="trash-can-outline" hint="Borrar" danger onPress={remove} />
         </View>
       )}
@@ -473,6 +509,8 @@ export function DeckSheet() {
               onSub={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, -1))}
               onToMain={(c) => run(moveCopy(db, activeDeck.id, c.oracleId, 'main'))}
               drag={drag}
+              open={!collapsed.has(SIDEBOARD_KEY)}
+              onToggle={() => toggleGroup(SIDEBOARD_KEY)}
             />
           ) : undefined
         }
@@ -744,17 +782,14 @@ function Action(props: {
   disabled?: boolean;
   /** Accent outline (pending "Guardar"). */
   highlight?: boolean;
-  /** Accent background (Cardmarket). */
+  /** Background in the tone's color (Cardmarket). */
   filled?: boolean;
   danger?: boolean;
+  /** Color code (see `Tone` in theme). */
+  tone?: Tone;
 }) {
-  const color = props.filled
-    ? colors.bg
-    : props.danger
-      ? colors.discard
-      : props.highlight
-        ? colors.accent
-        : colors.text;
+  const tone: Tone | undefined = props.danger ? 'danger' : props.highlight ? 'primary' : props.tone;
+  const color = props.filled ? colors.bg : tone ? TONE_COLORS[tone] : colors.text;
   return (
     <HintButton
       hint={props.hint}
@@ -763,7 +798,10 @@ function Action(props: {
       style={({ pressed }) => [
         styles.action,
         props.highlight && styles.actionHighlight,
-        props.filled && styles.actionFilled,
+        props.filled && [
+          styles.actionFilled,
+          tone && { backgroundColor: TONE_COLORS[tone], borderColor: TONE_COLORS[tone] },
+        ],
         props.disabled && { opacity: 0.35 },
         pressed && { opacity: 0.6 },
       ]}
@@ -1057,18 +1095,21 @@ function SideboardSection({
   onSub,
   onToMain,
   drag,
+  open,
+  onToggle,
 }: {
   cards: DeckCard[];
   onAdd: (c: DeckCard) => void;
   onSub: (c: DeckCard) => void;
   onToMain: (c: DeckCard) => void;
   drag: DragApi;
+  open: boolean;
+  onToggle: () => void;
 }) {
-  const [open, setOpen] = useState(true);
   const total = cards.reduce((n, c) => n + c.quantity, 0);
   return (
     <View style={styles.side}>
-      <Pressable style={styles.sideHeader} onPress={() => setOpen((o) => !o)} accessibilityRole="button">
+      <Pressable style={styles.sideHeader} onPress={onToggle} accessibilityRole="button">
         <MaterialCommunityIcons name="tray-full" size={20} color={colors.accent} />
         <Text style={styles.sideTitle}>Banquillo ({total})</Text>
         <MaterialCommunityIcons name={open ? 'chevron-up' : 'chevron-down'} size={22} color={colors.textMuted} />
@@ -1205,9 +1246,10 @@ function CardControls({ card, actions, crown }: { card: DeckCard; actions: CardA
           onPress={() => actions.commander(card)}
         />
       )}
-      <CardIconButton icon="information-outline" hint="Ficha completa" onPress={() => actions.info(card)} />
+      <CardIconButton icon="information-outline" hint="Ficha completa" tone="info" onPress={() => actions.info(card)} />
       <CardIconButton
         icon="pencil-outline"
+        tone="primary"
         hint="Editar: arte, idioma o portada"
         onPress={() => actions.printing(card)}
       />
@@ -1439,6 +1481,18 @@ const styles = StyleSheet.create({
   },
   galleryRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 8, marginTop: 6 },
   galleryCell: { width: '31.5%' },
+  ownedChip: {
+    alignSelf: 'flex-start',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: colors.bg,
+    maxWidth: 96,
+  },
+  ownedChipValue: { fontWeight: '900', fontSize: 13 },
+  ownedChipLabel: { color: colors.textMuted, fontSize: 9, textAlign: 'center' },
   ownedBadge: {
     position: 'absolute',
     top: 4,

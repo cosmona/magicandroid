@@ -85,11 +85,17 @@ const MAX_RESULTS = 20;
  * The search box filters the collection and, at the same time, searches Scryfall to add
  * new cards (added in the default language from settings when available).
  */
-export function CollectionScreen() {
+export function CollectionScreen({ search }: { search?: { q: string; t: string } } = {}) {
   const db = useSQLiteContext();
   const { prefs, ensureActiveDeck, refresh } = useAppState();
   const [cards, setCards] = useState<CollectionCard[]>([]);
   const [query, setQuery] = useState('');
+  // Opened from elsewhere to look for a card ("Ver en mi colección"): put it in the search box.
+  const [searchKey, setSearchKey] = useState('');
+  if (search && `${search.q}|${search.t}` !== searchKey) {
+    setSearchKey(`${search.q}|${search.t}`);
+    setQuery(search.q);
+  }
   const [view, setView] = useState<CollectionView>('list');
   const [remote, setRemote] = useState<{ q: string; cards: Card[]; loading: boolean }>({
     q: '',
@@ -499,16 +505,19 @@ export function CollectionScreen() {
                 <QuantityStepper value={card.quantity} onSub={() => change(card, -1)} onAdd={() => change(card, 1)} />
                 <CardIconButton
                   icon="information-outline"
+                  tone="info"
                   hint="Ficha completa"
                   onPress={() => setInfoId(card.scryfallId)}
                 />
                 <CardIconButton
                   icon="cards-playing-outline"
+                  tone="primary"
                   hint="Añadir al mazo activo"
                   onPress={() => addToDeck(card)}
                 />
                 <CardIconButton
                   icon="pencil-outline"
+                  tone="primary"
                   hint="Cambiar arte o idioma"
                   onPress={() => setPrintingCard(card)}
                 />

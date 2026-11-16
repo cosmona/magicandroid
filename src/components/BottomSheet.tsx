@@ -22,6 +22,8 @@ interface Props {
   heightRatio?: number;
   /** Dragging up from the open position grows it to the full screen (a third stop). */
   expandable?: boolean;
+  /** Opens at the full screen (under the status bar): just two positions, open or closed. */
+  fullScreen?: boolean;
   children: ReactNode;
 }
 
@@ -107,7 +109,14 @@ export function SheetDragArea({ children }: { children: ReactNode }) {
  * snaps back — or, when `expandable`, up to the full screen. Also closes by tapping outside or
  * with the back button. Children stay mounted until the closing animation ends.
  */
-export function BottomSheet({ visible, onClose, heightRatio = 0.9, expandable = false, children }: Props) {
+export function BottomSheet({
+  visible,
+  onClose,
+  heightRatio = 0.9,
+  expandable = false,
+  fullScreen = false,
+  children,
+}: Props) {
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   // The Modal draws under the status and navigation bars (translucent), which on Android can be
@@ -115,7 +124,7 @@ export function BottomSheet({ visible, onClose, heightRatio = 0.9, expandable = 
   const [areaHeight, setAreaHeight] = useState(0);
   const height = areaHeight || windowHeight;
   // Expandable sheets are laid out at full size and pushed down to their open height.
-  const openHeight = height * heightRatio;
+  const openHeight = fullScreen ? height - insets.top : height * heightRatio;
   const sheetHeight = expandable ? Math.max(openHeight, height - insets.top) : openHeight;
   const rest = sheetHeight - openHeight;
   const hidden = sheetHeight;

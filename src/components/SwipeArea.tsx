@@ -3,28 +3,20 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View, type LayoutChange
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useSQLiteContext } from 'expo-sqlite';
-import { displayName, type Card } from '@/api/scryfall';
+import { displayName } from '@/api/scryfall';
 import { BottomSheet } from '@/components/BottomSheet';
-import { ArtPicker } from '@/components/ArtPicker';
+import { ArtPickerModal } from '@/components/ArtPicker';
 import { Button } from '@/components/Button';
 import { HistorySheet, type Decision } from '@/components/HistorySheet';
-import { OwnButton } from '@/components/collection/OwnButton';
-import { LanguagePicker } from '@/components/LanguagePicker';
+import { OwnRoundButton } from '@/components/collection/OwnButton';
+import { HintButton } from '@/components/Hint';
+import { LanguagePickerModal } from '@/components/LanguagePicker';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
-import { addCardToDeck, changeQuantity } from '@/db/database';
+import { addCardToDeck } from '@/db/database';
 import { useCardQueue } from '@/hooks/useCardQueue';
 import { colors } from '@/theme';
-
-interface HistoryEntry {
-  card: Card;
-  /** Position of the card in the result list, to return to it on undo. */
-  position: number;
-  /** Deck the card was added to, or null if it was discarded. */
-  addedTo: number | null;
-}
-
-const MAX_HISTORY = 50;
 
 /** Card stack in the middle of the screen (the web's Deck view): right = add, left = discard. */
 export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
@@ -35,19 +27,18 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     if (!prefs.haptics) return;
     Haptics.impactAsync(kind === 'add' ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);
   };
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  // Decision for every swiped card of this search (the undo history above is capped).
+  // Decision for every swiped card of this search (shown on the card and in the history).
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [historyOpen, setHistoryOpen] = useState(false);
   const [showBack, setShowBack] = useState(false);
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
   const cardRef = useRef<SwipeCardHandle>(null);
+  const [picker, setPicker] = useState<'language' | 'art' | null>(null);
 
-  // History refers to positions in the current result list, so reset it on a new search.
+  // Decisions refer to the current search: reset them on a new one.
   const [historyFilters, setHistoryFilters] = useState(filters);
   if (historyFilters !== filters) {
     setHistoryFilters(filters);
-    setHistory([]);
     setDecisions({});
   }
 
@@ -62,16 +53,13 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const onSwiped = async (dir: SwipeDirection) => {
     const card = queue.current;
     if (!card) return;
-    const position = queue.index;
     queue.next();
     setShowBack(false);
 
-    let addedTo: number | null = null;
     if (dir === 'right') {
       const deck = await ensureActiveDeck();
       // Always added: format rules are checked inside the deck, not here.
       const quantity = await addCardToDeck(db, deck.id, card);
-      addedTo = deck.id;
       buzz('add');
       decide(card.id, 'added');
       onToast(`+1 ${displayName(card)} (${quantity} en el mazo)`);
@@ -79,21 +67,6 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     } else {
       buzz('discard');
       decide(card.id, 'discarded');
-    }
-    setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), { card, position, addedTo }]);
-  };
-
-  const undo = async () => {
-    const last = history.at(-1);
-    if (!last) return;
-    setHistory((h) => h.slice(0, -1));
-    decide(last.card.id, null);
-    queue.goTo(last.position);
-    setShowBack(false);
-    if (last.addedTo !== null) {
-      await changeQuantity(db, last.addedTo, last.card.oracleId, -1);
-      onToast(`Deshecho: −1 ${displayName(last.card)}`);
-      refresh();
     }
   };
 
@@ -142,23 +115,8 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
 
   return (
     <View style={styles.container}>
-      {card && (
+      {card && decision && (
         <View style={styles.languageRow}>
-          <LanguagePicker
-            card={card}
-            onChange={(c) => {
-              setShowBack(false);
-              queue.replaceCurrent(c);
-            }}
-          />
-          <ArtPicker
-            card={card}
-            onChange={(c) => {
-              setShowBack(false);
-              queue.replaceCurrent(c);
-            }}
-          />
-          <OwnButton card={card} onAdded={onToast} />
           {decision && (
             <View style={[styles.decided, { borderColor: decision === 'added' ? colors.add : colors.discard }]}>
               <Text style={[styles.decidedText, { color: decision === 'added' ? colors.add : colors.discard }]}>
@@ -174,24 +132,63 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
           <>
             <ArrowButton side="left" disabled={queue.index === 0} onPress={browse(-1)} />
             <ArrowButton side="right" disabled={!queue.upcoming} onPress={browse(1)} />
+            {card.backImageUrl && (
+              <HintButton
+                hint="Ver la otra cara"
+                style={styles.flip}
+                onPress={() => setShowBack((b) => !b)}
+                hitSlop={6}
+              >
+                <MaterialCommunityIcons name="rotate-3d-variant" size={22} color={colors.text} />
+              </HintButton>
+            )}
           </>
         )}
       </View>
       {card && (
         <View style={styles.actions}>
           <RoundButton symbol="✕" color={colors.discard} onPress={() => cardRef.current?.swipe('left')} />
-          <RoundButton symbol="↶" color={colors.undo} small disabled={!history.length} onPress={undo} />
-          <Pressable style={styles.historyButton} onPress={() => setHistoryOpen(true)} hitSlop={6}>
-            <Text style={styles.historyIcon}>▤</Text>
+          <IconRound
+            icon="translate"
+            hint="Idioma"
+            label={card.lang.toUpperCase()}
+            onPress={() => setPicker('language')}
+          />
+          <IconRound icon="palette-outline" hint="Arte" onPress={() => setPicker('art')} />
+          <HintButton hint="Historial" style={styles.historyButton} onPress={() => setHistoryOpen(true)} hitSlop={6}>
+            <MaterialCommunityIcons name="history" size={20} color={colors.accent} />
             <Text style={styles.counter}>
               {queue.position}/{queue.total.toLocaleString('es-ES')}
             </Text>
-          </Pressable>
-          {card.backImageUrl && (
-            <RoundButton symbol="⟳" color={colors.textMuted} small onPress={() => setShowBack((b) => !b)} />
-          )}
+          </HintButton>
+          <OwnRoundButton card={card} />
           <RoundButton symbol="✓" color={colors.add} onPress={() => cardRef.current?.swipe('right')} />
         </View>
+      )}
+
+      {card && picker === 'language' && (
+        <LanguagePickerModal
+          card={card}
+          onClose={() => setPicker(null)}
+          onPick={(c) => {
+            setPicker(null);
+            if (c.id === card.id) return;
+            setShowBack(false);
+            queue.replaceCurrent(c);
+          }}
+        />
+      )}
+      {card && picker === 'art' && (
+        <ArtPickerModal
+          card={card}
+          onClose={() => setPicker(null)}
+          onPick={(c) => {
+            setPicker(null);
+            if (c.id === card.id) return;
+            setShowBack(false);
+            queue.replaceCurrent(c);
+          }}
+        />
       )}
 
       <BottomSheet visible={historyOpen} onClose={() => setHistoryOpen(false)} heightRatio={0.85}>
@@ -230,7 +227,32 @@ function ArrowButton(props: { side: 'left' | 'right'; onPress: () => void; disab
   );
 }
 
-function RoundButton(props: { symbol: string; color: string; onPress: () => void; small?: boolean; disabled?: boolean }) {
+/** Small round icon button of the bottom row (with an optional tiny label, e.g. the language). */
+function IconRound(props: {
+  icon: 'translate' | 'palette-outline';
+  hint: string;
+  label?: string;
+  onPress: () => void;
+}) {
+  return (
+    <HintButton
+      hint={props.hint}
+      onPress={props.onPress}
+      style={({ pressed }) => [styles.iconRound, pressed && { opacity: 0.6 }]}
+    >
+      <MaterialCommunityIcons name={props.icon} size={20} color={colors.text} />
+      {props.label && <Text style={styles.iconLabel}>{props.label}</Text>}
+    </HintButton>
+  );
+}
+
+function RoundButton(props: {
+  symbol: string;
+  color: string;
+  onPress: () => void;
+  small?: boolean;
+  disabled?: boolean;
+}) {
   const size = props.small ? 44 : 58;
   return (
     <Pressable
@@ -275,7 +297,31 @@ const styles = StyleSheet.create({
   decided: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1 },
   decidedText: { fontWeight: '800', fontSize: 13 },
   upcoming: { borderRadius: 16, transform: [{ scale: 0.94 }], opacity: 0.6 },
-  actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 14, paddingVertical: 10 },
+  actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 10 },
+  iconRound: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  iconLabel: { color: colors.textMuted, fontSize: 8, fontWeight: '900', marginTop: -2 },
+  flip: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(20,16,28,0.8)',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   historyButton: {
     alignItems: 'center',
     paddingVertical: 4,
@@ -285,7 +331,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  historyIcon: { color: colors.accent, fontSize: 18, fontWeight: '900' },
   counter: { color: colors.textMuted, fontSize: 11, minWidth: 44, textAlign: 'center' },
   round: {
     borderRadius: 999,

@@ -49,6 +49,18 @@ historial) está el botón **La tengo** con las copias que ya tienes; cada toque
 del mazo, la línea de la colección («En tu colección: 2», «Te falta 1», «No la tienes») también tiene **＋ La tengo**, y
 en la vista galería una cajita verde (las tienes todas) o amarilla (te faltan) en la esquina.
 
+**Código de colores** (igual en toda la app):
+
+| Color | Significa | Ejemplos |
+|---|---|---|
+| Dorado | Crear, editar, la acción principal | Editar / Guardar el mazo, lápiz de cada carta, 👑 |
+| Azul | Consultar información | ⓘ ficha, estadísticas, sinergias, fichas |
+| Verde | Tu colección, lo que tienes, válido | La tengo, «Completo», ✓ válido |
+| Amarillo | Te falta algo, revisar, comprar | «Faltan N», carrito de Cardmarket, avisos |
+| Rojo | Quitar, vaciar, borrar, errores | Papelera, vaciar, ⚠ problemas |
+
+Los botones de navegación, vistas y compartir van en blanco.
+
 **¿Qué hace este botón?** Mantén el dedo sobre cualquier botón de icono (los del mazo y los de cada carta) y aparece
 un globo con su nombre.
 
@@ -66,16 +78,21 @@ añade en el idioma que elijas; en el resto solo cambia lo que ves.
 | Deslizar la carta a la **derecha** | La añade al mazo activo (si no tienes ninguno, crea «Mazo sin nombre») |
 | Deslizar a la **izquierda** | La descarta |
 | Flechas **‹ ›** a los lados | Pasa a la anterior o la siguiente sin decidir nada |
-| **↶ Deshacer** | Deshace la última decisión y vuelve a esa carta |
 
 Si vuelves a una carta que ya decidiste, verás «✓ Ya añadida» o «✕ Descartada».
 
-### Encima de la carta
+Para corregir una decisión, abre el **historial** y toca la carta: vuelves a ella.
 
-- **Idioma** (icono de traducir): cambia la carta a otro idioma en el que exista.
+### La fila de botones de abajo
+
+De izquierda a derecha: **✕** descartar, **idioma**, **arte**, **historial** (con la posición en los resultados),
+**la tengo** y **✓** añadir.
+
+- **Idioma** (icono de traducir, con el código del idioma actual): cambia la carta a otro idioma en el que exista.
 - **Arte** (paleta): elige entre sus ilustraciones alternativas (primero las de tu idioma, luego las inglesas).
-- **La tengo** (caja): añade a tu [colección](#6-colección) la impresión que estás viendo. Si ya la tienes, se pone
-  verde y muestra cuántas («Tienes 2 · +1»).
+- **La tengo** (caja; verde con un número si ya la tienes): abre un panel con **−** y **＋** para quitar o añadir
+  copias de esa carta en tu [colección](#6-colección), y **Ver en mi colección**, que abre la Colección buscándola.
+- En las cartas de **dos caras**, el botón de girar está en la esquina superior derecha de la carta.
 
 ### Historial ▤
 
@@ -104,12 +121,8 @@ aproximado. **Tócala o deslízala hacia arriba** para abrir el mazo.
 
 ### Abrir, ampliar y cerrar
 
-La hoja del mazo tiene tres posiciones:
-
-1. **Abierta:** ocupa casi toda la pantalla.
-2. **Pantalla completa:** arrastra hacia arriba desde la parte superior.
-3. **Cerrada:** arrastra hacia abajo (desde cualquier punto de la parte de arriba, incluidos los botones), toca fuera
-   o usa el botón atrás.
+La hoja del mazo solo tiene dos posiciones: **abierta a pantalla completa** o **cerrada**. Para cerrarla, arrastra
+hacia abajo (desde cualquier punto de la parte de arriba, incluidos los botones) o usa el botón atrás.
 
 ### La cabecera
 
@@ -117,12 +130,14 @@ La hoja del mazo tiene tres posiciones:
   otro o **Importar** para pegar una lista ([ver más](#importar-una-lista)). El desplegable se cierra solo al elegir.
 - **Nombre, formato, cartas y estado** (✓ válido / ⚠ revisar).
 - **≈ precio** del mazo en Cardmarket.
-- **📦 «Te faltan N de tu colección»** (amarillo) o «Las tienes todas» (verde): compara el mazo con tu colección.
+- **Arriba a la derecha:** «Faltan N de tu colección» (amarillo; tócalo para ver cuáles y comprarlas) o «Completo»
+  (verde): compara el mazo con tu colección.
 - **Vistas:** los tres iconos de la derecha cambian entre **lista**, **galería** y **grande**.
   En la galería las miniaturas no tienen botones: toca una carta para verla en grande con todos sus botones debajo.
 - **Agrupar** (icono de lista agrupada, junto a las vistas): por **tipo** (lo habitual), **coste**, **color**, **rareza** o
   sin agrupar. Cada grupo tiene su título con el número de cartas; tócalo para plegarlo. El comandante va siempre
-  primero en su propio grupo. Funciona en las tres vistas y se recuerda.
+  primero en su propio grupo. Funciona en las tres vistas y se recuerda. Los botones de **abrir todos** y **cerrar
+  todos** (flechas que se abren / cierran) pliegan o despliegan de una vez todos los grupos y el banquillo.
 - **Arrastrar al banquillo:** mantén pulsada la **imagen** de una carta (en cualquier vista) hasta que se levante, arrástrala hacia abajo
   y suéltala sobre la zona «Suelta aquí para pasarla al banquillo». Igual desde el banquillo para pasarla al mazo. Si la
   sueltas en otro sitio no pasa nada.

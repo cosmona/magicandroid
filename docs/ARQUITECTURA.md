@@ -276,6 +276,15 @@ sequenceDiagram
   zona crea su propio gesto (solo vertical, así las listas horizontales de dentro siguen funcionando). Si se arrastra
   desde un botón, el toque del botón se cancela. **Nunca** se envuelve una lista vertical.
 - **«La tengo» en toda carta**: `OwnPill` (`collection/OwnButton`, acepta `CardRef`) cuenta las copias de la colección por `oracle_id` y añade la impresión con cada toque; `OwnButton` (Construir) es un envoltorio. En el mazo, `OwnedLine` es pulsable (`actions.own`) y la galería marca lo que tienes; `ownedVersion` fuerza a recontar.
+- **Código de colores**: `Tone` / `TONE_COLORS` en `theme.ts` (primary dorado, info azul `colors.info`, owned verde,
+  warn amarillo, danger rojo). `CardIconButton` y las acciones del mazo aceptan `tone`.
+- **Vista de cartas (Construir)**: fila inferior ✕ · idioma · arte · historial · la tengo · ✓ (sin deshacer: el
+  historial sirve para volver). `OwnRoundButton` (`collection/OwnButton`) abre un panel − / ＋
+  (`removeOneFromCollection`, `getPrintingCount`) y «Ver en mi colección» (`router.navigate('/collection', { q, t })`;
+  la pestaña pasa `search` a `CollectionScreen`).
+- **Hoja del mazo**: `BottomSheet fullScreen` (dos posiciones, abierta a pantalla completa o cerrada). El aviso de
+  cartas que faltan va en el hueco `right` de `DeckSummary`; abrir / cerrar todos los grupos usa el mismo conjunto
+  `collapsed` (con el banquillo como `SIDEBOARD_KEY`).
 - **Globos de ayuda**: `components/Hint` (`useHint` / `HintButton`): pulsación larga en un botón de icono → `measureInWindow` y un `Modal` transparente con su nombre encima durante 1,6 s. Lo usan `CardIconButton`, los botones de acción del mazo y los de vista/agrupar.
 - **Arrastrar cartas** (mazo ⇄ banquillo): la imagen de cada carta (y la miniatura en galería y banquillo) va en un `Draggable` (en `DeckSheet`) con
   `usePanGesture({ activateAfterLongPress: 350 })`: un toque normal sigue desplazando la lista o pulsando botones; tras la
@@ -284,7 +293,7 @@ sequenceDiagram
 - **Agrupar el mazo**: `deck/group.ts` (`groupDeck`: tipo, coste con `curveCost`, color, rareza o nada; comandantes
   primero) y la lista se aplana en cabeceras plegables + cartas (o filas de 3 en galería), así la `FlatList` ya no usa
   `numColumns`. Preferencia `prefs.deckGroup`.
-- **`expandable`** (la hoja del mazo): tres paradas, oculta / abierta (`heightRatio`) / pantalla completa. Se maqueta a
+- **`expandable`** (ya no lo usa la hoja del mazo, que va con `fullScreen`): tres paradas, oculta / abierta (`heightRatio`) / pantalla completa. Se maqueta a
   tamaño completo y se desplaza hacia abajo, con relleno inferior en la parada «abierta» para que no se corte el
   contenido.
 - **Cierre**: si se cierra arrastrando, la propia animación del gesto termina el trabajo (`dragClosing`); el efecto de

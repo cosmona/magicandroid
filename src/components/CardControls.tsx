@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { HintButton } from '@/components/Hint';
-import { colors } from '@/theme';
+import { colors, TONE_COLORS, type Tone } from '@/theme';
 
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -43,7 +43,10 @@ export function CardIconButton(props: {
   /** Accent background (active state, e.g. the commander). */
   filled?: boolean;
   danger?: boolean;
+  /** Color code of the icon (see `Tone` in theme). */
+  tone?: Tone;
 }) {
+  const tone = props.danger ? 'danger' : props.tone;
   return (
     <HintButton
       hint={props.hint}
@@ -54,7 +57,7 @@ export function CardIconButton(props: {
       <MaterialCommunityIcons
         name={props.icon}
         size={20}
-        color={props.filled ? colors.bg : props.danger ? colors.discard : colors.text}
+        color={props.filled ? colors.bg : tone ? TONE_COLORS[tone] : colors.text}
       />
     </HintButton>
   );
