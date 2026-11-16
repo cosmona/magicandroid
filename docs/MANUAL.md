@@ -181,6 +181,8 @@ Bolt», «1x Sol Ring (CMR) 472»):
    la colección**.
 
 - Se respeta la edición cuando la lista la indica; si no, se usa la habitual de Scryfall.
+- Vale también la exportación de Arena **en español** (cabeceras «Mazo», «Banquillo» y nombres en español): la carta
+  se busca por su edición y número o por su nombre impreso.
 - Con **En tu idioma** activado se busca cada carta en tu idioma (tarda un poco con listas largas).
 - Si la lista tiene sección *Commander* (o la etiqueta de comandante de Archidekt), el mazo se crea en formato
   Commander con su comandante 👑. Si no, en formato Libre: cámbialo con ✏️.

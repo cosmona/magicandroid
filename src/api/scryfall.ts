@@ -332,8 +332,9 @@ export async function resolveCardList(entries: ListEntry[]): Promise<(Card | nul
     const byPrint = new Map(found.map((c) => [`${c.set}/${c.collectorNumber}`, c]));
     for (const { e, i } of printed) {
       const card = byPrint.get(`${e.set}/${e.number}`);
-      // The number must belong to the card named (lists sometimes mix them up).
-      if (card && nameKey(card.name) === nameKey(e.name)) out[i] = card;
+      // Trusted even if the name differs: lists exported in another language (Arena in Spanish)
+      // give the localized name with the set + number.
+      if (card) out[i] = card;
     }
   }
 
@@ -349,7 +350,25 @@ export async function resolveCardList(entries: ListEntry[]): Promise<(Card | nul
       if (!out[i]) out[i] = byName.get(nameKey(e.name)) ?? null;
     });
   }
+
+  // Names in another language (Spanish…): exact printed-name search, in the list's set first.
+  const localized = new Map<string, Card | null>();
+  for (const [i, e] of entries.entries()) {
+    if (out[i]) continue;
+    const key = `${e.name}|${e.set ?? ''}`;
+    if (!localized.has(key)) localized.set(key, await findByPrintedName(e.name, e.set));
+    out[i] = localized.get(key) ?? null;
+  }
   return out;
+}
+
+async function findByPrintedName(name: string, set?: string): Promise<Card | null> {
+  const exact = `!"${name.replace(/"/g, '')}" lang:any`;
+  for (const q of set ? [`${exact} e:${set}`, exact] : [exact]) {
+    const page = await fetchPage(`${BASE_URL}/cards/search?q=${encodeURIComponent(q)}`).catch(() => null);
+    if (page?.cards.length) return page.cards[0];
+  }
+  return null;
 }
 
 /** One card from a Scryfall endpoint that returns a single card; null on 404. */

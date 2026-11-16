@@ -30,9 +30,15 @@ function sectionOf(line: string): Section | null {
     .replace(/:\s*$/, '')
     .trim()
     .toLowerCase();
-  if (/^(deck|main|main ?deck|mainboard|companion)$/.test(h)) return 'main';
-  if (/^(commanders?|cmdr)$/.test(h)) return 'commander';
-  if (/^(sideboard|side|maybeboard|maybe|considering|tokens?|attractions|stickers)$/.test(h)) return 'skip';
+  if (/^(deck|main|main ?deck|mainboard|companion|mazo|mazzo|baraja|compañero|compagno|compagnon|begleiter)$/.test(h))
+    return 'main';
+  if (/^(commanders?|cmdr|comandantes?|comandanti|commandants?|kommandeur)$/.test(h)) return 'commander';
+  if (
+    /^(sideboard|side|maybeboard|maybe|considering|tokens?|attractions|stickers|banquillo|reserva|quizás|quizas|fichas)$/.test(
+      h,
+    )
+  )
+    return 'skip';
   return null;
 }
 
