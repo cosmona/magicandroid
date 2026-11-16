@@ -143,21 +143,28 @@ export function CollectionScreen() {
   // Collection value on Cardmarket (live prices from Scryfall; hidden offline).
   const details = useCardDetails(cards.map((c) => c.scryfallId));
   const value = priceTotal(cards, details);
+  const showPrices = prefs.pricesCollection;
+  // Grouping/filtering by price only while prices are shown.
+  const effectiveGroup: GroupBy = !showPrices && groupBy === 'price' ? 'none' : groupBy;
+  const effectiveFilter = useMemo(
+    () => (showPrices ? filter : { ...filter, priceMin: null, priceMax: null }),
+    [filter, showPrices],
+  );
 
   const owned = useMemo(() => {
     const ctx = { details, inDecks, sets };
-    const filtered = applyFilter(cards, filter, ctx);
+    const filtered = applyFilter(cards, effectiveFilter, ctx);
     if (!q) return filtered;
     const words = fold(q).split(/\s+/);
     return filtered.filter((c) => {
       const text = fold(`${c.name} ${c.printedName ?? ''}`);
       return words.every((w) => text.includes(w));
     });
-  }, [cards, q, filter, details, inDecks, sets]);
+  }, [cards, q, effectiveFilter, details, inDecks, sets]);
 
   const groups = useMemo(
-    () => groupCards(owned, groupBy, { details, inDecks, sets }),
-    [owned, groupBy, details, inDecks, sets],
+    () => groupCards(owned, effectiveGroup, { details, inDecks, sets }),
+    [owned, effectiveGroup, details, inDecks, sets],
   );
 
   const items = useMemo(() => {
@@ -273,7 +280,7 @@ export function CollectionScreen() {
         <Text style={styles.title}>📦 Mi colección</Text>
         <Text style={styles.stats}>
           {stats.total} cartas · {stats.unique} distintas
-          {value.priced > 0 && <Text style={styles.value}> · ≈ {formatEur(value.eur)}</Text>}
+          {showPrices && value.priced > 0 && <Text style={styles.value}> · ≈ {formatEur(value.eur)}</Text>}
         </Text>
       </View>
 
@@ -316,7 +323,7 @@ export function CollectionScreen() {
         </Pressable>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupChips}>
           <MaterialCommunityIcons name="format-list-group" size={18} color={colors.textMuted} />
-          {GROUPINGS.map((g) => (
+          {GROUPINGS.filter((g) => showPrices || g !== 'price').map((g) => (
             <Pressable
               key={g}
               style={[styles.groupChip, groupBy === g && styles.groupChipOn]}
@@ -419,7 +426,7 @@ export function CollectionScreen() {
                 </Text>
                 <Text style={styles.groupMeta}>
                   {group.copies}
-                  {group.value > 0 && <Text style={styles.value}> · {formatEur(group.value)}</Text>}
+                  {showPrices && group.value > 0 && <Text style={styles.value}> · {formatEur(group.value)}</Text>}
                 </Text>
               </Pressable>
             );
@@ -444,7 +451,7 @@ export function CollectionScreen() {
             );
           }
           const card = item.card;
-          const price = details[card.scryfallId]?.eur;
+          const price = showPrices ? details[card.scryfallId]?.eur : undefined;
           return (
             <View style={styles.row}>
               <View style={styles.rowTop}>
@@ -510,6 +517,7 @@ export function CollectionScreen() {
           langs={langs}
           sets={sets}
           shown={owned.length}
+          showPrices={showPrices}
         />
       </BottomSheet>
 

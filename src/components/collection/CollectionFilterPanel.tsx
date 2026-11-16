@@ -38,8 +38,10 @@ export function CollectionFilterPanel(props: {
   sets: Record<string, MtgSet>;
   /** Cards shown with the current filter. */
   shown: number;
+  /** Offer the price range (Ajustes → Precios). */
+  showPrices: boolean;
 }) {
-  const { filter: f, onChange, setCodes, langs, sets, shown } = props;
+  const { filter: f, onChange, setCodes, langs, sets, shown, showPrices } = props;
   const set = (patch: Partial<CollectionFilter>) => onChange({ ...f, ...patch });
   const count = activeFilterCount(f);
 
@@ -121,14 +123,19 @@ export function CollectionFilterPanel(props: {
           </Group>
         )}
 
-        <Group title="Precio por copia (€)" help="Precio de Cardmarket. Con un límite, las cartas sin precio no salen.">
-          <Range
-            min={f.priceMin}
-            max={f.priceMax}
-            decimals
-            onChange={(priceMin, priceMax) => set({ priceMin, priceMax })}
-          />
-        </Group>
+        {showPrices && (
+          <Group
+            title="Precio por copia (€)"
+            help="Precio de Cardmarket. Con un límite, las cartas sin precio no salen."
+          >
+            <Range
+              min={f.priceMin}
+              max={f.priceMax}
+              decimals
+              onChange={(priceMin, priceMax) => set({ priceMin, priceMax })}
+            />
+          </Group>
+        )}
 
         <Group title="Uso en mazos" help="Libres = no están en ningún mazo: las que puedes cambiar o vender.">
           <View style={styles.segment}>

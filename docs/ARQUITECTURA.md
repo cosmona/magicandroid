@@ -80,6 +80,7 @@ src/
 │   └── filters/FilterPanel   # Filtros de búsqueda de Construir
 ├── context/AppState.tsx      # Estado global
 ├── db/database.ts            # Esquema, migraciones y todas las consultas
+├── deck/stats.ts             # Estadísticas del mazo y mano de prueba (funciones puras)
 ├── hooks/                    # useCardQueue (cola de cartas), useCardDetails (precios…)
 ├── scan/recognizeCard.ts     # OCR → carta de Scryfall
 ├── icons.ts, theme.ts        # Iconos locales, colores, formatos, utilidades de formato
@@ -119,7 +120,7 @@ flowchart TD
 |---|---|
 | Lista de mazos, mazo activo y sus cartas | SQLite (`decks`, `deck_cards`); id activo en `settings` |
 | Filtros de búsqueda | `settings` (clave versionada `FILTERS_KEY`) |
-| Preferencias (`prefs`): idioma, vibración, vista del mazo, pantalla completa, botones del mazo ocultos | `settings` (`prefs`); campos nuevos van a `DEFAULT_PREFS` |
+| Preferencias (`prefs`): idioma, vibración, vista del mazo, pantalla completa, botones del mazo ocultos y dónde se muestran precios (`pricesDeck`, `pricesDeckCards`, `pricesShopping`, `pricesCollection`, `pricesCardInfo`) | `settings` (`prefs`); campos nuevos van a `DEFAULT_PREFS` |
 
 Reglas:
 
@@ -147,6 +148,23 @@ Todo pasa por `src/api/scryfall.ts`:
   `cardInfo/fields.ts` traduce y explica cada campo (los de imágenes se omiten a propósito, y los desconocidos acaban en
   «Otros datos»).
 - **Símbolos de maná**: `getSymbols` (`/symbology`) → SVG que pinta `ManaCost`.
+
+### Sinergias (fuera de Scryfall)
+
+`src/api/synergy.ts` habla con dos webs de la comunidad, con caché en memoria por carta:
+
+- **EDHREC** (no tiene API oficial: se leen los JSON que carga su propia web, `json.edhrec.com/pages/{cards|commanders}/<slug>.json`;
+  pueden cambiar sin aviso). `edhrecSlug` convierte el nombre (sin tildes ni apóstrofos; cara frontal primero y nombre
+  completo para cartas partidas). `getEdhrecCard` → mazos, porcentaje, sal, comandantes y cartas afines;
+  `getEdhrecCommander` → todas sus cartas ordenadas por `synergy` (null si no es comandante: 403/404). Los `id` de
+  EDHREC son ids de Scryfall, así que las imágenes salen de `/cards/collection`.
+- **Commander Spellbook** (API pública): `getCardCombos` (`/variants/?q=card:"…"`, por popularidad) y `findDeckCombos`
+  (`POST /find-my-combos` con el mazo y los comandantes → `included` y `almostIncluded`). Los resultados más comunes se
+  traducen; las piezas genéricas (`requires`) van con los requisitos, no con las cartas.
+
+UI: `cardInfo/CardSynergy` (secciones de la ficha), `deck/DeckSynergyScreen` (pantalla del mazo, `Modal` con pestañas
+Combos / Recomendadas y ＋ que añade al mazo) y piezas compartidas en `synergy/SynergyParts` (`ComboView`, `EntryRow`,
+`useCardImages` por id o por nombre). `cardInfo/Section` es el bloque con título que usan ambas pantallas.
 
 ## 7. Datos: SQLite
 
@@ -256,6 +274,16 @@ animados a mano chocaban con botones y listas.
 - **`MissingCardsModal`**: cartas que faltan respecto a la colección, con precio, enlace a Cardmarket y lista para
   copiar.
 - **`TokensModal`**: fichas que crean las cartas (agrupadas por nombre y tipo).
+- **`DeckStatsScreen`** (botón del gráfico, `Modal` a pantalla completa): pestaña *Estadísticas* (resumen, aviso de
+  tierras, curva apilada criaturas / otros, símbolos por color frente a tierras que lo dan, tipos; gráficos hechos con
+  `View`, sin librería) y pestaña *Mano de prueba* (biblioteca sin comandantes, barajar, mulligan London eligiendo las
+  cartas al fondo, robar). Los cálculos están en **`deck/stats.ts`** (puro): `deckStats` (usa `cmc` de Scryfall;
+  `landColors` lee «Add {G}», «any color», tipos básicos y básicas que busca), `buildLibrary`, `shuffle` y
+  `landOdds` (hipergeométrica). **Recomendar maná** (`LandRecommender`): `recommendLands` calcula las tierras
+  objetivo (37 % del tamaño exacto en formatos con comandante; ~40 % y al menos 24 en construido; se añaden aunque el mazo pase del tamaño, y la validación lo avisa) y las
+  reparte entre los colores permitidos (identidad del comandante o los que tienen símbolos) por el déficit de fuentes
+  (`apportion`, mayor resto). Las básicas se buscan por nombre inglés (`getCardsByNames`) y se pasan al idioma
+  preferido; deshacer restaura una `snapshotDeck` previa.
 
 ## 11. La colección
 

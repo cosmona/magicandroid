@@ -39,6 +39,8 @@ son siempre las cartas.
 | ✅ **Validación por formato** | Nada impide añadir cartas: el mazo se comprueba y marca los errores (tamaño, copias, legalidad, comandante 👑 e identidad de color). |
 | 💶 **Precios y Cardmarket** | Precio del mazo, de cada carta y de tu colección. El carrito 🛒 te enseña lo que te falta con su coste y te lleva a Cardmarket o copia la lista para comprarlo todo de una vez. |
 | ⓘ **Ficha completa** | Todo lo que Scryfall sabe de una carta (reglas, legalidad, precios, rankings, impresión, aclaraciones oficiales…) con la explicación de cada dato. |
+| 🧩 **Sinergias y combos** | Cómo se juega cada carta en Commander y sus cartas afines ([EDHREC](https://edhrec.com)), sus combos y los que tu mazo tiene o está a una carta de tener ([Commander Spellbook](https://commanderspellbook.com)), y recomendaciones para tu comandante. |
+| 📊 **Estadísticas y mano de prueba** | Curva de maná, colores (símbolos frente a tierras que los dan), tipos y aviso de tierras. **Recomendar maná** añade las tierras básicas que faltan, repartidas por colores (como en Arena). Roba una mano de 7, haz mulligan y roba turno a turno. |
 | 🪙 **Fichas** | Las fichas y emblemas que crean las cartas de tu mazo, con su imagen. |
 | 📦 **Colección** | Tus cartas reales por edición e idioma: añádelas buscando, con **📷 el escáner** (reconoce la carta con la cámara) o con **📦 La tengo**. Filtros (color, tipo, coste, rareza, edición, idioma, precio, uso en mazos, repetidas) y agrupaciones (color, tipo, edición, rareza, coste, precio). Cada mazo te dice cuántas cartas te faltan. |
 | ⚙ **Ajustes** | Idioma de las cartas, vista del mazo por defecto, vibración, pantalla completa y restablecer filtros. |

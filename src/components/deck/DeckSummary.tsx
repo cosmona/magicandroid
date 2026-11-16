@@ -23,7 +23,7 @@ export function DeckSummary({
   onPressCover?: () => void;
   pickerOpen?: boolean;
 }) {
-  const { activeDeck, activeCards } = useAppState();
+  const { activeDeck, activeCards, prefs } = useAppState();
   const validation = validateDeck(activeDeck?.format ?? null, activeCards);
   const details = useCardDetails(activeCards.map((c) => c.scryfallId));
   const price = priceTotal(activeCards, details);
@@ -65,7 +65,7 @@ export function DeckSummary({
               }`
             : 'Desliza a la derecha para empezar uno'}
         </Text>
-        {price.priced > 0 && (
+        {prefs.pricesDeck && price.priced > 0 && (
           <View style={styles.priceRow}>
             <MaterialCommunityIcons name="tag-outline" size={14} color={colors.accent} />
             <Text style={styles.price} numberOfLines={1}>

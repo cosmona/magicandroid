@@ -38,6 +38,12 @@ export interface Prefs {
   hideNavBar: boolean;
   /** Deck sheet's action buttons and deck picker hidden (more room for the cards). */
   deckToolsHidden: boolean;
+  /** Where prices are shown (Ajustes → Precios). */
+  pricesDeck: boolean;
+  pricesDeckCards: boolean;
+  pricesShopping: boolean;
+  pricesCollection: boolean;
+  pricesCardInfo: boolean;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -46,6 +52,11 @@ export const DEFAULT_PREFS: Prefs = {
   deckView: 'list',
   hideNavBar: false,
   deckToolsHidden: false,
+  pricesDeck: true,
+  pricesDeckCards: true,
+  pricesShopping: true,
+  pricesCollection: true,
+  pricesCardInfo: true,
 };
 
 interface AppState {

@@ -12,6 +12,19 @@ const DECK_VIEWS: { key: DeckView; label: string }[] = [
   { key: 'big', label: '▭ Grande' },
 ];
 
+type PricePref = 'pricesDeck' | 'pricesDeckCards' | 'pricesShopping' | 'pricesCollection' | 'pricesCardInfo';
+const PRICE_PLACES: { key: PricePref; label: string; hint: string }[] = [
+  { key: 'pricesDeck', label: 'Precio del mazo', hint: 'En la barra y la cabecera del mazo.' },
+  { key: 'pricesDeckCards', label: 'Cartas del mazo', hint: 'El precio de cada carta en las vistas lista y grande.' },
+  { key: 'pricesShopping', label: 'Lo que te falta (🛒)', hint: 'El total y el precio de cada carta al comprar.' },
+  {
+    key: 'pricesCollection',
+    label: 'Colección',
+    hint: 'Valor total, de cada grupo y de cada carta, y el filtro y la agrupación por precio.',
+  },
+  { key: 'pricesCardInfo', label: 'Ficha completa', hint: 'La sección «Precios» de la ficha de una carta.' },
+];
+
 /** App settings, saved in SQLite (`prefs`). */
 export function SettingsSheet() {
   const { prefs, setPrefs, setFilters } = useAppState();
@@ -81,6 +94,25 @@ export function SettingsSheet() {
         />
       </View>
 
+      <Section
+        title="Precios"
+        hint="Precios orientativos de Cardmarket (Scryfall los actualiza una vez al día). Elige dónde verlos."
+      >
+        {PRICE_PLACES.map((p) => (
+          <View key={p.key} style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.switchLabel}>{p.label}</Text>
+              <Text style={styles.hint}>{p.hint}</Text>
+            </View>
+            <Switch
+              value={prefs[p.key]}
+              onValueChange={(on) => setPrefs({ ...prefs, [p.key]: on })}
+              trackColor={{ true: colors.accent, false: colors.border }}
+            />
+          </View>
+        ))}
+      </Section>
+
       <Section title="Búsqueda">
         <Pressable style={styles.linkButton} onPress={resetFilters}>
           <Text style={styles.linkText}>Restablecer filtros</Text>
@@ -113,6 +145,7 @@ const styles = StyleSheet.create({
   hint: { color: colors.textMuted, fontSize: 12 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  switchLabel: { color: colors.text, fontWeight: '700' },
   linkButton: {
     alignSelf: 'flex-start',
     paddingVertical: 8,

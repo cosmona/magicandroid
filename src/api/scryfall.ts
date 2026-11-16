@@ -266,6 +266,20 @@ export async function getCardsByIds(ids: string[]): Promise<Card[]> {
   return out;
 }
 
+/** Cards by exact English name (front face for double-faced ones), 75 per request. Unknown names are skipped. */
+export async function getCardsByNames(names: string[]): Promise<Card[]> {
+  const out: Card[] = [];
+  for (let i = 0; i < names.length; i += 75) {
+    const res = await scryfallFetch(`${BASE_URL}/cards/collection`, {
+      method: 'POST',
+      body: JSON.stringify({ identifiers: names.slice(i, i + 75).map((n) => ({ name: n.split(' // ')[0] })) }),
+    });
+    if (!res.ok) throw new Error(`Error ${res.status} de Scryfall`);
+    out.push(...((await res.json()).data as ScryfallCard[]).map(toCard));
+  }
+  return out;
+}
+
 /** One card from a Scryfall endpoint that returns a single card; null on 404. */
 async function getSingleCard(path: string): Promise<Card | null> {
   const res = await scryfallFetch(`${BASE_URL}${path}`);

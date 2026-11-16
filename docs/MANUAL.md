@@ -17,7 +17,9 @@ te dice cuánto cuestan y te ayuda a comprar las que te faltan.
 6. [Colección](#6-colección)
 7. [Ajustes](#7-ajustes)
 8. [Precios y Cardmarket](#8-precios-y-cardmarket)
-9. [Preguntas frecuentes](#9-preguntas-frecuentes)
+9. [Sinergias y combos](#9-sinergias-y-combos)
+10. [Estadísticas y mano de prueba](#10-estadísticas-y-mano-de-prueba)
+11. [Preguntas frecuentes](#11-preguntas-frecuentes)
 
 ---
 
@@ -111,6 +113,8 @@ La hoja del mazo tiene tres posiciones:
 | ✎ / 💾 | Editar el nombre y el formato (💾 si el mazo aún no tiene nombre) |
 | Compartir | Envía la lista del mazo como texto |
 | 🛒 (amarillo) | Comprar en Cardmarket las cartas que te faltan ([ver más](#8-precios-y-cardmarket)) |
+| Gráfico de barras | [Estadísticas y mano de prueba](#10-estadísticas-y-mano-de-prueba) |
+| Pieza de puzle | [Sinergias y combos](#9-sinergias-y-combos) del mazo |
 | Fichas | Las fichas y emblemas que crean las cartas del mazo, con su imagen |
 | Escoba | Vaciar el mazo (pide confirmación) |
 | Papelera | Borrar el mazo (pide confirmación) |
@@ -160,6 +164,8 @@ Debajo de cada dato hay una explicación de qué significa.
 - **Popularidad y estatus:** ranking de EDHREC, *Game Changer*, Lista Reservada…
 - **Esta impresión:** edición, número, rareza, fecha, ilustrador, acabados, marco…
 - **Cartas relacionadas, aclaraciones oficiales** (rulings, en inglés), **identificadores** y **enlaces**.
+- **Sinergias:** cómo se usa en Commander, sus cartas afines si puede ser comandante y sus combos
+  ([ver más](#9-sinergias-y-combos)).
 
 Usa **←** para volver y **↗** para abrirla en Scryfall.
 
@@ -210,6 +216,12 @@ Botón ⚙ de la cabecera:
 - **Vista del mazo por defecto:** lista, galería o grande.
 - **Vibración** al añadir y descartar.
 - **Pantalla completa:** oculta los botones de Android (desliza desde abajo para verlos).
+- **Precios:** un interruptor para cada sitio donde salen precios, por si prefieres no verlos:
+  - **Precio del mazo** (barra y cabecera del mazo).
+  - **Cartas del mazo** (el precio de cada carta).
+  - **Lo que te falta (🛒)** (total y precio de cada carta al comprar).
+  - **Colección** (valor total, de cada grupo y de cada carta, y el filtro y la agrupación por precio).
+  - **Ficha completa** (la sección «Precios»).
 - **Restablecer filtros.**
 
 ## 8. Precios y Cardmarket
@@ -218,11 +230,72 @@ Botón ⚙ de la cabecera:
   orientativos.
 - Scryfall casi nunca da precio a las cartas en español: en ese caso se usa el de la versión inglesa de la misma edición.
 - Sin conexión los precios no aparecen.
+- Puedes ocultarlos en cada sección desde [Ajustes → Precios](#7-ajustes).
 - **Comprar lo que te falta:** en el mazo, botón 🛒. Verás las cartas que no tienes en tu colección con su precio y el
   total. Toca una para abrir su página en Cardmarket, o **📋 Copiar lista** y pégala en Cardmarket → *Listas de
   deseos* → *Añadir lista de mazo* para comprarlas todas de una vez.
 
-## 9. Preguntas frecuentes
+## 9. Sinergias y combos
+
+Scryfall no sabe qué cartas funcionan bien juntas, así que la app lo consulta en dos webs de la comunidad:
+
+- **[EDHREC](https://edhrec.com):** analiza cientos de miles de mazos de Commander publicados en internet.
+- **[Commander Spellbook](https://commanderspellbook.com):** la base de datos de combos conocidos.
+
+### En la ficha de una carta (ⓘ)
+
+- **Uso en Commander:** en cuántos mazos se juega y qué porcentaje de los que podrían llevarla (los de sus colores),
+  su «sal» (cuánto molesta a los rivales, de 0 a 4), los comandantes que más la usan y las cartas que más la acompañan.
+- **Como comandante** (solo criaturas legendarias y cartas que pueden serlo): cuántos mazos la llevan de comandante y
+  sus cartas de **más sinergia**. La sinergia es cuánto más aparece una carta en los mazos de ese comandante que en la
+  media de mazos de sus colores: +30 % significa que es una elección muy propia de ese comandante.
+- **Combos:** los 10 combos más jugados en los que participa. Cada uno muestra sus cartas, qué consigue (maná
+  infinito, ganar la partida…), el maná para empezar y en cuántos mazos se juega. «Cómo funciona» despliega los
+  requisitos y los pasos (en inglés); el enlace lleva a Commander Spellbook.
+
+### En el mazo (botón de la pieza de puzle)
+
+Se abre una pantalla con dos pestañas:
+
+- **Combos:** los que el mazo ya tiene completos y los que están **a una carta** (la que falta, marcada en amarillo).
+  Funciona con cualquier formato.
+- **Recomendadas:** las cartas de más sinergia para el **comandante** del mazo que aún no tienes, con **＋** para
+  añadirlas (en tu idioma si existe). Necesita un formato con comandante y haberlo elegido con 👑. Con dos comandantes
+  se usa el primero.
+
+Estas webs no son oficiales: si cambian, alguna sección puede dejar de cargar hasta que se actualice la app.
+
+## 10. Estadísticas y mano de prueba
+
+El botón del **gráfico de barras** del mazo abre una pantalla con dos pestañas.
+
+### Estadísticas
+
+- **Cartas, tierras y coste medio** (el coste medio no cuenta las tierras), y un aviso si tienes **pocas o muchas
+  tierras** para el tamaño del mazo: con 100 cartas se suelen jugar 35-38; con 60, unas 22-26. Es orientativo: un mazo
+  de costes muy bajos puede ir con menos.
+- **Recomendar maná** (como en Arena): añade las **tierras básicas** que faltan para llegar a lo recomendado, en tu
+  idioma. Las reparte según los símbolos de maná de cada color y las tierras que ya los dan, así que van primero a los
+  colores que andan cortos. Antes de añadirlas te enseña cuántas de cada tipo; después puedes **deshacer**. En
+  Commander solo usa los colores del comandante; si con las tierras el mazo pasa de 100 cartas, te avisa y el
+  aviso de reglas del mazo te lo recordará hasta que quites hechizos.
+- **Curva de maná:** cuántas cartas hay de cada coste, separando criaturas y otros hechizos. La última columna junta
+  las de coste 7 o más.
+- **Colores:** qué parte de los símbolos de maná de los costes es de cada color, y cuántas tierras pueden dar ese color.
+  Si un color tiene muchos símbolos y pocas tierras, te costará lanzar esas cartas.
+- **Tipos:** cuántas criaturas, tierras, instantáneos, etc. lleva el mazo.
+
+### Mano de prueba
+
+Baraja el mazo y roba 7 cartas, como al empezar una partida (sin el comandante, que empieza fuera).
+
+- **Nueva mano:** vuelve a barajar y roba 7.
+- **Mulligan:** baraja y roba 7 otra vez; después toca tantas cartas como mulligans lleves para ponerlas **al fondo**
+  (regla actual del mulligan). Puedes cambiar de idea tocándolas de nuevo antes de robar.
+- **Robar:** roba la siguiente carta, para ver cómo sigue la partida turno a turno.
+- Toca una carta para verla en grande. Debajo verás la probabilidad de que la mano inicial traiga entre 2 y 4 tierras.
+
+## 11. Preguntas frecuentes
 
 **¿Dónde se guardan mis mazos?** En el móvil. Si desinstalas la app, se pierden.
 

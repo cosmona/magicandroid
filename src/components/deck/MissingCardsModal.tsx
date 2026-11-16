@@ -26,11 +26,14 @@ const WANTS_URL = `${CARDMARKET}/Wants`;
 export function MissingCardsModal({
   missing,
   details,
+  showPrices,
   onClose,
 }: {
   missing: MissingCard[];
   /** Live prices + Cardmarket links, by Scryfall id. */
   details: Record<string, CardDetails>;
+  /** Show the total and per-card prices (Ajustes → Precios). */
+  showPrices: boolean;
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -64,7 +67,7 @@ export function MissingCardsModal({
               <Text style={styles.close}>✕</Text>
             </Pressable>
           </View>
-          {cost > 0 && (
+          {showPrices && cost > 0 && (
             <Text style={styles.cost}>
               ≈ {formatEur(cost)} en Cardmarket
               {unpriced > 0 && <Text style={styles.help}> · {unpriced} sin precio</Text>}
@@ -102,7 +105,7 @@ export function MissingCardsModal({
                   )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  {details[card.scryfallId]?.eur != null && (
+                  {showPrices && details[card.scryfallId]?.eur != null && (
                     <Text style={styles.rowPrice}>{formatEur((details[card.scryfallId].eur ?? 0) * count)}</Text>
                   )}
                   <Text style={styles.search}>Ver ↗</Text>

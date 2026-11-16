@@ -5,7 +5,9 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRawCard, getRulings, type RawCard, type Ruling } from '@/api/scryfall';
 import { CARD_RATIO } from '@/components/SwipeCard';
+import { CardSynergy } from '@/components/cardInfo/CardSynergy';
 import { ManaCost } from '@/components/ManaCost';
+import { useAppState } from '@/context/AppState';
 import { colors, formatEur } from '@/theme';
 import {
   COMPONENTS,
@@ -36,6 +38,14 @@ const get = (obj: unknown, path: string): unknown =>
 
 const isEmpty = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
 
+/** Legendary creatures (and cards that say so) can lead a Commander deck: show their EDHREC commander page. */
+const canBeCommander = (card: RawCard) => {
+  const faces = (card.card_faces as RawCard[] | undefined) ?? [];
+  const type = String(card.type_line ?? faces[0]?.type_line ?? '');
+  const text = String(card.oracle_text ?? faces.map((f) => f.oracle_text ?? '').join('\n'));
+  return (/\bLegendary\b/.test(type) && /\bCreature\b/.test(type)) || /can be your commander/i.test(text);
+};
+
 const formatDate = (s: string) => {
   const [y, m, d] = s.slice(0, 10).split('-');
   return d && m && y ? `${d}/${m}/${y}` : s;
@@ -47,6 +57,7 @@ const formatDate = (s: string) => {
  */
 export function CardInfoScreen({ id, onClose }: { id: string; onClose: () => void }) {
   const insets = useSafeAreaInsets();
+  const { prefs } = useAppState();
   const [card, setCard] = useState<RawCard | null>(null);
   const [rulings, setRulings] = useState<Ruling[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -157,13 +168,17 @@ export function CardInfoScreen({ id, onClose }: { id: string; onClose: () => voi
 
             <Legalities legalities={card.legalities as Record<string, string> | undefined} />
 
-            {SECTIONS.slice(1).map((s) => (
-              <Section key={s.title} title={s.title} icon={s.icon as IconName}>
-                <Fields fields={s.fields} source={card} />
-              </Section>
-            ))}
+            {SECTIONS.slice(1)
+              .filter((s) => prefs.pricesCardInfo || s.title !== 'Precios')
+              .map((s) => (
+                <Section key={s.title} title={s.title} icon={s.icon as IconName}>
+                  <Fields fields={s.fields} source={card} />
+                </Section>
+              ))}
 
             <RelatedParts parts={card.all_parts as RawCard[] | undefined} selfId={card.id as string} />
+
+            <CardSynergy name={card.name as string} canBeCommander={canBeCommander(card)} />
 
             <Section title="Aclaraciones oficiales" icon="gavel">
               <Text style={styles.sectionHelp}>

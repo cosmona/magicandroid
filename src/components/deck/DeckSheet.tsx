@@ -12,12 +12,15 @@ import { DeckPicker } from '@/components/deck/DeckPicker';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
 import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/components/CardControls';
 import { DeckSummary } from '@/components/deck/DeckSummary';
+import { DeckStatsScreen } from '@/components/deck/DeckStatsScreen';
+import { DeckSynergyScreen } from '@/components/deck/DeckSynergyScreen';
 import { MissingCardsModal, type MissingCard } from '@/components/deck/MissingCardsModal';
 import { deckTokens, TokensModal } from '@/components/deck/TokensModal';
 import { ManaCost } from '@/components/ManaCost';
 import { useCardDetails } from '@/hooks/useCardDetails';
 import { UNNAMED_DECK, useAppState, type DeckView } from '@/context/AppState';
 import {
+  addCardToDeck,
   changeQuantity,
   clearDeck,
   createDeck,
@@ -90,6 +93,8 @@ export function DeckSheet() {
   const details = useCardDetails(activeCards.map((c) => c.scryfallId));
   const tokens = deckTokens(activeCards, details);
   const [showTokens, setShowTokens] = useState(false);
+  const [showSynergy, setShowSynergy] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   // "Mis mazos" drops down from the cover, like a select.
   const [picking, setPicking] = useState(false);
   // Printing shown in the full Scryfall info screen.
@@ -288,6 +293,12 @@ export function DeckSheet() {
           {!!missing && (
             <Action icon="cart-outline" hint="Comprar en Cardmarket" filled onPress={() => setShopping(true)} />
           )}
+          {activeCards.length > 0 && (
+            <Action icon="chart-bar" hint="Estadísticas y mano de prueba" onPress={() => setShowStats(true)} />
+          )}
+          {activeCards.length > 0 && (
+            <Action icon="puzzle-outline" hint="Sinergias y combos" onPress={() => setShowSynergy(true)} />
+          )}
           {tokens.length > 0 && (
             <Action icon="cards-outline" hint={`Fichas (${tokens.length})`} onPress={() => setShowTokens(true)} />
           )}
@@ -338,6 +349,7 @@ export function DeckSheet() {
               crown={validation.usesCommander}
               owned={owned?.[item.oracleId]}
               details={details[item.scryfallId]}
+              showPrice={prefs.pricesDeckCards}
             />
           ) : mode === 'big' ? (
             <BigCard
@@ -347,6 +359,7 @@ export function DeckSheet() {
               crown={validation.usesCommander}
               owned={owned?.[item.oracleId]}
               details={details[item.scryfallId]}
+              showPrice={prefs.pricesDeckCards}
             />
           ) : (
             <Pressable
@@ -371,9 +384,34 @@ export function DeckSheet() {
         }
       />
 
-      {shopping && <MissingCardsModal missing={missingCards} details={details} onClose={() => setShopping(false)} />}
+      {shopping && (
+        <MissingCardsModal
+          missing={missingCards}
+          details={details}
+          showPrices={prefs.pricesShopping}
+          onClose={() => setShopping(false)}
+        />
+      )}
       {undo && <UndoBar label={undo.label} onUndo={runUndo} />}
       {infoId && <CardInfoScreen id={infoId} onClose={() => setInfoId(null)} />}
+      {showStats && activeDeck && (
+        <DeckStatsScreen
+          cards={activeCards}
+          usesCommander={validation.usesCommander}
+          onClose={() => setShowStats(false)}
+        />
+      )}
+      {showSynergy && activeDeck && (
+        <DeckSynergyScreen
+          cards={activeCards}
+          usesCommander={validation.usesCommander}
+          onAdd={async (card) => {
+            await addCardToDeck(db, activeDeck.id, card);
+            await refresh();
+          }}
+          onClose={() => setShowSynergy(false)}
+        />
+      )}
       {showTokens && <TokensModal tokens={tokens} onClose={() => setShowTokens(false)} />}
 
       {editing && (
@@ -481,6 +519,8 @@ interface CardProps {
   owned?: number;
   /** Live Scryfall data (price, P/T); undefined until loaded or offline. */
   details?: CardDetails;
+  /** Show the card's price (Ajustes → Precios). */
+  showPrice: boolean;
 }
 
 /** "📦 Tienes 2" / "📦 Te falta 1 (tienes 1)" line under a deck card. */
@@ -611,7 +651,7 @@ function CardIssues({ issues }: { issues?: string[] }) {
 }
 
 /** One card of the list view, with the same data the web table showed. */
-function CardRow({ card, actions, issues, crown, owned, details }: CardProps) {
+function CardRow({ card, actions, issues, crown, owned, details, showPrice }: CardProps) {
   const [types, subtypes] = card.typeLine.split(' — ');
   const stats = statsOf(details);
   return (
@@ -639,7 +679,7 @@ function CardRow({ card, actions, issues, crown, owned, details }: CardProps) {
           <ManaCost cost={card.manaCost} />
         </Datum>
         {stats && <Datum label={stats.label} value={stats.value} />}
-        {details?.eur != null && <Datum label="Precio" value={formatEur(details.eur)} />}
+        {showPrice && details?.eur != null && <Datum label="Precio" value={formatEur(details.eur)} />}
         <Datum label="Rareza" value={card.rarity ? (RARITY_LABELS[card.rarity] ?? card.rarity) : '—'} />
         <Datum label="Tipos" value={types} />
         {!!subtypes && <Datum label="Subtipos" value={subtypes} />}
@@ -654,7 +694,7 @@ function CardRow({ card, actions, issues, crown, owned, details }: CardProps) {
 }
 
 /** "Grande" view: the card at full width (like the swipe stack) with its controls below. */
-function BigCard({ card, actions, issues, crown, owned, details }: CardProps) {
+function BigCard({ card, actions, issues, crown, owned, details, showPrice }: CardProps) {
   return (
     <View style={[styles.big, issues && styles.invalid, crown && !!card.isCommander && styles.commander]}>
       <Pressable onPress={() => actions.preview(card)}>
@@ -672,7 +712,7 @@ function BigCard({ card, actions, issues, crown, owned, details }: CardProps) {
         )}
         <Text style={styles.bigBadge}>
           {crown && card.isCommander ? '👑 ' : ''}x{card.quantity}
-          {details?.eur != null ? ` · ${formatEur(details.eur)}` : ''}
+          {showPrice && details?.eur != null ? ` · ${formatEur(details.eur)}` : ''}
         </Text>
       </Pressable>
       <OwnedLine owned={owned} needed={card.quantity} />
