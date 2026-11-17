@@ -59,8 +59,8 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
   const [moxState, setMoxState] = useState<{ busy?: boolean; error?: string }>({});
 
   /** Brings a public Moxfield deck: its list goes into the box below, ready to import. */
-  const fetchMoxfield = async () => {
-    const id = moxfieldId(mox);
+  const fetchMoxfield = async (link = mox) => {
+    const id = moxfieldId(link);
     if (!id) return setMoxState({ error: 'Pega el enlace del mazo, por ejemplo https://moxfield.com/decks/AbC123…' });
     setMoxState({ busy: true });
     try {
@@ -91,6 +91,17 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
       setMoxState({ error: 'No se pudo conectar con Moxfield. Comprueba la conexión.' });
     }
   };
+  /** A Moxfield link pasted in the list box (instead of its own field): bring that deck. */
+  const onListText = (value: string) => {
+    const link = value.trim();
+    if (target === 'deck' && !/\s/.test(link) && /moxfield\.com\/decks\//i.test(link)) {
+      setMox(link);
+      setText('');
+      fetchMoxfield(link);
+      return;
+    }
+    setText(value);
+  };
   const [translate, setTranslate] = useState(prefs.language !== 'en');
   const [step, setStep] = useState<Step>({ kind: 'edit' });
 
@@ -105,7 +116,7 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
 
   const paste = async () => {
     const clip = await Clipboard.getStringAsync();
-    if (clip) setText(clip);
+    if (clip) onListText(clip);
   };
 
   const run = async () => {
@@ -233,7 +244,7 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
                 />
                 <Pressable
                   style={[styles.button, (!mox.trim() || moxState.busy) && { opacity: 0.5 }]}
-                  onPress={fetchMoxfield}
+                  onPress={() => fetchMoxfield()}
                   disabled={!mox.trim() || moxState.busy}
                 >
                   {moxState.busy ? (
@@ -266,7 +277,7 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
             </Pressable>
             <TextInput
               value={text}
-              onChangeText={setText}
+              onChangeText={onListText}
               multiline
               placeholder={EXAMPLE}
               placeholderTextColor={colors.textMuted}
