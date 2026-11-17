@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Card } from '@/api/scryfall';
 
 export const DATABASE_NAME = 'magicswipe.db';
-const DATABASE_VERSION = 11;
+const DATABASE_VERSION = 12;
 
 /** Runs on every app start (SQLiteProvider onInit). Schema changes = bump version + add a step. */
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
@@ -333,6 +333,39 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
       CREATE INDEX IF NOT EXISTS card_tags_oracle ON card_tags (oracle_id);
     `);
     version = 11;
+  }
+  if (version === 11) {
+    // Supervised sync: tags get a last-change time, deleted tags and tag marks leave a tombstone (like
+    // decks and the collection), and each device keeps copies of its data from before a sync.
+    const NOW = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+    await db.execAsync(`
+      ALTER TABLE tags ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;
+      UPDATE tags SET updated_at = created_at;
+      CREATE TRIGGER tags_ai AFTER INSERT ON tags BEGIN
+        UPDATE tags SET updated_at = ${NOW} WHERE uid = NEW.uid;
+        DELETE FROM sync_tombstones WHERE kind = 'tag' AND key = NEW.uid;
+      END;
+      CREATE TRIGGER tags_au AFTER UPDATE OF name, color, icon ON tags BEGIN
+        UPDATE tags SET updated_at = ${NOW} WHERE uid = NEW.uid;
+      END;
+      CREATE TRIGGER tags_ad AFTER DELETE ON tags BEGIN
+        INSERT OR REPLACE INTO sync_tombstones (kind, key, deleted_at) VALUES ('tag', OLD.uid, ${NOW});
+      END;
+      CREATE TRIGGER card_tags_ai AFTER INSERT ON card_tags BEGIN
+        DELETE FROM sync_tombstones WHERE kind = 'cardTag' AND key = NEW.tag_uid || '|' || NEW.oracle_id;
+      END;
+      CREATE TRIGGER card_tags_ad AFTER DELETE ON card_tags BEGIN
+        INSERT OR REPLACE INTO sync_tombstones (kind, key, deleted_at)
+          VALUES ('cardTag', OLD.tag_uid || '|' || OLD.oracle_id, ${NOW});
+      END;
+      CREATE TABLE IF NOT EXISTS sync_backups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at INTEGER NOT NULL,
+        label TEXT NOT NULL,
+        data TEXT NOT NULL
+      );
+    `);
+    version = 12;
   }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }

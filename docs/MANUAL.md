@@ -370,17 +370,22 @@ Botón ⚙ de la cabecera:
 
 ### Sincronizar con el PC
 
-Si también usas **Magic Swipe para PC**, puedes pasar tus mazos, tu colección y «La quiero» de uno a otro:
+Si también usas **Magic Swipe para PC**, puedes tener en los dos los mismos mazos, colección, «La quiero» y etiquetas:
 
 1. En el PC pulsa **⇄ Móvil** (arriba a la derecha). Aparece un código QR.
-2. En el móvil, **⚙ Ajustes → Sincronizar con el PC** y elige:
-   - **Dirección:** **Móvil → PC** o **PC → Móvil**.
-   - **Copiar** (el origen se queda como está) o **Mover** (cuando el destino lo ha guardado, se borra del origen; la app
-     te pregunta antes).
-3. **Escanear el código del PC**. Los dos tienen que estar en la **misma Wi-Fi**.
+2. En el móvil, **⚙ Ajustes → Sincronizar con el PC → Sincronizar** y **Escanear el código del PC**. Los dos tienen que
+   estar en la **misma Wi-Fi**.
+3. En la pantalla del PC aparece **todo lo que es distinto**: mazos (y qué cartas cambian), colección, «La quiero» y
+   etiquetas, cada cosa con la **opción sugerida ★** ya marcada (el cambio más reciente). Cambia lo que quieras: quedarte
+   con la del PC o la del móvil, pasar o borrar lo que solo está en uno, y en los mazos cambiados en los dos, **Juntar
+   ambas**.
+4. Pulsa **Aplicar** en el PC. El móvil guarda su parte solo y los dos quedan iguales. Hasta entonces no cambia nada.
 
-No se mezcla nada: el destino recibe **todo** lo del origen. Lo que el destino ya tenía y el origen no, se queda. Si un
-mazo (o una carta de la colección) está en los dos, se sustituye por la versión del origen.
+Antes de aplicar, cada aparato guarda una **copia** de sus datos. Abajo, en **Copias de antes de sincronizar**, puedes
+**Restaurar** cualquiera de las tres últimas (solo cambia ese aparato).
+
+**Copiar o mover** (avanzado) pasa todo de un aparato al otro sin revisar: el destino recibe todo lo del origen, lo que
+coincide se sustituye y, con **Mover**, se borra del origen.
 
 La próxima vez basta con **Otra vez con el mismo PC** (con la ventana del PC abierta). Si no puedes escanear, escribe la
 dirección y el código que enseña el PC. Los ajustes y el contador de vidas no se pasan.

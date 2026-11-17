@@ -244,13 +244,17 @@ erDiagram
   `sync_tombstones (kind, key, deleted_at)`. Los mantienen **triggers** (cualquier cambio en `decks`, `deck_cards` o
   `deck_sideboard` sella el mazo; borrar deja una lápida; insertar la quita), así que las consultas normales no saben
   nada de sync. `src/sync/sync.ts` (el **mismo archivo** que en Magic Swipe para PC, salvo el import del tipo):
-  `exportSyncData` / `copySyncData` / `clearSentData`. **Sin fusión**: una dirección (móvil → PC o PC → móvil) y un modo,
+  `exportSyncData` / `copySyncData` / `clearSentData`, y `src/sync/merge.ts` (también idéntico) para **Sincronizar**: el
+  móvil manda sus datos (`offer`), el PC los compara (`diffSyncData`: diferencias con opción sugerida según `updated_at`
+  y las lápidas), el usuario las revisa en el PC, y `buildPatches` da la parte de cada uno; el móvil pregunta (`poll`)
+  hasta recibir la suya, hace `saveBackup` + `applyPatch` y avisa (`applied`). v12 añade `tags.updated_at`, lápidas de
+  etiquetas y de etiquetas en cartas, y `sync_backups` (tres últimas copias, `restoreBackup`). Avanzado, sin fusión: una dirección (móvil → PC o PC → móvil) y un modo,
   **Copiar** (el destino recibe todo; los mazos con el mismo `uid` y las filas con la misma clave se sustituyen por las
   del origen; lo demás del destino se queda) o **Mover** (además, el origen borra lo enviado cuando el destino confirma).
   Transporte: el PC abre un servidor HTTP en la LAN (puerto 47823) mientras su ventana «Sincronizar con el móvil» está
   abierta y enseña un QR `magicswipe://sync?h=<ips>&p=<puerto>&t=<código>`; `components/SyncScreen` lo escanea
   (expo-camera) y hace `POST /sync` con `{op: 'receive' | 'send' | 'clear'}` (recibir datos del móvil, enviar los del
-  PC, borrar en el PC tras mover). Los triggers y lápidas de v7 se mantienen pero ya no se usan para fusionar. HTTP sin cifrar en la red local:
+  PC, borrar en el PC tras mover) u `{op: 'offer' | 'poll' | 'applied'}` (sincronizar). HTTP sin cifrar en la red local:
   `expo-build-properties` → `usesCleartextTraffic` (hace falta un APK nuevo).
 - **Posibles y «La quiero» (v9)**: `deck_maybe` (mismas columnas que el banquillo; triggers que sellan el mazo; no
   cuenta en tamaño, validación, estadísticas ni precio; `moveCopy(db, deck, oracle, to, from)` mueve entre `main`,
