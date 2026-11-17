@@ -18,6 +18,7 @@ import { getCardInLanguage, resolveCardList, type Card } from '@/api/scryfall';
 import { useAppState } from '@/context/AppState';
 import {
   addCardToDeck,
+  addCardToMaybe,
   addCardToSideboard,
   addToCollection,
   changeQuantity,
@@ -25,7 +26,8 @@ import {
   setCommander,
 } from '@/db/database';
 import { parseDeckList } from '@/deck/importList';
-import { colors } from '@/theme';
+import { moxfieldDeck, moxfieldId, moxfieldUrls, type MoxfieldDeck } from '@/deck/moxfield';
+import { colors, FORMATS } from '@/theme';
 
 type Step =
   | { kind: 'edit' }
@@ -51,6 +53,44 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
   const { prefs, refresh, setActiveDeckId } = useAppState();
   const [text, setText] = useState('');
   const [deckName, setDeckName] = useState('');
+  // Moxfield: the link, what came from it (format and «Quizás») and how it went.
+  const [mox, setMox] = useState('');
+  const [fromMox, setFromMox] = useState<MoxfieldDeck | null>(null);
+  const [moxState, setMoxState] = useState<{ busy?: boolean; error?: string }>({});
+
+  /** Brings a public Moxfield deck: its list goes into the box below, ready to import. */
+  const fetchMoxfield = async () => {
+    const id = moxfieldId(mox);
+    if (!id) return setMoxState({ error: 'Pega el enlace del mazo, por ejemplo https://moxfield.com/decks/AbC123…' });
+    setMoxState({ busy: true });
+    try {
+      let data: Record<string, unknown> | null = null;
+      let status = 0;
+      for (const url of moxfieldUrls(id)) {
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        status = res.status;
+        if (res.ok) {
+          data = (await res.json()) as Record<string, unknown>;
+          break;
+        }
+      }
+      if (!data) {
+        return setMoxState({
+          error:
+            status === 404
+              ? 'Moxfield no encuentra ese mazo: comprueba el enlace y que el mazo sea público (o «no listado»).'
+              : `Moxfield no ha dejado leer el mazo (${status}). Ábrelo en Moxfield, «Export → Copy for MTGA» y pega aquí la lista.`,
+        });
+      }
+      const deck = moxfieldDeck(data);
+      setFromMox(deck);
+      setText(deck.text);
+      setDeckName(deck.name);
+      setMoxState({});
+    } catch {
+      setMoxState({ error: 'No se pudo conectar con Moxfield. Comprueba la conexión.' });
+    }
+  };
   const [translate, setTranslate] = useState(prefs.language !== 'en');
   const [step, setStep] = useState<Step>({ kind: 'edit' });
 
@@ -91,7 +131,9 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
       let deckId: number | null = null;
       if (target === 'deck') {
         const name = deckName.trim() || parsed.name || 'Mazo importado';
-        deckId = await createDeck(db, name, hasCommander ? 'commander' : looksLimited ? 'limited' : null);
+        // From Moxfield: its format when the app has it.
+        const moxFormat = fromMox?.format && FORMATS.some((f) => f.key === fromMox.format) ? fromMox.format : null;
+        deckId = await createDeck(db, name, moxFormat ?? (hasCommander ? 'commander' : looksLimited ? 'limited' : null));
       }
       for (const [i, line] of lines.entries()) {
         const english = found[i];
@@ -110,6 +152,16 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
           await addToCollection(db, card, 'paper', line.quantity);
         }
         imported += line.quantity;
+      }
+      // Moxfield's «Quizás» (maybeboard) goes to Posibles.
+      if (deckId !== null && fromMox?.maybe.length) {
+        setStep({ kind: 'working', message: 'Añadiendo «Quizás» a Posibles…' });
+        const maybeLines = fromMox.maybe.map((m) => ({ ...m, commander: false }));
+        const maybeCards = await resolveCardList(maybeLines).catch(() => []);
+        for (const [i, m] of maybeLines.entries()) {
+          const card = maybeCards[i];
+          if (card) await addCardToMaybe(db, deckId, localized.get(card.id) ?? card, m.quantity);
+        }
       }
       if (deckId !== null) setActiveDeckId(deckId);
       else await refresh();
@@ -165,6 +217,45 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
             contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
             keyboardShouldPersistTaps="handled"
           >
+            {target === 'deck' && (
+              // A public Moxfield deck straight from its link.
+              <View style={styles.box}>
+                <Text style={styles.boxTitle}>Desde Moxfield</Text>
+                <TextInput
+                  value={mox}
+                  onChangeText={setMox}
+                  placeholder="https://moxfield.com/decks/…"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                  style={styles.nameInput}
+                />
+                <Pressable
+                  style={[styles.button, (!mox.trim() || moxState.busy) && { opacity: 0.5 }]}
+                  onPress={fetchMoxfield}
+                  disabled={!mox.trim() || moxState.busy}
+                >
+                  {moxState.busy ? (
+                    <ActivityIndicator color={colors.accent} />
+                  ) : (
+                    <MaterialCommunityIcons name="download" size={20} color={colors.text} />
+                  )}
+                  <Text style={styles.buttonText}>Traer el mazo</Text>
+                </Pressable>
+                {moxState.error ? (
+                  <Text style={[styles.help, { color: colors.discard }]}>{moxState.error}</Text>
+                ) : fromMox ? (
+                  <Text style={[styles.help, { color: colors.add }]}>
+                    ✓ «{fromMox.name}» traído
+                    {fromMox.maybe.length ? ` · ${fromMox.maybe.reduce((n, m) => n + m.quantity, 0)} de «Quizás» irán a Posibles` : ''}. Revisa la
+                    lista y pulsa «Crear el mazo».
+                  </Text>
+                ) : (
+                  <Text style={styles.help}>Pega el enlace de un mazo público (o «no listado») de Moxfield.</Text>
+                )}
+              </View>
+            )}
             <Text style={styles.help}>
               Pega una lista exportada de MTG Arena, Moxfield, Archidekt o MTGO, o escríbela con una carta por línea («4
               Lightning Bolt»). Los nombres en inglés o en el idioma de la exportación de Arena.
@@ -291,6 +382,7 @@ const styles = StyleSheet.create({
   },
   primary: { backgroundColor: colors.accent, borderColor: colors.accent },
   buttonText: { color: colors.text, fontWeight: '900' },
+  boxTitle: { color: colors.text, fontWeight: '900', fontSize: 15 },
   error: { color: colors.discard, textAlign: 'center' },
   result: { alignItems: 'center', gap: 6, paddingVertical: 16 },
   resultTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },

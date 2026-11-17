@@ -150,7 +150,9 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
     <td valign="top">
       <ul>
         <li>Añade cartas buscándolas, con el <b>escáner</b> (reconoce la carta con la cámara), con <b>La tengo</b> desde cualquier pantalla o importando una lista.</li>
-        <li><b>Filtros</b> y <b>agrupaciones</b> por color, tipo, coste, rareza, edición, idioma, precio, uso en mazos y repetidas.</li>
+        <li><b>Filtros</b> y <b>agrupaciones</b> por color, tipo, subtipo, coste, rareza, edición, idioma, precio, uso en mazos, copias y etiquetas.</li>
+        <li><b>Etiquetas</b> tuyas (texto, color e icono) para marcar cartas («Para cambiar», «Prestada»…) y filtrar por ellas.</li>
+        <li><b>La tengo</b> y <b>La quiero</b> por versión: cada edición, idioma y arte por separado.</li>
         <li><b>Valor</b> de la colección en Cardmarket.</li>
         <li>Comparte cualquier carta como imagen o con su enlace de Scryfall.</li>
       </ul>
@@ -175,8 +177,9 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
 </table>
 
 En toda la app: **código de colores** coherente, **ayuda** al mantener pulsado cualquier botón y **ajustes** de idioma,
-vistas, vibración y precios. **Pasar datos con Magic Swipe para PC** por la Wi-Fi: escanea el QR del PC y copia o mueve
-tus mazos y tu colección del móvil al PC o al revés. **Posibles** en cada mazo para apartar cartas que te estás pensando y
+vistas, vibración y precios. **Sincronizar con Magic Swipe para PC** por la Wi-Fi: escanea el QR del PC, revisa en la pantalla del PC todo lo que es
+distinto (mazos, colección, «La quiero» y etiquetas) con la opción sugerida ya marcada, y al aplicar los dos quedan
+iguales; antes se guarda una copia que puedes restaurar. También se puede copiar o mover todo de uno a otro. **Posibles** en cada mazo para apartar cartas que te estás pensando y
 **♡ La quiero** para apuntar las cartas que quieres conseguir (salen en tu colección).
 
 <br />

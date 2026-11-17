@@ -89,8 +89,67 @@ function deckDetail(pc: SyncDeck, phone: SyncDeck): string[] {
 
 const deckCount = (d: SyncDeck) => d.cards.reduce((n, c) => n + num(c.quantity), 0);
 
+/**
+ * Tags created on each device with the same name (so different uids) are one tag: phone uid → the PC's.
+ * Only when the PC doesn't have the phone's uid and the phone doesn't have the PC's.
+ */
+export function tagAliases(pc: SyncData, phone: SyncData): Record<string, string> {
+  const key = (t: Row) => String(t.name).trim().toLowerCase();
+  const pcByName = new Map(pc.tags.map((t) => [key(t), String(t.uid)]));
+  const pcUids = new Set(pc.tags.map((t) => String(t.uid)));
+  const phoneUids = new Set(phone.tags.map((t) => String(t.uid)));
+  const out: Record<string, string> = {};
+  for (const t of phone.tags) {
+    const uid = String(t.uid);
+    const target = pcByName.get(key(t));
+    if (!pcUids.has(uid) && target && !phoneUids.has(target)) out[uid] = target;
+  }
+  return out;
+}
+
+/** The phone's data with its repeated tags already as the PC's (their marks moved to them). */
+function withAliases(phone: SyncData, aliases: Record<string, string>): SyncData {
+  if (!Object.keys(aliases).length) return phone;
+  const seen = new Set<string>();
+  const cardTags: Row[] = [];
+  for (const r of phone.cardTags) {
+    const row = { ...r, tag_uid: aliases[String(r.tag_uid)] ?? r.tag_uid };
+    const k = CARD_TAG(row);
+    if (!seen.has(k)) {
+      seen.add(k);
+      cardTags.push(row);
+    }
+  }
+  return { ...phone, tags: phone.tags.map((t) => (aliases[String(t.uid)] ? { ...t, uid: aliases[String(t.uid)] } : t)), cardTags };
+}
+
+/**
+ * What the phone also has to do for its repeated tags: drop its own copy and keep the PC's, with the
+ * marks of both (the review only sees them already joined).
+ */
+export function aliasPatch(pc: SyncData, phone: SyncData): SyncPatch {
+  const patch = emptyPatch();
+  const aliases = tagAliases(pc, phone);
+  const targets = new Set(Object.values(aliases));
+  if (!targets.size) return patch;
+  patch.deleteTags = Object.keys(aliases);
+  patch.tags = pc.tags.filter((t) => targets.has(String(t.uid)));
+  const rows = new Map<string, Row>();
+  for (const r of [...pc.cardTags, ...withAliases(phone, aliases).cardTags]) if (targets.has(String(r.tag_uid))) rows.set(CARD_TAG(r), r);
+  patch.cardTags = [...rows.values()];
+  return patch;
+}
+
+/** Both patches in one (deletions and writes of `b` after those of `a`: what `b` writes wins). */
+export function mergePatches(a: SyncPatch, b: SyncPatch): SyncPatch {
+  const out = emptyPatch();
+  for (const k of Object.keys(out) as (keyof SyncPatch)[]) (out[k] as unknown[]) = [...(a[k] as unknown[]), ...(b[k] as unknown[])];
+  return out;
+}
+
 /** Every difference between the PC's data and the phone's. */
-export function diffSyncData(pc: SyncData, phone: SyncData): DiffItem[] {
+export function diffSyncData(pc: SyncData, rawPhone: SyncData): DiffItem[] {
+  const phone = withAliases(rawPhone, tagAliases(pc, rawPhone));
   const items: DiffItem[] = [];
   const tomb = (data: SyncData) => new Map(data.tombstones.map((t) => [`${t.kind}:${t.key}`, num(t.deleted_at)]));
   const pcTomb = tomb(pc);
