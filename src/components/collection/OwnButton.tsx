@@ -6,7 +6,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { displayName, getCardsByIds, getCardsByNames, type Card } from '@/api/scryfall';
 import type { CardRef } from '@/components/LanguagePicker';
 import { addToCollection, getOwnedCounts, getPrintingCount, removeOneFromCollection } from '@/db/database';
-import { useAppState } from '@/context/AppState';
+import { setWanted, useWantedIds, useWantedPrintings } from '@/hooks/useWanted';
 import { colors } from '@/theme';
 
 async function resolve(ref: CardRef): Promise<Card | null> {
@@ -31,20 +31,21 @@ export function OwnPill({
   onAdded?: (total: number) => void;
 }) {
   const db = useSQLiteContext();
-  const place = useAppState().prefs.collectionPlace;
-  const arena = place === 'arena';
+  const place = 'paper';
   const refKey = typeof card === 'string' ? card : 'id' in card ? card.id : `name:${card.name}`;
   const knownOracle = oracleId ?? (typeof card !== 'string' && 'id' in card ? card.oracleId : undefined);
-  const [owned, setOwned] = useState<{ key: string; oracleId: string; count: number } | null>(null);
+  // Copies of THIS printing (edition + language + artwork) and of the card in any printing.
+  const [owned, setOwned] = useState<{ key: string; oracleId: string; count: number; total: number } | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const id = knownOracle ?? (await resolve(card))?.oracleId;
-      if (!id) return;
-      const counts = await getOwnedCounts(db, [id], place);
-      if (!cancelled) setOwned({ key: refKey, oracleId: id, count: counts[id] ?? 0 });
+      const printing = typeof card === 'string' && knownOracle ? { id: card, oracleId: knownOracle } : await resolve(card);
+      if (!printing) return;
+      const id = knownOracle ?? printing.oracleId;
+      const [counts, mine] = await Promise.all([getOwnedCounts(db, [id], place), getPrintingCount(db, printing.id, place)]);
+      if (!cancelled) setOwned({ key: refKey, oracleId: id, count: mine, total: counts[id] ?? 0 });
     })().catch(() => {});
     return () => {
       cancelled = true;
@@ -54,8 +55,9 @@ export function OwnPill({
   }, [db, refKey, knownOracle, place]);
 
   const count = owned?.key === refKey ? owned.count : 0;
+  const others = owned?.key === refKey ? owned.total - owned.count : 0;
 
-  /** +1 adds this printing; −1 removes one copy (this printing first, else the last one added). */
+  /** +1 adds this printing; −1 (only shown when you have this one) removes one of this printing. */
   const change = async (delta: 1 | -1) => {
     setBusy(true);
     try {
@@ -63,9 +65,12 @@ export function OwnPill({
       if (!printing) return;
       if (delta > 0) await addToCollection(db, printing, place);
       else await removeOneFromCollection(db, printing.oracleId, printing.id, place);
-      const counts = await getOwnedCounts(db, [printing.oracleId], place);
+      const [counts, mine] = await Promise.all([
+        getOwnedCounts(db, [printing.oracleId], place),
+        getPrintingCount(db, printing.id, place),
+      ]);
       const total = counts[printing.oracleId] ?? 0;
-      setOwned({ key: refKey, oracleId: printing.oracleId, count: total });
+      setOwned({ key: refKey, oracleId: printing.oracleId, count: mine, total });
       onAdded?.(total);
     } catch {
       // Stays as it was; the user can tap again.
@@ -75,6 +80,7 @@ export function OwnPill({
   };
 
   return (
+    <>
     <View style={[styles.pill, styles.pillRow, count > 0 && styles.pillOwned, busy && { opacity: 0.6 }]}>
       {count > 0 && (
         <Pressable
@@ -94,23 +100,98 @@ export function OwnPill({
         style={styles.pillMain}
         accessibilityLabel={
           count > 0
-            ? `Tienes ${count} en tu colección${arena ? ' de Arena' : ''}. Añadir otra`
-            : `La tengo${arena ? ' en Arena' : ''}: añadir a tu colección`
+            ? `Tienes ${count} de esta versión${others > 0 ? ` y ${others} de otras` : ''}. Añadir otra`
+            : others > 0
+              ? `Tienes ${others} en otras versiones. Añadir una de esta`
+              : 'La tengo: añadir esta versión a tu colección'
         }
       >
         <MaterialCommunityIcons
           name={
-            arena ? 'gamepad-variant-outline' : count > 0 ? 'package-variant-closed-check' : 'package-variant-closed'
+            count > 0 ? 'package-variant-closed-check' : 'package-variant-closed'
           }
           size={16}
           color={count > 0 ? colors.bg : colors.text}
         />
-        <Text style={[styles.text, count > 0 && { color: colors.bg }]}>
-          {count > 0 ? `Tienes ${count}${arena ? ' en Arena' : ''}` : arena ? 'La tengo en Arena' : 'La tengo'}
+        <Text style={[styles.text, count > 0 && { color: colors.bg }, count === 0 && others > 0 && { color: colors.textMuted }]}>
+          {count > 0 ? `Tienes ${count}` : 'La tengo'}
+          {others > 0 ? ` · ${others} ${count > 0 ? 'más' : 'en otras'}` : ''}
         </Text>
         {count > 0 && <MaterialCommunityIcons name="plus" size={16} color={colors.bg} />}
       </Pressable>
     </View>
+    <WantPill card={card} oracleId={knownOracle} />
+    </>
+  );
+}
+
+const WANT_COLOR = '#ff7a9c';
+
+/**
+ * «La quiero» toggle (heart) for THIS printing (edition + language + artwork): each printing is marked
+ * on its own. When another printing of the card is wanted it says so.
+ */
+export function WantPill({ card, oracleId }: { card: CardRef; oracleId?: string }) {
+  const db = useSQLiteContext();
+  const refKey = typeof card === 'string' ? card : 'id' in card ? card.id : `name:${card.name}`;
+  const known = typeof card === 'string' ? { id: card, oracleId } : 'id' in card ? { id: card.id, oracleId: card.oracleId } : null;
+  const [resolved, setResolved] = useState<{ key: string; id: string; oracleId: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (known?.oracleId) return;
+    let cancelled = false;
+    resolve(card)
+      .then((c) => {
+        if (c && !cancelled) setResolved({ key: refKey, id: c.id, oracleId: c.oracleId });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // Keyed by identity: callers may pass a fresh `{ name }` on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refKey, known?.oracleId]);
+  const fromResolve = resolved?.key === refKey ? resolved : null;
+  const printingId = known?.id ?? fromResolve?.id;
+  const cardId = known?.oracleId ?? fromResolve?.oracleId;
+  const wanted = useWantedPrintings(db, printingId ? [printingId] : []).has(printingId ?? '');
+  const cardWanted = useWantedIds(db, cardId ? [cardId] : []).has(cardId ?? '');
+  const otherWanted = cardWanted && !wanted;
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      const printing = await resolve(card);
+      if (printing) await setWanted(db, printing, !wanted);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Pressable
+      onPress={toggle}
+      disabled={busy}
+      hitSlop={6}
+      style={[
+        styles.pill,
+        styles.pillRow,
+        styles.pillMain,
+        (wanted || otherWanted) && { borderColor: WANT_COLOR },
+        otherWanted && { borderStyle: 'dashed' },
+        busy && { opacity: 0.6 },
+      ]}
+      accessibilityLabel={
+        wanted
+          ? 'La quieres (esta edición e idioma): quitar de «La quiero»'
+          : otherWanted
+            ? 'Ya quieres otra edición de esta carta: querer también esta'
+            : 'La quiero: apunta esta edición e idioma para conseguirla'
+      }
+    >
+      <MaterialCommunityIcons name={wanted ? 'heart' : 'heart-outline'} size={16} color={wanted || otherWanted ? WANT_COLOR : colors.text} />
+      <Text style={[styles.text, wanted && { color: WANT_COLOR }]}>
+        {wanted ? 'La quieres' : otherWanted ? 'La quiero · quieres otra' : 'La quiero'}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -121,8 +202,7 @@ export function OwnPill({
  */
 export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number }) {
   const db = useSQLiteContext();
-  const place = useAppState().prefs.collectionPlace;
-  const arena = place === 'arena';
+  const place = 'paper';
   const [counts, setCounts] = useState<{ id: string; total: number; printing: number } | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -171,11 +251,11 @@ export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number 
           pressed && { opacity: 0.6 },
         ]}
         onPress={() => setOpen(true)}
-        accessibilityLabel={`La tengo${arena ? ' en Arena' : ''}${total > 0 ? `: tienes ${total}` : ''}`}
+        accessibilityLabel={`La tengo${total > 0 ? `: tienes ${total}` : ''}`}
       >
         <MaterialCommunityIcons
           name={
-            arena ? 'gamepad-variant-outline' : total > 0 ? 'package-variant-closed-check' : 'package-variant-closed'
+            total > 0 ? 'package-variant-closed-check' : 'package-variant-closed'
           }
           size={22}
           color={total > 0 ? colors.add : colors.text}
@@ -194,7 +274,7 @@ export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number 
               {displayName(card)}
             </Text>
             <Text style={styles.panelHelp}>
-              En tu colección{arena ? ' de Arena' : ''}: {total} {total === 1 ? 'copia' : 'copias'}
+              En tu colección: {total} {total === 1 ? 'copia' : 'copias'}
               {total > 0 ? ` (${printing} de esta edición e idioma)` : ''}
             </Text>
             <View style={styles.stepper}>
@@ -220,6 +300,7 @@ export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number 
               ＋ añade esta edición e idioma. − quita una de esta edición (o, si no la tienes, la última que añadiste de
               esta carta).
             </Text>
+            <WantPill card={card} oracleId={card.oracleId} />
             <Pressable
               style={styles.galleryButton}
               onPress={() => {
@@ -228,7 +309,7 @@ export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number 
               }}
             >
               <MaterialCommunityIcons name="bookshelf" size={20} color={colors.bg} />
-              <Text style={styles.galleryText}>Ver en mi colección{arena ? ' de Arena' : ''}</Text>
+              <Text style={styles.galleryText}>Ver en mi colección</Text>
             </Pressable>
           </Pressable>
         </Pressable>

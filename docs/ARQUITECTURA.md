@@ -237,12 +237,26 @@ erDiagram
   suma el banquillo. Formato **`limited`** (Limitado, `DECK_ONLY_FORMATS`: no se busca en Scryfall): mínimo 40, sin
   límite de copias ni legalidad, ~17 tierras en `recommendLands`. Importar crea `limited` con ~40 cartas sin
   comandante y mete el *Sideboard* en el banquillo.
-- **Colección**: una fila por **impresión** (edición + idioma) **y lugar** (v6: columna `place`, `'paper'` o `'arena'`,
-  clave `(scryfall_id, place)`; la migración pasa lo anterior a papel). «Cuántas tengo» suma por `oracle_id` dentro del
-  lugar. Todas las consultas de colección reciben `place`; la app usa `prefs.collectionPlace` (selector Papel | MTG Arena
-  de la pestaña Colección). En Arena: sin precios, las básicas no faltan nunca y `MissingCardsModal arena` muestra
-  comodines por rareza. Importar un mazo con «La tengo en MTG Arena» completa la colección de Arena hasta las copias de
-  la lista.
+- **Colección**: una fila por **impresión** (edición + idioma). La columna `place` (v6, clave `(scryfall_id, place)`)
+  existió para una segunda colección de MTG Arena, que se quitó: la v8 borra esas filas y la app pasa siempre
+  `'paper'` a las consultas (que siguen recibiendo `place`). «Cuántas tengo» suma por `oracle_id`.
+- **Sincronización (v7)**: `decks.uid` (id global) y `decks.updated_at`, `collection_cards.updated_at` y la tabla
+  `sync_tombstones (kind, key, deleted_at)`. Los mantienen **triggers** (cualquier cambio en `decks`, `deck_cards` o
+  `deck_sideboard` sella el mazo; borrar deja una lápida; insertar la quita), así que las consultas normales no saben
+  nada de sync. `src/sync/sync.ts` (el **mismo archivo** que en Magic Swipe para PC, salvo el import del tipo):
+  `exportSyncData` / `copySyncData` / `clearSentData`. **Sin fusión**: una dirección (móvil → PC o PC → móvil) y un modo,
+  **Copiar** (el destino recibe todo; los mazos con el mismo `uid` y las filas con la misma clave se sustituyen por las
+  del origen; lo demás del destino se queda) o **Mover** (además, el origen borra lo enviado cuando el destino confirma).
+  Transporte: el PC abre un servidor HTTP en la LAN (puerto 47823) mientras su ventana «Sincronizar con el móvil» está
+  abierta y enseña un QR `magicswipe://sync?h=<ips>&p=<puerto>&t=<código>`; `components/SyncScreen` lo escanea
+  (expo-camera) y hace `POST /sync` con `{op: 'receive' | 'send' | 'clear'}` (recibir datos del móvil, enviar los del
+  PC, borrar en el PC tras mover). Los triggers y lápidas de v7 se mantienen pero ya no se usan para fusionar. HTTP sin cifrar en la red local:
+  `expo-build-properties` → `usesCleartextTraffic` (hace falta un APK nuevo).
+- **Posibles y «La quiero» (v9)**: `deck_maybe` (mismas columnas que el banquillo; triggers que sellan el mazo; no
+  cuenta en tamaño, validación, estadísticas ni precio; `moveCopy(db, deck, oracle, to, from)` mueve entre `main`,
+  `side` y `maybe`) y `wanted_cards` (una fila por `oracle_id` con la impresión marcada; triggers de sincronización,
+  lápida `want`). `hooks/useWanted` avisa a todas las pantallas al cambiar; la colección mezcla las que quieres (las
+  que no tienes salen con 0 copias). La sincronización (versión 2) lleva ambas.
 - **Migraciones**: `PRAGMA user_version`. Para cambiar el esquema se sube `DATABASE_VERSION` y se añade un paso
   `if (version === N)`; los pasos existentes **no se tocan**.
 - `PRAGMA foreign_keys = ON` en cada arranque: borrar un mazo borra sus cartas.

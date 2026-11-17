@@ -28,6 +28,7 @@ import { MissingCardsModal, type MissingCard } from '@/components/deck/MissingCa
 import { deckTokens, TokensModal } from '@/components/deck/TokensModal';
 import { ManaCost } from '@/components/ManaCost';
 import { useCardDetails } from '@/hooks/useCardDetails';
+import { setWanted, useWantedPrintings } from '@/hooks/useWanted';
 import { UNNAMED_DECK, useAppState, type DeckView } from '@/context/AppState';
 import {
   addCardToDeck,
@@ -35,10 +36,13 @@ import {
   removeOneFromCollection,
   changeQuantity,
   changeSideboardQuantity,
+  changeMaybeQuantity,
+  type Zone,
   moveCopy,
   clearDeck,
   createDeck,
   deleteDeck,
+  duplicateDeck,
   getCardsMissingData,
   getOwnedCounts,
   removeCardFromDeck,
@@ -55,12 +59,17 @@ import {
 import { RARITY_LABELS } from '@/icons';
 import { colors, formatEur, formatLabel, TONE_COLORS, type Tone } from '@/theme';
 import { validateDeck, type DeckValidation } from '@/validation';
-import { DECK_GROUP_OPTIONS, groupDeck, type DeckGroup, type DeckGroupBy } from '@/deck/group';
+import { DECK_GROUP_OPTIONS, groupDeck, type DeckGroup, type DeckGroupBy, type DeckGroupContext } from '@/deck/group';
+import { useCardTags, useTags } from '@/components/tags/Tags';
+
+/** Color of «La quiero» (hearts). */
+const WANT_COLOR = '#ff7a9c';
 
 /** Height of the drop zone that appears at the bottom while dragging a card. */
 const DROP_ZONE_HEIGHT = 84;
 /** Key of the sideboard in the collapsed set (it folds with the groups). */
 const SIDEBOARD_KEY = '__sideboard';
+const MAYBE_KEY = '__maybe';
 const GHOST_WIDTH = 92;
 
 type Side = 'main' | 'side';
@@ -91,7 +100,9 @@ const VIEWS: { key: DeckView; label: string; icon: IconName }[] = [
  */
 export function DeckSheet() {
   const db = useSQLiteContext();
-  const { activeDeck, activeCards, activeSideboard, setActiveDeckId, refresh, prefs, setPrefs } = useAppState();
+  const { activeDeck, activeCards, activeSideboard, activeMaybe, setActiveDeckId, refresh, prefs, setPrefs } = useAppState();
+  // «La quiero» of the exact printing each deck card has.
+  const wantedIds = useWantedPrintings(db, activeCards.map((c) => c.scryfallId));
   const [mode, setMode] = useState<DeckView>(prefs.deckView);
   const [groupMenu, setGroupMenu] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -115,19 +126,16 @@ export function DeckSheet() {
     getOwnedCounts(
       db,
       activeCards.map((c) => c.oracleId),
-      prefs.collectionPlace,
+      'paper',
     ).then((counts) => {
       if (!cancelled) setOwned(counts);
     });
     return () => {
       cancelled = true;
     };
-  }, [db, activeCards, ownedVersion, prefs.collectionPlace]);
-  const arena = prefs.collectionPlace === 'arena';
-  // In Arena basic lands are free: they never count as missing.
+  }, [db, activeCards, ownedVersion]);
   const missingCards: MissingCard[] = owned
     ? activeCards
-        .filter((card) => !(arena && /\bBasic\b/.test(card.typeLine)))
         .map((card) => ({
           card,
           count: Math.max(0, card.quantity - (owned[card.oracleId] ?? 0)),
@@ -210,6 +218,12 @@ export function DeckSheet() {
       offerUndo('Mazo vaciado', snapshot);
     });
 
+  // A copy of the deck (cards, sideboard, «Posibles», format, cover) opened right away.
+  const duplicate = async () => {
+    if (!activeDeck) return;
+    setActiveDeckId(await duplicateDeck(db, activeDeck.id, `${activeDeck.name} (copia)`));
+  };
+
   const remove = () =>
     activeDeck &&
     confirm('Borrar mazo', `¿Borrar "${activeDeck.name}"?`, async () => {
@@ -223,9 +237,43 @@ export function DeckSheet() {
 
   // ---- Groups: the list is flattened into headers + cards (or gallery rows of 3). ----
   const groupBy = prefs.deckGroup;
+  // What the edition, collection, price and tag groupings need: the edition of each printing (from
+  // Scryfall, once), copies owned, prices and tags.
+  const [editions, setEditions] = useState<Record<string, { code: string; name: string; releasedAt: string }>>({});
+  const deckIdsKey = activeCards.map((c) => c.scryfallId).sort().join(',');
+  useEffect(() => {
+    if (groupBy !== 'set') return;
+    const missingIds = deckIdsKey.split(',').filter((id) => id && !editions[id]);
+    if (!missingIds.length) return;
+    let cancelled = false;
+    getCardsByIds(missingIds)
+      .then((list) => {
+        if (cancelled) return;
+        setEditions((prev) => ({
+          ...prev,
+          ...Object.fromEntries(list.map((c) => [c.id, { code: c.set, name: c.setName ?? c.set.toUpperCase(), releasedAt: c.releasedAt ?? '' }])),
+        }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deckIdsKey, groupBy]);
+  const deckTags = useCardTags(activeCards.map((c) => c.oracleId));
+  const allTags = useTags();
+  const groupCtx = useMemo<DeckGroupContext>(() => {
+    const tagName = Object.fromEntries(allTags.map((t) => [t.uid, t.name]));
+    return {
+      setOf: (c) => editions[c.scryfallId],
+      owned: (c) => owned?.[c.oracleId],
+      price: (c) => details[c.scryfallId]?.eur,
+      tags: (c) => (deckTags[c.oracleId] ?? []).map((u) => tagName[u]).filter(Boolean),
+    };
+  }, [editions, owned, details, deckTags, allTags]);
   const groups = useMemo(
-    () => groupDeck(activeDeck ? activeCards : [], groupBy, validation.usesCommander),
-    [activeDeck, activeCards, groupBy, validation.usesCommander],
+    () => groupDeck(activeDeck ? activeCards : [], groupBy, validation.usesCommander, groupCtx),
+    [activeDeck, activeCards, groupBy, validation.usesCommander, groupCtx],
   );
   const items = useMemo(() => {
     const out: ListItem[] = [];
@@ -249,7 +297,7 @@ export function DeckSheet() {
   }, [groups, groupBy, collapsed, mode]);
   const hasGroups = items.some((i) => i.type === 'header');
   const openAll = () => setCollapsed(new Set());
-  const closeAll = () => setCollapsed(new Set([...groups.map((g) => g.key), SIDEBOARD_KEY]));
+  const closeAll = () => setCollapsed(new Set([...groups.map((g) => g.key), SIDEBOARD_KEY, MAYBE_KEY]));
   const toggleGroup = (key: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -320,14 +368,19 @@ export function DeckSheet() {
     own: async (c) => {
       const [printing] = await getCardsByIds([c.scryfallId]).catch(() => []);
       if (!printing) return;
-      await addToCollection(db, printing, prefs.collectionPlace);
+      await addToCollection(db, printing, 'paper');
       setOwnedVersion((v) => v + 1);
     },
     unown: async (c) => {
-      await removeOneFromCollection(db, c.oracleId, c.scryfallId, prefs.collectionPlace);
+      await removeOneFromCollection(db, c.oracleId, c.scryfallId, 'paper');
       setOwnedVersion((v) => v + 1);
     },
     toSide: (c) => deckId && run(moveCopy(db, deckId, c.oracleId, 'side')),
+    toMaybe: (c) => deckId && run(moveCopy(db, deckId, c.oracleId, 'maybe')),
+    want: async (c) => {
+      const [printing] = await getCardsByIds([c.scryfallId]).catch(() => []);
+      if (printing) await setWanted(db, printing, !wantedIds.has(c.scryfallId));
+    },
     share: (c) => setShareCard({ scryfallId: c.scryfallId, name: displayName(c), imageUrl: c.imageUrl }),
     preview: (c) => setPreviewId(c.oracleId),
     info: (c) => setInfoId(c.scryfallId),
@@ -348,13 +401,7 @@ export function DeckSheet() {
             activeDeck && missing !== null && activeCards.length > 0 ? (
               <HintButton
                 hint={
-                  missing
-                    ? arena
-                      ? 'Cartas que te faltan en Arena: comodines'
-                      : 'Cartas que te faltan de tu colección: ver y comprar'
-                    : arena
-                      ? 'Las tienes todas en Arena'
-                      : 'Tienes todas en tu colección'
+                  missing ? 'Cartas que te faltan de tu colección: ver y comprar' : 'Tienes todas en tu colección'
                 }
                 style={[styles.ownedChip, { borderColor: missing ? colors.undo : colors.add }]}
                 onPress={() => missing && setShopping(true)}
@@ -368,7 +415,7 @@ export function DeckSheet() {
                   {missing ? `Faltan ${missing}` : 'Completo'}
                 </Text>
                 <Text style={styles.ownedChipLabel}>
-                  {arena ? 'en Arena' : missing ? 'de tu colección' : 'en tu colección'}
+                  {missing ? 'de tu colección' : 'en tu colección'}
                 </Text>
               </HintButton>
             ) : undefined
@@ -466,10 +513,11 @@ export function DeckSheet() {
             onPress={() => setShowShare(true)}
             disabled={!activeCards.length}
           />
+          <Action icon="content-copy" hint="Duplicar mazo" onPress={duplicate} />
           {!!missing && (
             <Action
-              icon={arena ? 'gamepad-variant-outline' : 'cart-outline'}
-              hint={arena ? 'Comodines que te faltan en Arena' : 'Comprar en Cardmarket'}
+              icon="cart-outline"
+              hint="Comprar en Cardmarket"
               filled
               tone="warn"
               onPress={() => setShopping(true)}
@@ -522,16 +570,47 @@ export function DeckSheet() {
         ListHeaderComponent={listHeader}
         ListFooterComponent={
           // Always there for decks that can have one (so it can be found), and whenever it has cards.
-          activeDeck && activeCards.length > 0 && (!validation.usesCommander || activeSideboard.length > 0) ? (
-            <SideboardSection
-              cards={activeSideboard}
-              onAdd={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, 1))}
-              onSub={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, -1))}
-              onToMain={(c) => run(moveCopy(db, activeDeck.id, c.oracleId, 'main'))}
-              drag={drag}
-              open={!collapsed.has(SIDEBOARD_KEY)}
-              onToggle={() => toggleGroup(SIDEBOARD_KEY)}
-            />
+          activeDeck ? (
+            <View>
+              {activeCards.length > 0 && (!validation.usesCommander || activeSideboard.length > 0) && (
+                <ZoneSection
+                  zone="side"
+                  title="Banquillo"
+                  icon="tray-full"
+                  empty="Vacío. Pasa cartas aquí con el botón de la bandeja ↓ de cada carta, manteniéndola pulsada y arrastrándola abajo, o importando una lista con banquillo (sideboard)."
+                  cards={activeSideboard}
+                  moves={[
+                    { to: 'main', icon: 'tray-arrow-up', hint: 'Pasar una copia al mazo' },
+                    { to: 'maybe', icon: 'help-circle-outline', hint: 'Pasar una copia a Posibles' },
+                  ]}
+                  onAdd={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, 1))}
+                  onSub={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, -1))}
+                  onMove={(c, to) => run(moveCopy(db, activeDeck.id, c.oracleId, to, 'side'))}
+                  drag={drag}
+                  open={!collapsed.has(SIDEBOARD_KEY)}
+                  onToggle={() => toggleGroup(SIDEBOARD_KEY)}
+                />
+              )}
+              <ZoneSection
+                zone="maybe"
+                title="Posibles"
+                icon="help-circle-outline"
+                empty="Cartas que te estás pensando o quieres probar: no cuentan para el mazo (ni tamaño, ni validación, ni estadísticas, ni precio). Pásalas aquí con el botón ? de cada carta, o mantén pulsado ✓ al pasar cartas."
+                cards={activeMaybe}
+                moves={[
+                  { to: 'main', icon: 'tray-arrow-up', hint: 'Pasar una copia al mazo' },
+                  ...(validation.usesCommander
+                    ? []
+                    : [{ to: 'side' as const, icon: 'tray-arrow-down' as const, hint: 'Pasar una copia al banquillo' }]),
+                ]}
+                onAdd={(c) => run(changeMaybeQuantity(db, activeDeck.id, c.oracleId, 1))}
+                onSub={(c) => run(changeMaybeQuantity(db, activeDeck.id, c.oracleId, -1))}
+                onMove={(c, to) => run(moveCopy(db, activeDeck.id, c.oracleId, to, 'maybe'))}
+                drag={drag}
+                open={!collapsed.has(MAYBE_KEY)}
+                onToggle={() => toggleGroup(MAYBE_KEY)}
+              />
+            </View>
           ) : undefined
         }
         style={{ flex: 1 }}
@@ -596,6 +675,7 @@ export function DeckSheet() {
                   issues={validation.cardIssues[item.oracleId]}
                   crown={validation.usesCommander}
                   owned={owned?.[item.oracleId]}
+                  wanted={wantedIds.has(item.scryfallId)}
                   details={details[item.scryfallId]}
                   showPrice={prefs.pricesDeckCards}
                   drag={drag}
@@ -607,6 +687,7 @@ export function DeckSheet() {
                   issues={validation.cardIssues[item.oracleId]}
                   crown={validation.usesCommander}
                   owned={owned?.[item.oracleId]}
+                  wanted={wantedIds.has(item.scryfallId)}
                   details={details[item.scryfallId]}
                   showPrice={prefs.pricesDeckCards}
                   drag={drag}
@@ -676,7 +757,6 @@ export function DeckSheet() {
           missing={missingCards}
           details={details}
           showPrices={prefs.pricesShopping}
-          arena={arena}
           onClose={() => setShopping(false)}
         />
       )}
@@ -843,6 +923,10 @@ interface CardActions {
   printing: (c: DeckCard) => void;
   /** Moves one copy to the sideboard. */
   toSide: (c: DeckCard) => void;
+  /** Moves one copy to «Posibles». */
+  toMaybe: (c: DeckCard) => void;
+  /** «La quiero» on / off. */
+  want: (c: DeckCard) => void;
   /** "La tengo": adds this printing to the collection. */
   own: (c: DeckCard) => void;
   /** Removes one copy of the card from the collection. */
@@ -869,6 +953,8 @@ interface CardProps {
   details?: CardDetails;
   /** Show the card's price (Ajustes → Precios). */
   showPrice: boolean;
+  /** Marked as «La quiero». */
+  wanted?: boolean;
 }
 
 /**
@@ -880,13 +966,16 @@ function OwnedLine({
   needed,
   onOwn,
   onUnown,
+  wanted,
+  onWant,
 }: {
   owned?: number;
   needed: number;
   onOwn: () => void;
   onUnown: () => void;
+  wanted?: boolean;
+  onWant?: () => void;
 }) {
-  const arena = useAppState().prefs.collectionPlace === 'arena';
   if (owned === undefined) return null;
   const short = needed - owned;
   return (
@@ -898,12 +987,10 @@ function OwnedLine({
       />
       <Text style={[styles.owned, short > 0 && styles.ownedShort, { flexShrink: 1 }]}>
         {short <= 0
-          ? `${arena ? 'En Arena' : 'En tu colección'}: ${owned}`
+          ? `En tu colección: ${owned}`
           : owned > 0
             ? `Te ${short === 1 ? 'falta' : 'faltan'} ${short} (tienes ${owned})`
-            : arena
-              ? 'No la tienes en Arena'
-              : 'No la tienes en tu colección'}
+            : 'No la tienes en tu colección'}
       </Text>
       {owned > 0 && (
         <Pressable
@@ -923,6 +1010,17 @@ function OwnedLine({
       >
         <Text style={styles.ownAdd}>{owned > 0 ? '＋' : '＋ La tengo'}</Text>
       </Pressable>
+      {onWant && short > 0 && (
+        <Pressable
+          onPress={onWant}
+          hitSlop={8}
+          style={({ pressed }) => [styles.ownStep, { flexDirection: 'row', gap: 3 }, pressed && { opacity: 0.6 }]}
+          accessibilityLabel={wanted ? 'Quitar de «La quiero»' : 'La quiero: apúntala para conseguirla'}
+        >
+          <MaterialCommunityIcons name={wanted ? 'heart' : 'heart-outline'} size={15} color={wanted ? WANT_COLOR : colors.textMuted} />
+          <Text style={[styles.ownAdd, { color: wanted ? WANT_COLOR : colors.textMuted }]}>{wanted ? 'La quieres' : 'La quiero'}</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -1040,7 +1138,7 @@ function CardIssues({ issues }: { issues?: string[] }) {
 }
 
 /** One card of the list view, with the same data the web table showed. */
-function CardRow({ card, actions, issues, crown, owned, details, showPrice, drag }: CardProps) {
+function CardRow({ card, actions, issues, crown, owned, details, showPrice, drag, wanted }: CardProps) {
   const [types, subtypes] = card.typeLine.split(' — ');
   const stats = statsOf(details);
   return (
@@ -1081,6 +1179,8 @@ function CardRow({ card, actions, issues, crown, owned, details, showPrice, drag
         needed={card.quantity}
         onOwn={() => actions.own(card)}
         onUnown={() => actions.unown(card)}
+        wanted={wanted}
+        onWant={() => actions.want(card)}
       />
       <CardIssues issues={issues} />
 
@@ -1090,7 +1190,7 @@ function CardRow({ card, actions, issues, crown, owned, details, showPrice, drag
 }
 
 /** "Grande" view: the card at full width (like the swipe stack) with its controls below. */
-function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag }: CardProps) {
+function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag, wanted }: CardProps) {
   return (
     <View style={[styles.big, issues && styles.invalid, crown && !!card.isCommander && styles.commander]}>
       <Draggable oracleId={card.oracleId} from="main" drag={drag}>
@@ -1118,6 +1218,8 @@ function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag
         needed={card.quantity}
         onOwn={() => actions.own(card)}
         onUnown={() => actions.unown(card)}
+        wanted={wanted}
+        onWant={() => actions.want(card)}
       />
       <CardIssues issues={issues} />
       <CardControls card={card} actions={actions} crown={crown} />
@@ -1145,66 +1247,80 @@ function statsOf(d?: CardDetails): { label: string; value: string } | null {
 
 /** Quantity stepper + icon buttons under a deck card (same look as the header's actions). */
 /**
- * The deck's sideboard under its cards (collapsible): not counted in size, curve or stats.
- * Each card: copies and a button that moves one copy to the main deck.
+ * A secondary zone of the deck under its cards (collapsible): the sideboard or «Posibles». Neither counts
+ * for the deck's size, curve, stats or price. Sideboard cards can also be dragged back to the main deck.
  */
-function SideboardSection({
+function ZoneSection({
+  zone,
+  title,
+  icon,
+  empty,
   cards,
+  moves,
   onAdd,
   onSub,
-  onToMain,
+  onMove,
   drag,
   open,
   onToggle,
 }: {
+  zone: 'side' | 'maybe';
+  title: string;
+  icon: IconName;
+  empty: string;
   cards: DeckCard[];
+  moves: { to: Zone; icon: IconName; hint: string }[];
   onAdd: (c: DeckCard) => void;
   onSub: (c: DeckCard) => void;
-  onToMain: (c: DeckCard) => void;
+  onMove: (c: DeckCard, to: Zone) => void;
   drag: DragApi;
   open: boolean;
   onToggle: () => void;
 }) {
   const total = cards.reduce((n, c) => n + c.quantity, 0);
+  const info = (c: DeckCard) => (
+    <>
+      <View style={styles.sideThumb}>
+        {c.imageUrl && (
+          <Image source={{ uri: smallImageUrl(c.imageUrl) }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        )}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.sideName} numberOfLines={1}>
+          {displayName(c)}
+        </Text>
+        <Text style={styles.sideType} numberOfLines={1}>
+          {c.typeLine}
+        </Text>
+      </View>
+    </>
+  );
   return (
     <View style={styles.side}>
       <Pressable style={styles.sideHeader} onPress={onToggle} accessibilityRole="button">
-        <MaterialCommunityIcons name="tray-full" size={20} color={colors.accent} />
-        <Text style={styles.sideTitle}>Banquillo ({total})</Text>
+        <MaterialCommunityIcons name={icon} size={20} color={colors.accent} />
+        <Text style={styles.sideTitle}>
+          {title} ({total})
+        </Text>
         <MaterialCommunityIcons name={open ? 'chevron-up' : 'chevron-down'} size={22} color={colors.textMuted} />
       </Pressable>
-      {open && cards.length === 0 && (
-        <Text style={styles.sideType}>
-          Vacío. Pasa cartas aquí con el botón de la bandeja ↓ de cada carta, manteniéndola pulsada y arrastrándola
-          abajo, o importando una lista con banquillo (sideboard).
-        </Text>
-      )}
+      {open && cards.length === 0 && <Text style={styles.sideType}>{empty}</Text>}
       {open &&
         cards.map((c) => (
           <View key={c.oracleId} style={styles.sideRow}>
-            <Draggable oracleId={c.oracleId} from="side" drag={drag} style={styles.sideDrag}>
-              <View style={styles.sideThumb}>
-                {c.imageUrl && (
-                  <Image
-                    source={{ uri: smallImageUrl(c.imageUrl) }}
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                  />
-                )}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sideName} numberOfLines={1}>
-                  {displayName(c)}
-                </Text>
-                <Text style={styles.sideType} numberOfLines={1}>
-                  {c.typeLine}
-                </Text>
-              </View>
-            </Draggable>
+            {zone === 'side' ? (
+              <Draggable oracleId={c.oracleId} from="side" drag={drag} style={styles.sideDrag}>
+                {info(c)}
+              </Draggable>
+            ) : (
+              <View style={styles.sideDrag}>{info(c)}</View>
+            )}
             <QuantityStepper value={c.quantity} onSub={() => onSub(c)} onAdd={() => onAdd(c)} />
-            <HintButton hint="Pasar una copia al mazo" style={styles.sideMove} onPress={() => onToMain(c)} hitSlop={4}>
-              <MaterialCommunityIcons name="tray-arrow-up" size={20} color={colors.text} />
-            </HintButton>
+            {moves.map((m) => (
+              <HintButton key={m.to} hint={m.hint} style={styles.sideMove} onPress={() => onMove(c, m.to)} hitSlop={4}>
+                <MaterialCommunityIcons name={m.icon} size={20} color={colors.text} />
+              </HintButton>
+            ))}
           </View>
         ))}
     </View>
@@ -1320,6 +1436,7 @@ function CardControls({ card, actions, crown }: { card: DeckCard; actions: CardA
           onPress={() => actions.toSide(card)}
         />
       )}
+      <CardIconButton icon="help-circle-outline" hint="Pasar una copia a Posibles" onPress={() => actions.toMaybe(card)} />
       <CardIconButton icon="share-variant-outline" hint="Compartir" onPress={() => actions.share(card)} />
       <CardIconButton
         icon="trash-can-outline"

@@ -27,7 +27,6 @@ export function MissingCardsModal({
   missing,
   details,
   showPrices,
-  arena = false,
   onClose,
 }: {
   missing: MissingCard[];
@@ -35,17 +34,10 @@ export function MissingCardsModal({
   details: Record<string, CardDetails>;
   /** Show the total and per-card prices (Ajustes → Precios). */
   showPrices: boolean;
-  /** Compared with the MTG Arena collection: wildcards instead of Cardmarket. */
-  arena?: boolean;
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const total = missing.reduce((n, m) => n + m.count, 0);
-  // Arena: each missing copy costs a wildcard of its rarity.
-  const wildcards = WILDCARDS.map((w) => ({
-    ...w,
-    count: missing.filter((m) => (m.card.rarity ?? 'common') === w.key).reduce((n, m) => n + m.count, 0),
-  })).filter((w) => w.count > 0);
   let cost = 0;
   let unpriced = 0;
   for (const m of missing) {
@@ -69,52 +61,35 @@ export function MissingCardsModal({
         <Pressable style={styles.box} onPress={() => {}}>
           <View style={styles.header}>
             <Text style={styles.title}>
-              {arena ? '🎮' : '🛒'} Te {total === 1 ? 'falta' : 'faltan'} {total}
-              {arena ? ' en Arena' : ''}
+              🛒 Te {total === 1 ? 'falta' : 'faltan'} {total}
             </Text>
             <Pressable onPress={onClose} hitSlop={10}>
               <Text style={styles.close}>✕</Text>
             </Pressable>
           </View>
-          {arena && (
-            <View style={styles.wildcards}>
-              {wildcards.map((w) => (
-                <View key={w.key} style={styles.wildcard}>
-                  <View style={[styles.wildcardDot, { backgroundColor: w.color }]} />
-                  <Text style={styles.wildcardText}>
-                    {w.count} {w.count === 1 ? w.one : w.many}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
-          {!arena && showPrices && cost > 0 && (
+          {showPrices && cost > 0 && (
             <Text style={styles.cost}>
               ≈ {formatEur(cost)} en Cardmarket
               {unpriced > 0 && <Text style={styles.help}> · {unpriced} sin precio</Text>}
             </Text>
           )}
           <Text style={styles.help}>
-            {arena
-              ? 'Comodines que necesitas para crear en Arena las cartas que no tienes (las tierras básicas son gratis).'
-              : 'Toca una carta para verla en Cardmarket. Para comprarlas todas de una vez: copia la lista y pégala en Cardmarket → Listas de deseos → «Añadir lista de mazo».'}
+            {'Toca una carta para verla en Cardmarket. Para comprarlas todas de una vez: copia la lista y pégala en Cardmarket → Listas de deseos → «Añadir lista de mazo».'}
           </Text>
           <View style={styles.buttons}>
             <Pressable style={[styles.button, copied && styles.buttonDone]} onPress={copy}>
               <Text style={styles.buttonText}>{copied ? '✓ Copiada' : '📋 Copiar lista'}</Text>
             </Pressable>
-            {!arena && (
-              <Pressable style={[styles.button, styles.buttonMain]} onPress={() => Linking.openURL(WANTS_URL)}>
+            <Pressable style={[styles.button, styles.buttonMain]} onPress={() => Linking.openURL(WANTS_URL)}>
                 <Text style={[styles.buttonText, { color: colors.bg }]}>Listas de deseos ↗</Text>
               </Pressable>
-            )}
           </View>
           <FlatList
             data={missing}
             keyExtractor={(m) => m.card.oracleId}
             style={styles.list}
             renderItem={({ item: { card, count } }) => (
-              <Pressable style={styles.row} onPress={() => !arena && open({ card, count })} disabled={arena}>
+              <Pressable style={styles.row} onPress={() => open({ card, count })}>
                 {card.imageUrl && (
                   <Image source={{ uri: smallImageUrl(card.imageUrl) }} style={styles.thumb} contentFit="cover" />
                 )}
@@ -129,19 +104,10 @@ export function MissingCardsModal({
                   )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  {!arena && showPrices && details[card.scryfallId]?.eur != null && (
+                  {showPrices && details[card.scryfallId]?.eur != null && (
                     <Text style={styles.rowPrice}>{formatEur((details[card.scryfallId].eur ?? 0) * count)}</Text>
                   )}
-                  {arena ? (
-                    <View
-                      style={[
-                        styles.wildcardDot,
-                        { backgroundColor: WILDCARDS.find((w) => w.key === card.rarity)?.color ?? WILDCARDS[3].color },
-                      ]}
-                    />
-                  ) : (
-                    <Text style={styles.search}>Ver ↗</Text>
-                  )}
+                  <Text style={styles.search}>Ver ↗</Text>
                 </View>
               </Pressable>
             )}
@@ -152,19 +118,7 @@ export function MissingCardsModal({
   );
 }
 
-/** Arena wildcards, rarest first, colored like the rarity symbols. */
-const WILDCARDS = [
-  { key: 'mythic', one: 'comodín mítico', many: 'comodines míticos', color: '#e8762b' },
-  { key: 'rare', one: 'comodín raro', many: 'comodines raros', color: '#d4af37' },
-  { key: 'uncommon', one: 'comodín infrecuente', many: 'comodines infrecuentes', color: '#b8c7d6' },
-  { key: 'common', one: 'comodín común', many: 'comodines comunes', color: '#8a8a8a' },
-];
-
 const styles = StyleSheet.create({
-  wildcards: { gap: 6, marginTop: 10 },
-  wildcard: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  wildcardDot: { width: 14, height: 14, borderRadius: 7 },
-  wildcardText: { color: colors.text, fontSize: 15, fontWeight: '800' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 16 },
   box: {
     backgroundColor: colors.surface,

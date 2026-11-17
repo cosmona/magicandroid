@@ -14,7 +14,7 @@ import { LanguagePickerModal } from '@/components/LanguagePicker';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
-import { addCardToDeck } from '@/db/database';
+import { addCardToDeck, addCardToMaybe } from '@/db/database';
 import { useCardQueue } from '@/hooks/useCardQueue';
 import { colors } from '@/theme';
 
@@ -50,13 +50,23 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
       return next;
     });
 
+  // Long press on ✓: the card flies right but goes to the deck's «Posibles» instead.
+  const toMaybe = useRef(false);
+
   const onSwiped = async (dir: SwipeDirection) => {
     const card = queue.current;
     if (!card) return;
     queue.next();
     setShowBack(false);
 
-    if (dir === 'right') {
+    if (dir === 'right' && toMaybe.current) {
+      toMaybe.current = false;
+      const deck = await ensureActiveDeck();
+      await addCardToMaybe(db, deck.id, card);
+      buzz('add');
+      onToast(`? ${displayName(card)} apartada en Posibles`);
+      refresh(deck.id);
+    } else if (dir === 'right') {
       const deck = await ensureActiveDeck();
       // Always added: format rules are checked inside the deck, not here.
       const quantity = await addCardToDeck(db, deck.id, card);
@@ -162,7 +172,15 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
             </Text>
           </HintButton>
           <OwnRoundButton card={card} />
-          <RoundButton symbol="✓" color={colors.add} onPress={() => cardRef.current?.swipe('right')} />
+          <RoundButton
+            symbol="✓"
+            color={colors.add}
+            onPress={() => cardRef.current?.swipe('right')}
+            onLongPress={() => {
+              toMaybe.current = true;
+              cardRef.current?.swipe('right');
+            }}
+          />
         </View>
       )}
 
@@ -250,6 +268,8 @@ function RoundButton(props: {
   symbol: string;
   color: string;
   onPress: () => void;
+  /** Long press: a second action (✓ → «Posibles»). */
+  onLongPress?: () => void;
   small?: boolean;
   disabled?: boolean;
 }) {
@@ -257,6 +277,7 @@ function RoundButton(props: {
   return (
     <Pressable
       onPress={props.onPress}
+      onLongPress={props.onLongPress}
       disabled={props.disabled}
       style={({ pressed }) => [
         styles.round,

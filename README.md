@@ -1,188 +1,269 @@
-<p align="center">
-  <img src="assets/logo.png" width="300" alt="Magic Swipe" />
-</p>
+<div align="center">
 
-<h1 align="center">Magic Swipe</h1>
+<img src="assets/logo.png" width="260" alt="Magic Swipe" />
 
-<p align="center">
-  <b>Construye mazos de Magic: The Gathering como si tuvieras un puñado de cartas en la mano.</b><br />
-  Ve pasándolas una a una: la que te gusta va al mazo, la que no, fuera.
-</p>
+# Magic Swipe
 
-<p align="center">
-  <img alt="Expo SDK 58" src="https://img.shields.io/badge/Expo-SDK%2058-000020?logo=expo&logoColor=white" />
-  <img alt="React Native" src="https://img.shields.io/badge/React%20Native-0.88-61DAFB?logo=react&logoColor=black" />
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white" />
-  <img alt="SQLite" src="https://img.shields.io/badge/SQLite-local-003B57?logo=sqlite&logoColor=white" />
-  <img alt="Scryfall API" src="https://img.shields.io/badge/datos-Scryfall-c13ad8" />
-  <img alt="Android" src="https://img.shields.io/badge/plataforma-Android-3DDC84?logo=android&logoColor=white" />
-</p>
+**El constructor de mazos de Magic: The Gathering que se usa como un puñado de cartas en la mano.**
 
-<p align="center">
-  <a href="https://github.com/cosmona/magicandroid/releases/latest"><b>📲 Descargar el APK</b></a> ·
-  <a href="docs/MANUAL.md"><b>📖 Manual de usuario</b></a> ·
-  <a href="docs/ARQUITECTURA.md"><b>📐 Arquitectura</b></a>
-</p>
+Pasa las cartas una a una: la que te gusta va al mazo, la que no, fuera.<br />
+Mazos, colección de papel y de MTG Arena, sinergias, estadísticas y contador de vidas, todo en el móvil.
 
----
+<br />
 
-# ✨ Características
+<img alt="Android" src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" />
+<img alt="Expo SDK 58" src="https://img.shields.io/badge/Expo%20SDK%2058-000020?style=for-the-badge&logo=expo&logoColor=white" />
+<img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
+<img alt="Sin cuentas" src="https://img.shields.io/badge/Sin%20cuentas-datos%20en%20el%20m%C3%B3vil-c9a227?style=for-the-badge" />
 
-La app tiene tres pestañas: **Construir**, **Colección** y **Vidas**. Todo está en español y se guarda en el móvil,
-sin cuentas.
+<br /><br />
 
-## 🃏 Construir
+<a href="https://github.com/cosmona/magicandroid/releases/latest"><img alt="Descargar APK" src="https://img.shields.io/badge/Descargar-APK%20para%20Android-c9a227?style=for-the-badge&logo=android&logoColor=white" /></a>
+&nbsp;
+<a href="docs/MANUAL.md"><img alt="Manual de usuario" src="https://img.shields.io/badge/Manual-de%20usuario-2f5f93?style=for-the-badge&logo=readthedocs&logoColor=white" /></a>
 
-<p align="center">
-  <img src="docs/img/construir.jpg" width="200" alt="Las cartas en la mano" />
-  <img src="docs/img/mazo-lista.jpg" width="200" alt="El mazo" />
-  <img src="docs/img/mazo-galeria.jpg" width="200" alt="Vista galería" />
-  <img src="docs/img/compartir-mazo.jpg" width="200" alt="Compartir el mazo" />
-</p>
+<br /><br />
 
-**Las cartas en la mano**
-- Las cartas llegan de [Scryfall](https://scryfall.com) una a una: **derecha** al mazo, **izquierda** fuera, flechas
-  ‹ › para pasar sin decidir.
-- **Historial** de las cartas vistas, para volver a cualquiera.
-- **Buscador completo:** nombre (español o inglés), texto de reglas, colores, tipos, coste, rareza, habilidades,
-  formato, edición, solo cartas de MTG Arena y orden.
-- En cada carta: **idioma**, **arte alternativo**, girar las de dos caras y **La tengo** (sumar o restar en tu
-  colección, o ir a verla).
+<img src="docs/img/construir.jpg" width="19%" alt="Las cartas en la mano" />
+<img src="docs/img/mazo-lista.jpg" width="19%" alt="El mazo" />
+<img src="docs/img/estadisticas.jpg" width="19%" alt="Estadísticas" />
+<img src="docs/img/sinergias-recomendadas.jpg" width="19%" alt="Recomendaciones" />
+<img src="docs/img/vidas.jpg" width="19%" alt="Contador de vidas" />
 
-**Tus mazos**
-- Varios mazos con formato y portada; crea uno nuevo o **impórtalo** (Arena, también en español, Moxfield,
-  Archidekt, MTGO), incluidos drafts con su banquillo.
-- Vistas **lista**, **galería** y **grande**, **agrupadas** por tipo, coste, color o rareza, con grupos plegables.
-- **Validación por formato** (Commander, Brawl, Estándar, Modern, Limitado… [ver tabla](#-formatos)): nada impide
-  añadir, pero marca los errores.
-- **Banquillo** en cada mazo: pasa cartas con un botón o **arrastrándolas**.
-- Cada carta: copias, 👑 comandante, ficha, **cambiar arte, idioma o portada**, compartir, quitar (con deshacer) y
-  cuántas tienes en tu colección.
-- **Te faltan N** de tu colección: lista para comprarlas en **Cardmarket** con su precio o, en Arena, los
-  **comodines** que necesitas.
-- **Compartir** como imagen (WhatsApp, redes), como texto o **para importar en MTG Arena**.
-- **Fichas** que crean las cartas del mazo.
+</div>
 
-<p align="center">
-  <img src="docs/img/estadisticas.jpg" width="200" alt="Estadísticas" />
-  <img src="docs/img/mano-de-prueba.jpg" width="200" alt="Mano de prueba" />
-  <img src="docs/img/sinergias-combos.jpg" width="200" alt="Combos" />
-  <img src="docs/img/sinergias-recomendadas.jpg" width="200" alt="Recomendadas" />
-</p>
+<br />
 
-**Analizar el mazo**
-- **Estadísticas:** cartas, tierras y coste medio, **curva de maná** (criaturas y otros hechizos), colores frente a las
-  tierras que los dan, tipos y aviso de tierras según el formato.
-- **Recomendar maná:** añade las tierras básicas que faltan, repartidas por colores, como en Arena.
-- **Mano de prueba:** roba 7, haz mulligan eligiendo las cartas al fondo y roba turno a turno; con la probabilidad de
-  una buena mano de tierras.
+## Contenido
 
-**Sinergias, combos y recomendaciones**
-- **Combos del mazo** ([Commander Spellbook](https://commanderspellbook.com)): los que ya tienes y los que están **a una
-  carta**, que puedes añadir con ＋.
-- **Recomendadas para tu comandante** ([EDHREC](https://edhrec.com)): las cartas de más sinergia que no llevas, en
-  lista, galería o **pasándolas como en Construir**, para añadirlas al momento.
-- En la **ficha de cada carta**: cuántos mazos la juegan, sus comandantes y compañeras habituales, sus cartas de más
-  sinergia si puede ser comandante y sus combos; todas se pueden abrir en grande y añadir al mazo o a la colección.
+- [Por qué Magic Swipe](#por-qué-magic-swipe)
+- [Funcionalidades](#funcionalidades)
+  - [Construir](#construir)
+  - [Colección](#colección)
+  - [Vidas](#vidas)
+- [Formatos compatibles](#formatos-compatibles)
+- [Privacidad](#privacidad)
+- [Instalación](#instalación)
+- [Información técnica](#información-técnica)
+- [Créditos y aviso legal](#créditos-y-aviso-legal)
 
-**Cada carta, al detalle**
-- **Ficha completa (ⓘ):** todo lo que Scryfall sabe de la carta (reglas, legalidad, precios, rankings, aclaraciones
-  oficiales…) con la explicación de cada dato.
-- Cualquier carta en grande dice si **está en tu mazo**, se puede ver en **otro idioma** y marcar con **La tengo**.
+<br />
 
-## 📦 Colección
+## Por qué Magic Swipe
 
-<p align="center">
-  <img src="docs/img/coleccion.jpg" width="200" alt="Colección" />
-  <img src="docs/img/la-tengo.jpg" width="200" alt="La tengo" />
-  <img src="docs/img/importar.jpg" width="200" alt="Importar una lista" />
-</p>
+<table>
+  <tr>
+    <td width="25%" valign="top">
+      <h3>🃏 Las cartas, primero</h3>
+      Construir un mazo es mirar cartas. Aquí las tienes en la mano, una a una, y decides con un gesto.
+    </td>
+    <td width="25%" valign="top">
+      <h3>🧠 Te ayuda a decidir</h3>
+      Combos, cartas de más sinergia para tu comandante, curva de maná y una mano de prueba antes de jugar.
+    </td>
+    <td width="25%" valign="top">
+      <h3>📦 Sabe lo que tienes</h3>
+      Colección de papel y de MTG Arena por separado: cada mazo te dice qué te falta y cuánto cuesta.
+    </td>
+    <td width="25%" valign="top">
+      <h3>🔒 Tuyo y sin cuentas</h3>
+      Todo se guarda en tu móvil. Sin registro, sin servidores propios, sin publicidad.
+    </td>
+  </tr>
+</table>
 
-- **Dos colecciones separadas:** la de **papel** y la de **MTG Arena**. La que elijas es la que usan todos los
-  «La tengo» y el aviso de cartas que te faltan de cada mazo.
-- Cada carta es una impresión concreta (edición + idioma), con su **valor** en Cardmarket y el total de la colección.
-- Añade cartas **buscándolas**, con el **📷 escáner** (reconoce la carta con la cámara), con **La tengo** desde
-  cualquier carta o **importando** una lista.
-- **Filtros** (color, tipo, coste, rareza, edición, idioma, precio, en algún mazo, repetidas) y **agrupaciones**
-  (color, tipo, edición, rareza, coste, precio).
-- Cada carta: copias, ficha, añadir al mazo activo, cambiar arte o idioma, **compartir** su imagen o su enlace de
-  Scryfall y quitar (con deshacer).
-- **Arena:** marca lo que tienes o importa tus mazos de Arena como tuyos, y cada mazo te dice cuántos comodines
-  **míticos, raros, infrecuentes y comunes** te faltan.
+<br />
 
-## ❤️ Vidas
+## Funcionalidades
 
-<p align="center">
-  <img src="docs/img/vidas.jpg" width="200" alt="Contador de vidas" />
-</p>
+La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
 
-- Contador de **2 a 6 jugadores** para dejar el móvil en el centro de la mesa (la fila de enfrente, girada).
-- Toques para ±1 y pulsación larga para ±10, con el cambio acumulado a la vista.
-- **Veneno** y **daño de comandante** de cada rival (que también resta vidas), con aviso de eliminado.
-- **¿Quién empieza?**, dados de 6 y de 20 y moneda.
-- Nombres y colores por jugador; la pantalla no se apaga y la partida se guarda sola.
+### Construir
 
-## 🧭 En toda la app
+<table>
+  <tr>
+    <td width="34%" valign="top"><img src="docs/img/construir.jpg" alt="Las cartas en la mano" /></td>
+    <td valign="top">
+      <h4>Las cartas en la mano</h4>
+      <ul>
+        <li>Desliza a la <b>derecha</b> para añadir al mazo y a la <b>izquierda</b> para descartar; flechas para pasar sin decidir.</li>
+        <li><b>Buscador completo</b>: nombre en español o inglés, texto de reglas, colores, tipos, coste, rareza, habilidades, formato, edición y solo cartas de MTG Arena.</li>
+        <li><b>Historial</b> de todo lo visto para volver a cualquier carta.</li>
+        <li>Cada carta en tu <b>idioma</b>, con sus <b>artes alternativos</b> y el botón <b>La tengo</b> para tu colección.</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top"><img src="docs/img/mazo-lista.jpg" alt="El mazo" /></td>
+    <td valign="top">
+      <h4>Tus mazos</h4>
+      <ul>
+        <li>Vistas <b>lista</b>, <b>galería</b> y <b>grande</b>, <b>agrupadas</b> por tipo, coste, color o rareza.</li>
+        <li><b>Validación</b> en tiempo real según el formato: tamaño, copias, legalidad, comandante e identidad de color.</li>
+        <li><b>Banquillo</b> en cada mazo, con un botón o arrastrando las cartas.</li>
+        <li>Arte, idioma y portada de cada carta; comandante; deshacer al quitar, vaciar o borrar.</li>
+        <li><b>Importa</b> listas de MTG Arena (también en español), Moxfield, Archidekt y MTGO, incluidos drafts.</li>
+        <li><b>Comparte</b> el mazo como imagen, como texto o listo para importar en MTG Arena.</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top"><img src="docs/img/estadisticas.jpg" alt="Estadísticas" /></td>
+    <td valign="top">
+      <h4>Análisis del mazo</h4>
+      <ul>
+        <li><b>Curva de maná</b> (criaturas y otros hechizos), colores frente a las tierras que los producen, tipos y coste medio.</li>
+        <li><b>Recomendar maná</b>: añade las tierras básicas que faltan, repartidas por colores.</li>
+        <li><b>Mano de prueba</b> con mulligan y robo turno a turno, y la probabilidad de una buena mano de tierras.</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top"><img src="docs/img/sinergias-recomendadas.jpg" alt="Recomendaciones" /></td>
+    <td valign="top">
+      <h4>Sinergias, combos y recomendaciones</h4>
+      <ul>
+        <li><b>Recomendaciones para tu comandante</b> según cientos de miles de mazos de <a href="https://edhrec.com">EDHREC</a>: en lista, en galería o pasándolas una a una, y añadidas con un toque.</li>
+        <li><b>Combos</b> de <a href="https://commanderspellbook.com">Commander Spellbook</a>: los que tu mazo ya tiene y los que están <b>a una carta</b>, con la pieza que falta lista para añadir.</li>
+        <li>En la ficha de cada carta: con qué comandantes se juega, qué cartas la acompañan y sus combos.</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top"><img src="docs/img/ficha.jpg" alt="Ficha completa" /></td>
+    <td valign="top">
+      <h4>Cada carta, al detalle</h4>
+      <ul>
+        <li><b>Ficha completa</b> con todo lo que Scryfall sabe de la carta y la explicación de cada dato.</li>
+        <li>Cualquier carta en grande indica si <b>está en tu mazo</b>, cambia de idioma y se marca como tuya.</li>
+        <li><b>Precio</b> en Cardmarket por carta y por mazo, y la lista de lo que te falta para comprarlo de una vez.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-- **Ajustes:** idioma de las cartas, vista del mazo, vibración, pantalla completa y dónde ver precios.
-- **Código de colores** igual en todas partes (dorado editar, azul información, verde tu colección, amarillo te falta
-  algo, rojo borrar) y un **globo con el nombre** de cada botón al mantener el dedo.
+### Colección
 
-## ✅ Formatos
+<table>
+  <tr>
+    <td width="34%" valign="top"><img src="docs/img/coleccion.jpg" alt="Colección" /></td>
+    <td valign="top">
+      <ul>
+        <li>Añade cartas buscándolas, con el <b>escáner</b> (reconoce la carta con la cámara), con <b>La tengo</b> desde cualquier pantalla o importando una lista.</li>
+        <li><b>Filtros</b> y <b>agrupaciones</b> por color, tipo, coste, rareza, edición, idioma, precio, uso en mazos y repetidas.</li>
+        <li><b>Valor</b> de la colección en Cardmarket.</li>
+        <li>Comparte cualquier carta como imagen o con su enlace de Scryfall.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-| Formato | Comprobaciones |
+### Vidas
+
+<table>
+  <tr>
+    <td width="34%" valign="top"><img src="docs/img/vidas.jpg" alt="Contador de vidas" /></td>
+    <td valign="top">
+      <ul>
+        <li>Contador para <b>2 a 6 jugadores</b>, pensado para dejar el móvil en el centro de la mesa.</li>
+        <li><b>Veneno</b> y <b>daño de comandante</b> por rival, con aviso de jugador eliminado.</li>
+        <li><b>¿Quién empieza?</b>, dados de 6 y de 20 y moneda.</li>
+        <li>La pantalla no se apaga durante la partida y el marcador se guarda solo.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
+
+En toda la app: **código de colores** coherente, **ayuda** al mantener pulsado cualquier botón y **ajustes** de idioma,
+vistas, vibración y precios. **Pasar datos con Magic Swipe para PC** por la Wi-Fi: escanea el QR del PC y copia o mueve
+tus mazos y tu colección del móvil al PC o al revés. **Posibles** en cada mazo para apartar cartas que te estás pensando y
+**♡ La quiero** para apuntar las cartas que quieres conseguir (salen en tu colección).
+
+<br />
+
+## Formatos compatibles
+
+| Formato | Qué se comprueba |
 |---|---|
-| **Commander · Duel · PreDH · Pauper Commander** | Comandante elegido (o dos con *Partner* / *Friends forever* / *Background*), elegible, 100 cartas exactas, 1 copia por carta, identidad de color y legalidad |
-| **Oathbreaker** | Igual, con un planeswalker como líder y 60 cartas |
-| **Brawl · Standard Brawl** (Arena) | Como Commander (100 / 60 cartas), con criatura o planeswalker legendario de comandante |
-| **Estándar · Pioneer · Modern · Legacy · Vintage · Pauper · Premodern · Penny** | Mínimo 60 cartas, máximo 4 copias contando el banquillo (1 si está restringida en Vintage), banquillo de hasta 15 y legalidad |
-| **Historic · Timeless · Alchemy** (Arena) | Como Estándar |
-| **Limitado** (draft / sellado) | Mínimo 40 cartas, sin límite de copias |
-| **Libre** | Sin comprobaciones |
+| **Commander · Duel · PreDH · Pauper Commander** | Comandante (o pareja con *Partner*, *Friends forever* o *Background*), 100 cartas, 1 copia por carta, identidad de color y legalidad |
+| **Oathbreaker** | Planeswalker como líder, 60 cartas, 1 copia por carta, identidad de color y legalidad |
+| **Brawl · Standard Brawl** · MTG Arena | Criatura o planeswalker legendario de comandante, 100 / 60 cartas, 1 copia y legalidad |
+| **Estándar · Pioneer · Modern · Legacy · Vintage · Pauper · Premodern · Penny** | Mínimo 60 cartas, hasta 4 copias contando el banquillo (1 si está restringida en Vintage), banquillo de hasta 15 y legalidad |
+| **Historic · Timeless · Alchemy** · MTG Arena | Como Estándar, con las cartas de MTG Arena |
+| **Limitado** (draft y sellado) | Mínimo 40 cartas, sin límite de copias |
+| **Libre** | Sin restricciones |
 
----
+<br />
 
-# 🛠️ Parte técnica
+## Privacidad
 
-## 📲 Instalar
+- **Sin cuentas ni registro.** Mazos, colecciones y ajustes se guardan solo en el móvil (SQLite).
+- **Sin servidores propios, sin analítica y sin publicidad.**
+- La app solo se conecta a servicios públicos de cartas para consultar datos: Scryfall, EDHREC y Commander Spellbook.
+  No les envía nada tuyo más allá de las cartas que consulta.
+- El escáner reconoce las cartas **en el propio móvil**: las fotos no salen del dispositivo.
+- La sincronización con el PC va **directamente por tu red local**, sin pasar por internet.
 
-Descarga `MagicSwipe.apk` de la **[última versión](https://github.com/cosmona/magicandroid/releases/latest)**, ábrelo
-en el móvil y permite instalar apps de origen desconocido. Para generar uno nuevo:
+<br />
 
-```bash
-npx eas-cli@latest login
-npx eas-cli@latest build -p android --profile preview
-```
+## Instalación
 
-## 🚀 Desarrollo
+1. Descarga `MagicSwipe.apk` de la **[última versión](https://github.com/cosmona/magicandroid/releases/latest)**.
+2. Ábrelo en el móvil Android y permite la instalación de apps de origen desconocido.
+3. El **[manual de usuario](docs/MANUAL.md)** explica cada pantalla, con capturas.
 
-Necesitas [Node.js](https://nodejs.org) y la app **Expo Go** en el móvil (el escáner solo funciona en el APK).
+<br />
+
+## Información técnica
+
+<table>
+  <tr><td><b>Plataforma</b></td><td>Android · Expo SDK 58 · React Native · TypeScript</td></tr>
+  <tr><td><b>Navegación</b></td><td>Expo Router, pestañas superiores y hojas inferiores arrastrables</td></tr>
+  <tr><td><b>Gestos y animación</b></td><td>React Native Gesture Handler 3 · Reanimated 4</td></tr>
+  <tr><td><b>Datos locales</b></td><td>expo-sqlite con migraciones versionadas</td></tr>
+  <tr><td><b>Fuentes de datos</b></td><td>Scryfall (cartas, imágenes, precios) · EDHREC (sinergias) · Commander Spellbook (combos)</td></tr>
+  <tr><td><b>Reconocimiento de cartas</b></td><td>Google ML Kit en el dispositivo</td></tr>
+  <tr><td><b>Compilación</b></td><td>EAS Build</td></tr>
+</table>
+
+<details>
+<summary><b>Desarrollo</b></summary>
+
+<br />
+
+Requisitos: [Node.js](https://nodejs.org) y la app **Expo Go** en el móvil (el escáner solo funciona en el APK).
 
 ```bash
 git clone https://github.com/cosmona/magicandroid.git
 cd magicandroid
 npm install
-npx expo start --go                  # escanea el QR con Expo Go (misma Wi-Fi)
-npx expo start --go --tunnel ngrok   # desde fuera de casa
+npx expo start --go                  # escanea el QR con Expo Go (misma red Wi-Fi)
+npx expo start --go --tunnel ngrok   # fuera de la red local
 ```
+
+Comprobaciones:
 
 ```bash
 npx tsc --noEmit        # tipos
 npx expo lint           # lint (reglas de React Compiler)
-npx expo-doctor         # diagnóstico de dependencias
-npx expo export --platform android --output-dir <tmp>   # comprobar que compila
+npx expo-doctor         # dependencias
+npx expo export --platform android --output-dir <tmp>   # el bundle compila
 ```
 
-> **npm 12:** `npx expo install <paquete>` actualiza `package.json` pero su instalación falla con `EALLOWSCRIPTS`. Ejecuta `npm install` después.
+Generar un APK:
 
-## 🧱 Cómo está hecha
+```bash
+npx eas-cli@latest build -p android --profile preview
+```
 
-- **Expo SDK 58 + React Native + TypeScript**, con **Expo Router** (las tres pestañas arriba) y hojas inferiores
-  arrastrables para filtros, mazo, historial y ajustes.
-- **Gesture Handler 3 y Reanimated 4** para pasar cartas, arrastrar al banquillo y las animaciones.
-- **expo-sqlite** con migraciones versionadas: mazos, banquillo, colecciones de papel y Arena, y ajustes.
-- **Scryfall** para cartas, imágenes, precios, símbolos y aclaraciones; **EDHREC** y **Commander Spellbook** para
-  sinergias y combos; **Google ML Kit** en el móvil para leer las cartas con la cámara.
+> **npm 12:** `npx expo install <paquete>` actualiza `package.json` pero su instalación falla con `EALLOWSCRIPTS`; ejecuta `npm install` después.
+
+</details>
+
+<details>
+<summary><b>Estructura del código</b></summary>
+
+<br />
 
 ```
 src/
@@ -192,21 +273,25 @@ src/
 ├── components/     # cartas, hojas, mazo, colección, ficha, sinergias, vidas, ajustes
 ├── context/        # estado global (mazo activo, filtros, ajustes)
 ├── db/             # SQLite: esquema, migraciones y consultas
-├── deck/           # estadísticas, agrupaciones, Arena, importar listas
-├── hooks/          # cola de cartas, precios y datos vivos
+├── deck/           # estadísticas, agrupaciones, Arena, importación de listas
+├── hooks/          # cola de cartas, precios y datos en vivo
 ├── life/           # contador de vidas
-├── scan/           # reconocimiento de cartas por OCR
+├── scan/           # reconocimiento de cartas
 └── validation.ts   # reglas de cada formato
 ```
 
-📐 Explicación completa en **[docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)** · ideas pendientes en
-[docs/IDEAS.md](docs/IDEAS.md) · notas para desarrollar con IA en [`CLAUDE.md`](CLAUDE.md).
+</details>
 
-## 🙏 Créditos
+**Documentación:** [Manual de usuario](docs/MANUAL.md) · [Arquitectura](docs/ARQUITECTURA.md) ·
+[Ideas y hoja de ruta](docs/IDEAS.md) · [Guía para desarrollo con IA](CLAUDE.md)
 
-- Datos e imágenes de cartas: **[Scryfall](https://scryfall.com)**. Sinergias: **[EDHREC](https://edhrec.com)**.
-  Combos: **[Commander Spellbook](https://commanderspellbook.com)**.
-- Iconos de maná, rareza, formatos y tipos: del proyecto web original (*frontmagic*), del que esta app es la versión
-  Android.
+<br />
 
-<sub>Magic Swipe es un proyecto de fans sin relación con Wizards of the Coast. Magic: The Gathering y sus cartas son marcas y propiedad de Wizards of the Coast LLC. Proyecto no afiliado a Scryfall, EDHREC ni Commander Spellbook.</sub>
+## Créditos y aviso legal
+
+- Datos e imágenes de cartas: **[Scryfall](https://scryfall.com)**.
+- Sinergias y estadísticas de uso: **[EDHREC](https://edhrec.com)**.
+- Combos: **[Commander Spellbook](https://commanderspellbook.com)**.
+- Iconos de maná, rareza, formatos y tipos: del proyecto web original *frontmagic*.
+
+<sub>Magic Swipe es un proyecto independiente de fans, sin relación con Wizards of the Coast, Hasbro, Scryfall, EDHREC ni Commander Spellbook. Magic: The Gathering, MTG Arena y todos los nombres, símbolos e imágenes de las cartas son marcas y propiedad de Wizards of the Coast LLC.</sub>

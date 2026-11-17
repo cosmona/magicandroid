@@ -20,7 +20,6 @@ import {
   addCardToDeck,
   addCardToSideboard,
   addToCollection,
-  getOwnedCounts,
   changeQuantity,
   createDeck,
   setCommander,
@@ -53,8 +52,6 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
   const [text, setText] = useState('');
   const [deckName, setDeckName] = useState('');
   const [translate, setTranslate] = useState(prefs.language !== 'en');
-  // Decks built in Arena: you own those cards there (at least as many as the list has).
-  const [ownInArena, setOwnInArena] = useState(false);
   const [step, setStep] = useState<Step>({ kind: 'edit' });
 
   const parsed = useMemo(() => parseDeckList(text), [text]);
@@ -103,12 +100,6 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
           continue;
         }
         const card = localized.get(english.id) ?? english;
-        if (deckId !== null && ownInArena) {
-          const have = (await getOwnedCounts(db, [card.oracleId], 'arena'))[card.oracleId] ?? 0;
-          // Basic lands are free in Arena; don't store them.
-          if (have < line.quantity && !/\bBasic\b/.test(card.typeLine))
-            await addToCollection(db, card, 'arena', line.quantity - have);
-        }
         if (deckId !== null && i >= parsed.cards.length) {
           await addCardToSideboard(db, deckId, card, line.quantity);
         } else if (deckId !== null) {
@@ -116,7 +107,7 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
           if (line.quantity > 1) await changeQuantity(db, deckId, card.oracleId, line.quantity - 1);
           if (line.commander) await setCommander(db, deckId, card.oracleId, true);
         } else {
-          await addToCollection(db, card, prefs.collectionPlace, line.quantity);
+          await addToCollection(db, card, 'paper', line.quantity);
         }
         imported += line.quantity;
       }
@@ -128,12 +119,7 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
     }
   };
 
-  const title =
-    target === 'deck'
-      ? 'Importar mazo'
-      : prefs.collectionPlace === 'arena'
-        ? 'Importar a la colección de Arena'
-        : 'Importar a la colección';
+  const title = target === 'deck' ? 'Importar mazo' : 'Importar a la colección';
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
@@ -221,22 +207,6 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
                 placeholderTextColor={colors.textMuted}
                 style={styles.nameInput}
               />
-            )}
-            {target === 'deck' && (
-              <View style={styles.switchRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.value}>La tengo en MTG Arena</Text>
-                  <Text style={styles.help}>
-                    Si es un mazo que tienes construido en Arena, sus cartas se marcan como tuyas en tu colección de
-                    Arena.
-                  </Text>
-                </View>
-                <Switch
-                  value={ownInArena}
-                  onValueChange={setOwnInArena}
-                  trackColor={{ true: colors.accent, false: colors.border }}
-                />
-              </View>
             )}
             {prefs.language !== 'en' && (
               <View style={styles.switchRow}>

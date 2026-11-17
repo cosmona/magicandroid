@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { DEFAULT_FILTERS, type Filters } from '@/api/scryfall';
 import type { DeckGroupBy } from '@/deck/group';
@@ -6,12 +6,12 @@ import {
   createDeck,
   getDeckCards,
   getSideboard,
+  getMaybe,
   getDecks,
   getSetting,
   setSetting,
   type Deck,
   type DeckCard,
-  type Place,
 } from '@/db/database';
 
 /** Name given to a deck auto-created by the first right swipe (like the web's "(Not Saved)"). */
@@ -32,8 +32,6 @@ export interface Prefs {
   deckView: DeckView;
   /** How the deck sheet groups the cards. */
   deckGroup: DeckGroupBy;
-  /** Collection in use everywhere ("La tengo", missing cards): paper or MTG Arena. */
-  collectionPlace: Place;
   /** Hide Android's navigation buttons (swipe up from the bottom edge to show them). */
   hideNavBar: boolean;
   /** Deck sheet's action buttons and deck picker hidden (more room for the cards). */
@@ -51,7 +49,6 @@ export const DEFAULT_PREFS: Prefs = {
   haptics: true,
   deckView: 'list',
   deckGroup: 'type',
-  collectionPlace: 'paper',
   hideNavBar: false,
   deckToolsHidden: false,
   pricesDeck: true,
@@ -69,6 +66,8 @@ interface AppState {
   activeCards: DeckCard[];
   /** Sideboard of the active deck (not counted in size, curve or stats). */
   activeSideboard: DeckCard[];
+  /** «Posibles» of the active deck: cards set aside to try; they don't count for anything. */
+  activeMaybe: DeckCard[];
   setActiveDeckId: (id: number | null) => void;
   /** Reload decks + active deck cards from SQLite. Call after any write. */
   refresh: (deckId?: number | null) => Promise<void>;
@@ -90,6 +89,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [activeDeckId, setActiveDeckIdState] = useState<number | null>(null);
   const [activeCards, setActiveCards] = useState<DeckCard[]>([]);
   const [activeSideboard, setActiveSideboard] = useState<DeckCard[]>([]);
+  const [activeMaybe, setActiveMaybe] = useState<DeckCard[]>([]);
   const [filters, setFiltersState] = useState<Filters>(DEFAULT_FILTERS);
   const [prefs, setPrefsState] = useState<Prefs>(DEFAULT_PREFS);
 
@@ -100,6 +100,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setDecks(list);
       setActiveCards(exists ? await getDeckCards(db, deckId) : []);
       setActiveSideboard(exists ? await getSideboard(db, deckId) : []);
+      setActiveMaybe(exists ? await getMaybe(db, deckId) : []);
       if (deckId !== null && !exists) {
         setActiveDeckIdState(null);
         setSetting(db, 'activeDeckId', null);
@@ -136,11 +137,19 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const activeDeck = decks.find((d) => d.id === activeDeckId) ?? null;
 
+  // Several quick adds without a deck must share the one deck being created.
+  const creatingDeck = useRef<Promise<Deck> | null>(null);
   const ensureActiveDeck = useCallback(async (): Promise<Deck> => {
     if (activeDeck) return activeDeck;
-    const id = await createDeck(db, UNNAMED_DECK, null);
-    setActiveDeckId(id);
-    return { id, name: UNNAMED_DECK, format: null, cardCount: 0, coverImage: null };
+    creatingDeck.current ??= (async () => {
+      const id = await createDeck(db, UNNAMED_DECK, null);
+      setActiveDeckId(id);
+      return { id, name: UNNAMED_DECK, format: null, cardCount: 0, coverImage: null };
+    })().finally(() => {
+      // Once the state has the new deck, `activeDeck` takes over.
+      setTimeout(() => (creatingDeck.current = null), 1000);
+    });
+    return creatingDeck.current;
   }, [activeDeck, db, setActiveDeckId]);
 
   const setFilters = useCallback(
@@ -167,6 +176,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         activeDeck,
         activeCards,
         activeSideboard,
+        activeMaybe,
         setActiveDeckId,
         refresh,
         ensureActiveDeck,

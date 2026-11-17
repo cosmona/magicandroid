@@ -32,6 +32,7 @@ import {
 import { BottomSheet } from '@/components/BottomSheet';
 import { CardScanner } from '@/components/collection/CardScanner';
 import { CollectionFilterPanel } from '@/components/collection/CollectionFilterPanel';
+import { CardTagsSheet, TagChip, TagsManagerSheet, useCardTags, useTags } from '@/components/tags/Tags';
 import { ManaCost } from '@/components/ManaCost';
 import {
   activeFilterCount,
@@ -61,15 +62,22 @@ import {
   removeFromCollection,
   restoreCollectionRow,
   snapshotCollectionCard,
+  getWanted,
+  removeWanted,
   type Row,
   type CollectionCard,
+  type WantedCard,
 } from '@/db/database';
 import { RARITY_LABELS } from '@/icons';
 import { priceTotal, useCardDetails } from '@/hooks/useCardDetails';
+import { notifyWantedChanged, setWanted, useWantedVersion } from '@/hooks/useWanted';
 import { colors, formatEur } from '@/theme';
 
+/** Color of «La quiero» (hearts). */
+const WANT_COLOR = '#ff7a9c';
+
 type CollectionView = 'list' | 'gallery';
-const GROUPINGS: GroupBy[] = ['none', 'color', 'type', 'set', 'rarity', 'cost', 'price'];
+const GROUPINGS: GroupBy[] = ['none', 'color', 'type', 'subtype', 'set', 'rarity', 'cost', 'price', 'lang', 'copies', 'deck', 'tag'];
 const GALLERY_COLUMNS = 3;
 
 /** Flat list items: group headers + cards (list view) or rows of 3 cards (gallery). */
@@ -88,8 +96,8 @@ const MAX_RESULTS = 20;
  */
 export function CollectionScreen({ search }: { search?: { q: string; t: string } } = {}) {
   const db = useSQLiteContext();
-  const { prefs, setPrefs, ensureActiveDeck, refresh } = useAppState();
-  const place = prefs.collectionPlace;
+  const { prefs, ensureActiveDeck, refresh } = useAppState();
+  const place = 'paper';
   const [cards, setCards] = useState<CollectionCard[]>([]);
   const [query, setQuery] = useState('');
   // Opened from elsewhere to look for a card ("Ver en mi colección"): put it in the search box.
@@ -117,10 +125,41 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const [inDecks, setInDecks] = useState<Set<string>>(new Set());
   const [sets, setSets] = useState<Record<string, MtgSet>>({});
 
+  const [wanted, setWantedList] = useState<WantedCard[]>([]);
+  const [onlyWanted, setOnlyWanted] = useState(false);
+  // Tags: the card whose tags are being changed, the manager, and the cards shown by tag.
+  const [tagCard, setTagCard] = useState<{ oracleId: string; name: string } | null>(null);
+  const [managingTags, setManagingTags] = useState(false);
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const allTags = useTags();
+  const wantedVersion = useWantedVersion();
+
   const load = useCallback(async () => {
     setCards(await getCollection(db, place));
+    setWantedList(await getWanted(db));
     setInDecks(await getDeckOracleIds(db));
   }, [db, place]);
+
+  // «La quiero» changed somewhere else (a card, the deck, a sync): reload the list.
+  useEffect(() => {
+    let cancelled = false;
+    getWanted(db)
+      .then((list) => !cancelled && setWantedList(list))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [db, wantedVersion]);
+
+  // «La quiero»: marked printings (edition + language + artwork); the ones you don't own yet show up
+  // as rows with 0 copies.
+  const wantedIds = useMemo(() => new Set(wanted.map((w) => w.scryfallId)), [wanted]);
+  const listCards = useMemo(() => {
+    const ownedIds = new Set(cards.map((c) => c.scryfallId));
+    const pending: CollectionCard[] = wanted.filter((w) => !ownedIds.has(w.scryfallId)).map((w) => ({ ...w, quantity: 0 }));
+    const all = [...cards, ...pending];
+    return onlyWanted ? all.filter((c) => wantedIds.has(c.scryfallId)) : all;
+  }, [cards, wanted, wantedIds, onlyWanted]);
 
   // Set names and dates, for the edition grouping/filter (cached for the app run).
   useEffect(() => {
@@ -156,8 +195,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   // Collection value on Cardmarket (live prices from Scryfall; hidden offline).
   const details = useCardDetails(cards.map((c) => c.scryfallId));
   const value = priceTotal(cards, details);
-  // Arena cards have no Cardmarket price.
-  const showPrices = prefs.pricesCollection && place === 'paper';
+  const showPrices = prefs.pricesCollection;
   // Grouping/filtering by price only while prices are shown.
   const effectiveGroup: GroupBy = !showPrices && groupBy === 'price' ? 'none' : groupBy;
   const effectiveFilter = useMemo(
@@ -165,20 +203,33 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     [filter, showPrices],
   );
 
+  const cardTags = useCardTags(listCards.map((c) => c.oracleId));
+  const tagsByUid = useMemo(() => Object.fromEntries(allTags.map((t) => [t.uid, t])), [allTags]);
+  const organizeCtx = useMemo(
+    () => ({
+      details,
+      inDecks,
+      sets,
+      langNames: LANGUAGE_NAMES,
+      tags: Object.fromEntries(Object.entries(cardTags).map(([id, uids]) => [id, uids.map((u) => tagsByUid[u]?.name).filter(Boolean) as string[]])),
+    }),
+    [details, inDecks, sets, cardTags, tagsByUid],
+  );
   const owned = useMemo(() => {
-    const ctx = { details, inDecks, sets };
-    const filtered = applyFilter(cards, effectiveFilter, ctx);
+    const ctx = organizeCtx;
+    const byTags = tagFilter.length ? listCards.filter((c) => (cardTags[c.oracleId] ?? []).some((u) => tagFilter.includes(u))) : listCards;
+    const filtered = applyFilter(byTags, effectiveFilter, ctx);
     if (!q) return filtered;
     const words = fold(q).split(/\s+/);
     return filtered.filter((c) => {
       const text = fold(`${c.name} ${c.printedName ?? ''}`);
       return words.every((w) => text.includes(w));
     });
-  }, [cards, q, effectiveFilter, details, inDecks, sets]);
+  }, [listCards, q, effectiveFilter, organizeCtx, tagFilter, cardTags]);
 
   const groups = useMemo(
-    () => groupCards(owned, effectiveGroup, { details, inDecks, sets }),
-    [owned, effectiveGroup, details, inDecks, sets],
+    () => groupCards(owned, effectiveGroup, organizeCtx),
+    [owned, effectiveGroup, organizeCtx],
   );
 
   const items = useMemo(() => {
@@ -222,6 +273,25 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     () => ({ total: cards.reduce((n, c) => n + c.quantity, 0), unique: new Set(cards.map((c) => c.oracleId)).size }),
     [cards],
   );
+
+  /** «La quiero» on / off from a collection row. */
+  const toggleWant = async (card: CollectionCard) => {
+    if (wantedIds.has(card.scryfallId)) {
+      await removeWanted(db, card.scryfallId);
+      notifyWantedChanged();
+      return;
+    }
+    const [printing] = await getCardsByIds([card.scryfallId]).catch(() => []);
+    if (printing) await setWanted(db, printing, true);
+  };
+  /** A wanted card you just got: into the collection, and off «La quiero». */
+  const gotIt = async (card: CollectionCard) => {
+    const [printing] = await getCardsByIds([card.scryfallId]).catch(() => []);
+    if (!printing) return showToast('No se pudo añadir: comprueba la conexión');
+    await addToCollection(db, printing, place);
+    await setWanted(db, printing, false);
+    showToast(`📦 ¡${displayName(card)} conseguida!`);
+  };
 
   const showToast = (msg: string) => {
     clearTimeout(toastTimer.current);
@@ -292,27 +362,8 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
 
   const header = (
     <View>
-      <View style={styles.placeSwitch}>
-        {(
-          [
-            { key: 'paper', label: 'Papel', icon: 'package-variant-closed' },
-            { key: 'arena', label: 'MTG Arena', icon: 'gamepad-variant-outline' },
-          ] as const
-        ).map((p) => (
-          <Pressable
-            key={p.key}
-            style={[styles.placeOption, place === p.key && styles.placeOptionOn]}
-            onPress={() => place !== p.key && setPrefs({ ...prefs, collectionPlace: p.key })}
-            accessibilityRole="button"
-            accessibilityState={{ selected: place === p.key }}
-          >
-            <MaterialCommunityIcons name={p.icon} size={18} color={place === p.key ? colors.bg : colors.textMuted} />
-            <Text style={[styles.placeText, place === p.key && { color: colors.bg }]}>{p.label}</Text>
-          </Pressable>
-        ))}
-      </View>
       <View style={styles.titleRow}>
-        <Text style={styles.title}>{place === 'arena' ? '🎮 Mi colección de Arena' : '📦 Mi colección'}</Text>
+        <Text style={styles.title}>📦 Mi colección</Text>
         <Text style={styles.stats}>
           {stats.total} cartas · {stats.unique} distintas
           {showPrices && value.priced > 0 && <Text style={styles.value}> · ≈ {formatEur(value.eur)}</Text>}
@@ -344,12 +395,9 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         >
           <MaterialCommunityIcons name="import" size={24} color={colors.accent} />
         </Pressable>
-        {/* The scanner reads physical cards: paper only. */}
-        {place === 'paper' && (
-          <Pressable style={styles.scanButton} onPress={() => setScanning(true)} hitSlop={6}>
-            <Text style={styles.scanIcon}>📷</Text>
-          </Pressable>
-        )}
+        <Pressable style={styles.scanButton} onPress={() => setScanning(true)} hitSlop={6}>
+          <Text style={styles.scanIcon}>📷</Text>
+        </Pressable>
       </View>
 
       <View style={styles.toolbar}>
@@ -368,6 +416,26 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           </Text>
         </Pressable>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupChips}>
+          <Pressable
+            style={[styles.groupChip, onlyWanted && { borderColor: WANT_COLOR }]}
+            onPress={() => setOnlyWanted((v) => !v)}
+            accessibilityLabel="Ver solo las cartas marcadas con «La quiero»"
+          >
+            <Text style={[styles.groupChipText, onlyWanted && { color: WANT_COLOR }]}>
+              {onlyWanted ? '♥' : '♡'} Las quiero ({wanted.length})
+            </Text>
+          </Pressable>
+          {allTags.map((t) => (
+            <TagChip
+              key={t.uid}
+              tag={t}
+              selected={tagFilter.includes(t.uid)}
+              onPress={() => setTagFilter((f) => (f.includes(t.uid) ? f.filter((x) => x !== t.uid) : [...f, t.uid]))}
+            />
+          ))}
+          <Pressable style={styles.groupChip} onPress={() => setManagingTags(true)} accessibilityLabel="Gestionar etiquetas">
+            <Text style={styles.groupChipText}>🏷 Etiquetas</Text>
+          </Pressable>
           <MaterialCommunityIcons name="format-list-group" size={18} color={colors.textMuted} />
           {GROUPINGS.filter((g) => showPrices || g !== 'price').map((g) => (
             <Pressable
@@ -490,7 +558,10 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                         recyclingKey={card.scryfallId}
                       />
                     )}
-                    <Text style={styles.badge}>x{card.quantity}</Text>
+                    <Text style={styles.badge}>{card.quantity > 0 ? `x${card.quantity}` : '♥'}</Text>
+                    {card.quantity > 0 && wantedIds.has(card.scryfallId) && (
+                      <Text style={[styles.badge, { left: 4, right: undefined, color: WANT_COLOR }]}>♥</Text>
+                    )}
                   </Pressable>
                 ))}
               </View>
@@ -523,11 +594,34 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                   <Text style={styles.meta} numberOfLines={1}>
                     {card.typeLine}
                   </Text>
+                  {(cardTags[card.oracleId] ?? []).length > 0 && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                      {(cardTags[card.oracleId] ?? []).map((u) => tagsByUid[u] && <TagChip key={u} tag={tagsByUid[u]} />)}
+                    </View>
+                  )}
                   {inDecks.has(card.oracleId) && <Text style={styles.inDeck}>En algún mazo</Text>}
+                  {wantedIds.has(card.scryfallId) && (
+                    <Text style={[styles.inDeck, { color: WANT_COLOR }]}>
+                      ♥ {card.quantity === 0 ? 'La quieres (no la tienes)' : 'La quieres'}
+                    </Text>
+                  )}
                 </View>
               </View>
               <CardControlsRow>
-                <QuantityStepper value={card.quantity} onSub={() => change(card, -1)} onAdd={() => change(card, 1)} />
+                {card.quantity > 0 ? (
+                  <QuantityStepper value={card.quantity} onSub={() => change(card, -1)} onAdd={() => change(card, 1)} />
+                ) : (
+                  <Pressable style={styles.gotIt} onPress={() => gotIt(card)} accessibilityLabel="Ya la tienes: pásala a tu colección">
+                    <Text style={styles.gotItText}>＋ La tengo</Text>
+                  </Pressable>
+                )}
+                <CardIconButton
+                  icon={wantedIds.has(card.scryfallId) ? 'heart' : 'heart-outline'}
+                  hint={wantedIds.has(card.scryfallId) ? 'Quitar de «La quiero»' : 'La quiero (más copias)'}
+                  tone={wantedIds.has(card.scryfallId) ? 'danger' : undefined}
+                  onPress={() => toggleWant(card)}
+                />
+                <CardIconButton icon="tag-outline" hint="Etiquetas" onPress={() => setTagCard({ oracleId: card.oracleId, name: displayName(card) })} />
                 <CardIconButton
                   icon="information-outline"
                   tone="info"
@@ -540,12 +634,14 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                   hint="Añadir al mazo activo"
                   onPress={() => addToDeck(card)}
                 />
-                <CardIconButton
-                  icon="pencil-outline"
-                  tone="primary"
-                  hint="Cambiar arte o idioma"
-                  onPress={() => setPrintingCard(card)}
-                />
+                {card.quantity > 0 && (
+                  <CardIconButton
+                    icon="pencil-outline"
+                    tone="primary"
+                    hint="Cambiar arte o idioma"
+                    onPress={() => setPrintingCard(card)}
+                  />
+                )}
                 <CardIconButton
                   icon="share-variant-outline"
                   hint="Compartir"
@@ -553,18 +649,22 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                     setShareCard({ scryfallId: card.scryfallId, name: displayName(card), imageUrl: card.imageUrl })
                   }
                 />
-                <CardIconButton
-                  icon="trash-can-outline"
-                  hint="Quitar de la colección"
-                  danger
-                  onPress={() => confirmRemove(card)}
-                />
+                {card.quantity > 0 && (
+                  <CardIconButton
+                    icon="trash-can-outline"
+                    hint="Quitar de la colección"
+                    danger
+                    onPress={() => confirmRemove(card)}
+                  />
+                )}
               </CardControlsRow>
             </View>
           );
         }}
       />
 
+      <CardTagsSheet oracleId={tagCard?.oracleId ?? null} name={tagCard?.name} onClose={() => setTagCard(null)} />
+      <TagsManagerSheet visible={managingTags} onClose={() => setManagingTags(false)} />
       <BottomSheet visible={filtering} onClose={() => setFiltering(false)} heightRatio={0.85}>
         <CollectionFilterPanel
           filter={filter}
@@ -651,31 +751,17 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
 }
 
 const styles = StyleSheet.create({
+  gotIt: {
+    paddingHorizontal: 12,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    backgroundColor: colors.add,
+  },
+  gotItText: { color: colors.bg, fontWeight: '900' },
   screen: { flex: 1, backgroundColor: colors.bg },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', padding: 14 },
   title: { color: colors.accent, fontSize: 20, fontWeight: '900' },
-  placeSwitch: {
-    flexDirection: 'row',
-    gap: 4,
-    padding: 4,
-    marginHorizontal: 14,
-    marginTop: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  placeOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: 34,
-    borderRadius: 9,
-  },
-  placeOptionOn: { backgroundColor: colors.accent },
-  placeText: { color: colors.textMuted, fontWeight: '800' },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 14 },
   scanButton: {
     width: 46,

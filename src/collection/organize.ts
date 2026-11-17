@@ -6,7 +6,7 @@ export type ColorKey = 'W' | 'U' | 'B' | 'R' | 'G' | 'C';
 export type TypeKey =
   'creature' | 'planeswalker' | 'battle' | 'land' | 'instant' | 'sorcery' | 'artifact' | 'enchantment' | 'other';
 export type Usage = 'all' | 'inDeck' | 'free';
-export type GroupBy = 'none' | 'color' | 'type' | 'set' | 'rarity' | 'cost' | 'price';
+export type GroupBy = 'none' | 'color' | 'type' | 'set' | 'rarity' | 'cost' | 'price' | 'lang' | 'subtype' | 'deck' | 'tag' | 'copies';
 
 export interface CollectionFilter {
   /** Card has any of these colors ('C' = colorless). Empty = any. */
@@ -83,6 +83,11 @@ export const GROUP_LABELS: Record<GroupBy, string> = {
   rarity: 'Rareza',
   cost: 'Coste',
   price: 'Precio',
+  lang: 'Idioma',
+  subtype: 'Subtipo',
+  deck: 'En mazos',
+  tag: 'Etiqueta',
+  copies: 'Copias',
 };
 
 /** Colors in the mana cost (hybrid counts both). Colorless costs → []. */
@@ -125,6 +130,10 @@ export interface OrganizeContext {
   /** Oracle ids used in any deck. */
   inDecks: Set<string>;
   sets: Record<string, MtgSet>;
+  /** Tag names of each card (by oracle id), for the «Etiqueta» grouping. */
+  tags?: Record<string, string[]>;
+  /** Language names, for the «Idioma» grouping. */
+  langNames?: Record<string, string>;
 }
 
 export function applyFilter(cards: CollectionCard[], f: CollectionFilter, ctx: OrganizeContext): CollectionCard[] {
@@ -237,6 +246,30 @@ export function groupCards(cards: CollectionCard[], by: GroupBy, ctx: OrganizeCo
         }
         break;
       }
+      case 'lang':
+        put(`l:${c.lang}`, ctx.langNames?.[c.lang] ?? c.lang.toUpperCase(), c);
+        break;
+      case 'subtype': {
+        const sub = c.typeLine.split(' — ')[1]?.split(' // ')[0]?.trim();
+        put(sub ? `s:${sub}` : '~', sub ?? 'Sin subtipo', c);
+        break;
+      }
+      case 'deck':
+        if (ctx.inDecks.has(c.oracleId)) put('d1', 'En algún mazo', c);
+        else put('d2', 'En ningún mazo', c);
+        break;
+      case 'tag': {
+        const names = ctx.tags?.[c.oracleId] ?? [];
+        if (names.length) for (const n of names) put(`t:${n}`, n, c);
+        else put('~', 'Sin etiqueta', c);
+        break;
+      }
+      case 'copies':
+        if (c.quantity === 0) put('c0', 'Las quieres (no las tienes)', c);
+        else if (c.quantity === 1) put('c1', '1 copia', c);
+        else if (c.quantity < 4) put('c2', '2 – 3 copias', c);
+        else put('c4', '4 o más copias', c);
+        break;
       case 'price': {
         const eur = ctx.details[c.scryfallId]?.eur;
         const band = eur == null ? null : PRICE_BANDS.find((b) => eur >= b.min);
@@ -258,6 +291,9 @@ export function groupCards(cards: CollectionCard[], by: GroupBy, ctx: OrganizeCo
     // Newest edition first; unknown sets at the end.
     keys.sort((a, b) => (ctx.sets[b]?.releasedAt ?? '').localeCompare(ctx.sets[a]?.releasedAt ?? ''));
   }
+  else if (by === 'lang' || by === 'subtype' || by === 'tag') {
+    keys.sort((a, b) => (a === '~' ? 1 : b === '~' ? -1 : (groups.get(a)!.title).localeCompare(groups.get(b)!.title, 'es')));
+  } else if (by === 'deck' || by === 'copies') keys.sort();
   order.push(...keys);
 
   const byName = (a: CollectionCard, b: CollectionCard) =>

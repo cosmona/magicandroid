@@ -171,6 +171,7 @@ hacia abajo (desde cualquier punto de la parte de arriba, incluidos los botones)
 |---|---|
 | ✎ / 💾 | Editar el nombre y el formato (💾 si el mazo aún no tiene nombre) |
 | Compartir | Crea una **imagen del mazo** para mandar por WhatsApp o redes: portada, comandante (o las 3 cartas más caras), tierras, coste medio, curva, colores y la lista por tipos. También se puede enviar **como texto** o copiar **para MTG Arena** ([ver más](#pasar-un-mazo-a-mtg-arena)) |
+| Copiar (dos hojas) | **Duplicar el mazo**: crea «Nombre (copia)» con las mismas cartas, banquillo, Posibles, formato y portada, y lo abre |
 | 🛒 (amarillo) | Comprar en Cardmarket las cartas que te faltan ([ver más](#8-precios-y-cardmarket)) |
 | Gráfico de barras | [Estadísticas y mano de prueba](#10-estadísticas-y-mano-de-prueba) |
 | Pieza de puzle | [Sinergias y combos](#9-sinergias-y-combos) del mazo |
@@ -204,6 +205,17 @@ cartas que llevas aparte: el sideboard de los formatos construidos (hasta 15) o 
   la pasa al banquillo.
 - En los formatos construidos el máximo de 4 copias cuenta también las del banquillo.
 - Al compartir como texto o copiar para Arena se incluye el banquillo.
+
+### Posibles
+
+Debajo del banquillo está **Posibles**: un sitio para dejar cartas que te estás pensando o quieres probar, sin que
+formen parte del mazo.
+
+- **No cuenta para nada:** ni tamaño, ni validación, ni curva, ni estadísticas, ni mano de prueba, ni precio, ni
+  «Faltan N», ni al compartir o exportar.
+- Para mandar una carta: el botón **?** de cada carta del mazo, el de cada carta del banquillo, o **mantén pulsado ✓**
+  al pasar cartas en Construir (la carta va a Posibles en vez de al mazo).
+- En cada carta de Posibles: **− N +** para las copias y **bandeja ↑** para pasarla al mazo (o ↓ al banquillo).
 
 ### Deshacer
 
@@ -255,8 +267,6 @@ Bolt», «1x Sol Ring (CMR) 472»):
 - Vale también la exportación de Arena **en español** (cabeceras «Mazo», «Banquillo» y nombres en español): la carta
   se busca por su edición y número o por su nombre impreso.
 - Con **En tu idioma** activado se busca cada carta en tu idioma (tarda un poco con listas largas).
-- Con **La tengo en MTG Arena** activado (al importar un mazo), sus cartas se apuntan en tu
-  [colección de Arena](#papel-y-mtg-arena) si no las tenías ya.
 - Si la lista tiene sección *Commander* (o la etiqueta de comandante de Archidekt), el mazo se crea en formato
   Commander con su comandante 👑. Si tiene unas 40 cartas (un **draft o sellado**, por ejemplo de Arena), en formato
   **Limitado**. Si no, en formato Libre: cámbialo con ✏️.
@@ -291,20 +301,15 @@ Usa **←** para volver y **↗** para abrirla en Scryfall.
 
 Aquí apuntas las cartas que tienes. Cada fila es una **impresión** concreta (edición + idioma).
 
-### Papel y MTG Arena
+### La quiero
 
-Tienes **dos colecciones separadas**: la de **papel** (tus cartas físicas) y la de **MTG Arena**. Arriba de la pestaña
-eliges cuál ves con **Papel | MTG Arena**. La que elijas es la que usa toda la app:
+Al lado de **La tengo**, en cualquier carta en grande (y en las cartas del mazo que te faltan), está **♡ La quiero**:
+márcala y queda apuntada como carta que quieres conseguir.
 
-- Los botones **La tengo** (en Arena dicen «La tengo en Arena», con un mando) suman y restan en esa colección.
-- El aviso del mazo («Faltan N») compara el mazo con esa colección.
-- En **Arena** no hay precios ni Cardmarket: el aviso abre los **comodines** que necesitas para crear lo que te falta
-  (míticos, raros, infrecuentes y comunes; las tierras básicas no cuentan porque son gratis).
-- El escáner 📷 solo está en papel, porque lee cartas físicas.
-
-Arena no deja sacar tu colección desde el móvil, así que se va llenando así: al **importar un mazo** de Arena activa
-**«La tengo en MTG Arena»** y sus cartas se marcan como tuyas en Arena; lo demás, con los botones **La tengo**. También
-puedes importar una lista directamente a la colección de Arena (botón de importar con Arena seleccionado).
+- Las cartas que quieres salen **en tu colección**, mezcladas con las tuyas y con un **♥**. Si aún no la tienes, sale
+  con 0 copias y el botón **＋ La tengo** para pasarla a tu colección cuando la consigas (y se quita de «La quiero»).
+- El botón **♡ Las quiero (N)** de la colección muestra solo esas.
+- Vuelve a tocar el corazón para quitarla.
 
 ### Añadir cartas
 
@@ -360,7 +365,25 @@ Botón ⚙ de la cabecera:
   - **Lo que te falta (🛒)** (total y precio de cada carta al comprar).
   - **Colección** (valor total, de cada grupo y de cada carta, y el filtro y la agrupación por precio).
   - **Ficha completa** (la sección «Precios»).
+- **Sincronizar con el PC:** ver abajo.
 - **Restablecer filtros.**
+
+### Sincronizar con el PC
+
+Si también usas **Magic Swipe para PC**, puedes pasar tus mazos, tu colección y «La quiero» de uno a otro:
+
+1. En el PC pulsa **⇄ Móvil** (arriba a la derecha). Aparece un código QR.
+2. En el móvil, **⚙ Ajustes → Sincronizar con el PC** y elige:
+   - **Dirección:** **Móvil → PC** o **PC → Móvil**.
+   - **Copiar** (el origen se queda como está) o **Mover** (cuando el destino lo ha guardado, se borra del origen; la app
+     te pregunta antes).
+3. **Escanear el código del PC**. Los dos tienen que estar en la **misma Wi-Fi**.
+
+No se mezcla nada: el destino recibe **todo** lo del origen. Lo que el destino ya tenía y el origen no, se queda. Si un
+mazo (o una carta de la colección) está en los dos, se sustituye por la versión del origen.
+
+La próxima vez basta con **Otra vez con el mismo PC** (con la ventana del PC abierta). Si no puedes escanear, escribe la
+dirección y el código que enseña el PC. Los ajustes y el contador de vidas no se pasan.
 
 ## 8. Precios y Cardmarket
 

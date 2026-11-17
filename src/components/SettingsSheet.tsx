@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import { DEFAULT_FILTERS, LANGUAGE_NAMES, MAIN_LANGUAGES } from '@/api/scryfall';
 import { Chip } from '@/components/Button';
+import { SyncScreen } from '@/components/SyncScreen';
 import { useAppState, type DeckView } from '@/context/AppState';
 import { colors } from '@/theme';
 
@@ -28,6 +29,7 @@ const PRICE_PLACES: { key: PricePref; label: string; hint: string }[] = [
 /** App settings, saved in SQLite (`prefs`). */
 export function SettingsSheet() {
   const { prefs, setPrefs, setFilters } = useAppState();
+  const [syncing, setSyncing] = useState(false);
 
   const resetFilters = () =>
     Alert.alert('Restablecer filtros', '¿Quitar todos los filtros de búsqueda?', [
@@ -113,11 +115,22 @@ export function SettingsSheet() {
         ))}
       </Section>
 
+      <Section
+        title="Sincronizar con el PC"
+        hint="Junta tus mazos y tu colección con Magic Swipe para PC por la Wi-Fi (los dos en la misma red)."
+      >
+        <Pressable style={[styles.linkButton, styles.syncButton]} onPress={() => setSyncing(true)}>
+          <Text style={[styles.linkText, { color: colors.accent }]}>⇄ Sincronizar con el PC</Text>
+        </Pressable>
+      </Section>
+
       <Section title="Búsqueda">
         <Pressable style={styles.linkButton} onPress={resetFilters}>
           <Text style={styles.linkText}>Restablecer filtros</Text>
         </Pressable>
       </Section>
+
+      {syncing && <SyncScreen onClose={() => setSyncing(false)} />}
 
       <Text style={styles.footer}>
         Magic Swipe {Constants.expoConfig?.version ?? ''}
@@ -155,5 +168,6 @@ const styles = StyleSheet.create({
     borderColor: colors.discard,
   },
   linkText: { color: colors.discard, fontWeight: '700' },
+  syncButton: { borderColor: colors.accent },
   footer: { color: colors.textMuted, fontSize: 11, textAlign: 'center', lineHeight: 17, marginTop: 8 },
 });

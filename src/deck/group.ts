@@ -3,13 +3,18 @@ import { cardColors, mainType, TYPE_GROUP_LABELS, type TypeKey } from '@/collect
 import type { DeckCard } from '@/db/database';
 import { CURVE_MAX, curveCost } from '@/deck/stats';
 
-export type DeckGroupBy = 'none' | 'type' | 'cost' | 'color' | 'rarity';
+export type DeckGroupBy = 'none' | 'type' | 'cost' | 'color' | 'rarity' | 'set' | 'subtype' | 'owned' | 'price' | 'tag';
 
 export const DECK_GROUP_OPTIONS: { key: DeckGroupBy; label: string }[] = [
   { key: 'type', label: 'Tipo' },
   { key: 'cost', label: 'Coste' },
   { key: 'color', label: 'Color' },
   { key: 'rarity', label: 'Rareza' },
+  { key: 'set', label: 'Edición' },
+  { key: 'subtype', label: 'Subtipo' },
+  { key: 'owned', label: 'Colección' },
+  { key: 'price', label: 'Precio' },
+  { key: 'tag', label: 'Etiqueta' },
   { key: 'none', label: 'Sin agrupar' },
 ];
 
@@ -46,6 +51,59 @@ const RARITY_NAMES: Record<string, string> = {
 };
 
 const isLand = (c: DeckCard) => mainType(c.typeLine) === 'land';
+
+/**
+ * What some groupings need that the deck card doesn't have: its edition, copies in the collection,
+ * price and tags. Without it those cards go to a «Sin datos» group.
+ */
+export interface DeckGroupContext {
+  /** Edition of the printing: code, name and release date (for the order). */
+  setOf?: (c: DeckCard) => { code: string; name: string; releasedAt: string } | undefined;
+  owned?: (c: DeckCard) => number | undefined;
+  price?: (c: DeckCard) => number | null | undefined;
+  /** Tag names of the card. */
+  tags?: (c: DeckCard) => string[];
+}
+
+const PRICE_BANDS = [
+  { key: 'p50', label: 'Más de 50 €', min: 50 },
+  { key: 'p20', label: '20 – 50 €', min: 20 },
+  { key: 'p5', label: '5 – 20 €', min: 5 },
+  { key: 'p1', label: '1 – 5 €', min: 1 },
+  { key: 'p0', label: 'Menos de 1 €', min: 0 },
+];
+
+/** Key + label of the groups a card goes in (several only for tags). */
+function groupsOf(card: DeckCard, by: DeckGroupBy, ctx: DeckGroupContext): { key: string; label: string; order?: string }[] {
+  switch (by) {
+    case 'set': {
+      const set = ctx.setOf?.(card);
+      return [set ? { key: set.code, label: `${set.name} (${set.code.toUpperCase()})`, order: set.releasedAt } : { key: '~', label: 'Sin datos' }];
+    }
+    case 'subtype': {
+      const sub = card.typeLine.split(' — ')[1]?.split(' // ')[0]?.trim();
+      return [sub ? { key: `s:${sub}`, label: sub } : { key: '~', label: 'Sin subtipo' }];
+    }
+    case 'owned': {
+      const have = ctx.owned?.(card);
+      if (have === undefined) return [{ key: '~', label: 'Sin datos' }];
+      if (have >= card.quantity) return [{ key: 'o0', label: 'Las tienes todas' }];
+      if (have > 0) return [{ key: 'o1', label: 'Te faltan algunas copias' }];
+      return [{ key: 'o2', label: 'No la tienes' }];
+    }
+    case 'price': {
+      const eur = ctx.price?.(card);
+      const band = eur == null ? null : PRICE_BANDS.find((b) => eur >= b.min);
+      return [band ? { key: band.key, label: band.label } : { key: '~', label: 'Sin precio' }];
+    }
+    case 'tag': {
+      const names = ctx.tags?.(card) ?? [];
+      return names.length ? names.map((n) => ({ key: `t:${n}`, label: n })) : [{ key: '~', label: 'Sin etiqueta' }];
+    }
+    default:
+      return [groupOf(card, by)];
+  }
+}
 
 /** Key + label of the group a card goes in. */
 function groupOf(card: DeckCard, by: DeckGroupBy): { key: string; label: string } {
@@ -87,18 +145,29 @@ function orderOf(key: string, by: DeckGroupBy): number {
  * The deck's cards in groups, in a fixed order, keeping each group's cards in the incoming
  * order. Commanders (when the format uses them) always go first in their own group.
  */
-export function groupDeck(cards: DeckCard[], by: DeckGroupBy, usesCommander: boolean): DeckGroup[] {
+export function groupDeck(cards: DeckCard[], by: DeckGroupBy, usesCommander: boolean, ctx: DeckGroupContext = {}): DeckGroup[] {
   const groups = new Map<string, DeckGroup>();
+  const sortKey = new Map<string, string>();
   const commanders = usesCommander ? cards.filter((c) => c.isCommander) : [];
   for (const card of cards) {
     if (commanders.includes(card)) continue;
-    const { key, label } = groupOf(card, by);
-    let group = groups.get(key);
-    if (!group) groups.set(key, (group = { key, label, cards: [], count: 0 }));
-    group.cards.push(card);
-    group.count += card.quantity;
+    for (const { key, label, order } of groupsOf(card, by, ctx)) {
+      let group = groups.get(key);
+      if (!group) groups.set(key, (group = { key, label, cards: [], count: 0 }));
+      if (order) sortKey.set(key, order);
+      group.cards.push(card);
+      group.count += card.quantity;
+    }
   }
-  const sorted = [...groups.values()].sort((a, b) => orderOf(a.key, by) - orderOf(b.key, by));
+  const sorted = [...groups.values()].sort((a, b) => {
+    // «Sin datos / Sin precio / Sin etiqueta» always last.
+    if (a.key === '~' || b.key === '~') return a.key === '~' ? 1 : -1;
+    if (by === 'set') return (sortKey.get(b.key) ?? '').localeCompare(sortKey.get(a.key) ?? '');
+    if (by === 'subtype' || by === 'tag') return a.label.localeCompare(b.label, 'es');
+    if (by === 'owned') return a.key.localeCompare(b.key);
+    if (by === 'price') return PRICE_BANDS.findIndex((x) => x.key === a.key) - PRICE_BANDS.findIndex((x) => x.key === b.key);
+    return orderOf(a.key, by) - orderOf(b.key, by);
+  });
   if (commanders.length) {
     sorted.unshift({
       key: 'commander',
