@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { DEFAULT_FILTERS, LANGUAGE_NAMES, MAIN_LANGUAGES } from '@/api/scryfall';
 import { Chip } from '@/components/Button';
 import { SyncScreen } from '@/components/SyncScreen';
+import { LayoutBuilder } from '@/components/LayoutBuilder';
 import { useAppState, type DeckView } from '@/context/AppState';
 import { colors } from '@/theme';
 
@@ -30,6 +31,7 @@ const PRICE_PLACES: { key: PricePref; label: string; hint: string }[] = [
 /** App settings, saved in SQLite (`prefs`). */
 export function SettingsSheet() {
   const { prefs, setPrefs, setFilters } = useAppState();
+  const [building, setBuilding] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   const resetFilters = () =>
@@ -57,6 +59,13 @@ export function SettingsSheet() {
           ))}
         </View>
       </Section>
+
+      <Section title="Cartas y listas" hint="Qué datos salen en cada línea de las listas y dónde va cada icono en las galerías (mazo y colección).">
+        <Pressable style={styles.linkButton} onPress={() => setBuilding(true)}>
+          <Text style={[styles.linkText, { color: colors.accent }]}>Elegir datos e iconos</Text>
+        </Pressable>
+      </Section>
+      <LayoutBuilder visible={building} onClose={() => setBuilding(false)} />
 
       <Section title="Vista del mazo" hint="Cómo se abre la lista de cartas del mazo.">
         <View style={styles.chips}>

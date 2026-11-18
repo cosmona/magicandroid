@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef, type ReactNode } from 'react';
+import { galleryFor, listFor, RowLines, TileIcons, type CardInfo, type GalleryLayout, type ListLayout } from '@/listLayout';
 import { useRememberedSet } from '@/hooks/useRememberedSet';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
@@ -57,7 +58,6 @@ import {
   updateDeck,
   type DeckCard,
  Tag } from '@/db/database';
-import { RARITY_LABELS } from '@/icons';
 import { colors, formatEur, formatLabel, TONE_COLORS, type Tone } from '@/theme';
 import { validateDeck, type DeckValidation } from '@/validation';
 import { DECK_GROUP_OPTIONS, groupDeck, type DeckGroup, type DeckGroupBy, type DeckGroupContext } from '@/deck/group';
@@ -269,6 +269,39 @@ export function DeckSheet() {
   }, [deckIdsKey, groupBy, subGroupBy]);
   const deckTags = useCardTags(activeCards.map((c) => c.oracleId));
   const allTags = useTags();
+  // Ajustes → Cartas y listas: what the list rows and the gallery tiles show.
+  const listLayout = listFor(prefs, 'deck');
+  const galleryLayout = galleryFor(prefs, 'deck');
+  const infoOf = (c: DeckCard): CardInfo => {
+    const d = details[c.scryfallId];
+    const st = statsOf(d);
+    let legalities: Record<string, string> | null = null;
+    try {
+      legalities = c.legalities ? JSON.parse(c.legalities) : null;
+    } catch {
+      legalities = null;
+    }
+    return {
+      name: c.name,
+      printedName: c.printedName,
+      manaCost: c.manaCost,
+      typeLine: c.typeLine,
+      oracleText: c.oracleText,
+      set: editions[c.scryfallId]?.code,
+      rarity: c.rarity,
+      price: prefs.pricesDeckCards ? d?.eur : null,
+      stats: st ? `${st.label} ${st.value}` : null,
+      legalities,
+      deckFormat: activeDeck?.format,
+      tags: prefs.showTags === false ? [] : (deckTags[c.oracleId] ?? []).map((u) => allTags.find((t) => t.uid === u)).filter((t) => !!t),
+      quantity: c.quantity,
+      commander: validation.usesCommander && !!c.isCommander,
+      owned: owned?.[c.oracleId],
+      wanted: wantedIds.has(c.scryfallId),
+      maybe: activeMaybe.find((m) => m.oracleId === c.oracleId)?.quantity ?? 0,
+      issues: validation.cardIssues[c.oracleId],
+    };
+  };
   const groupCtx = useMemo<DeckGroupContext>(() => {
     const tagName = Object.fromEntries(allTags.map((t) => [t.uid, t.name]));
     return {
@@ -740,7 +773,8 @@ export function DeckSheet() {
                     style={styles.galleryCell}
                   >
                     <GalleryTile
-                      owned={owned?.[item.oracleId]}
+                      info={infoOf(item)}
+                      layout={galleryLayout}
                       card={item}
                       invalid={!!validation.cardIssues[item.oracleId]}
                       crown={validation.usesCommander}
@@ -778,6 +812,8 @@ export function DeckSheet() {
                 />
               ) : (
                 <CardRow
+                  info={infoOf(item)}
+                  layout={listLayout}
                   card={item}
                   actions={actions}
                   issues={validation.cardIssues[item.oracleId]}
@@ -1108,6 +1144,9 @@ interface CardProps {
   details?: CardDetails;
   /** Show the card's price (Ajustes → Precios). */
   showPrice: boolean;
+  /** What the row shows (Ajustes → Cartas y listas). */
+  info?: CardInfo;
+  layout?: ListLayout;
   /** Marked as «La quiero». */
   wanted?: boolean;
 }
@@ -1340,10 +1379,8 @@ function useRowTint(owned: number | undefined, needed: number, wanted: boolean) 
   return null;
 }
 
-function CardRow({ card, actions, issues, crown, owned, details, showPrice, drag, wanted }: CardProps) {
+function CardRow({ card, actions, issues, crown, owned, drag, wanted, info, layout }: CardProps) {
   const tint = useRowTint(owned, card.quantity, !!wanted);
-  const [types, subtypes] = card.typeLine.split(' — ');
-  const stats = statsOf(details);
   return (
     <View style={[styles.row, tint, issues && styles.invalid, crown && !!card.isCommander && styles.commander]}>
       <View style={styles.rowTop}>
@@ -1357,24 +1394,8 @@ function CardRow({ card, actions, issues, crown, owned, details, showPrice, drag
             {crown && card.isCommander ? '👑 ' : ''}
             {displayName(card)}
           </Text>
-          <Text style={styles.type}>{card.typeLine}</Text>
-          {!!card.oracleText && (
-            <Text style={styles.oracle} numberOfLines={4}>
-              {card.oracleText}
-            </Text>
-          )}
+          {info && layout && <RowLines layout={layout} info={info} />}
         </View>
-      </View>
-
-      <View style={styles.data}>
-        <Datum label="Maná">
-          <ManaCost cost={card.manaCost} />
-        </Datum>
-        {stats && <Datum label={stats.label} value={stats.value} />}
-        {showPrice && details?.eur != null && <Datum label="Precio" value={formatEur(details.eur)} />}
-        <Datum label="Rareza" value={card.rarity ? (RARITY_LABELS[card.rarity] ?? card.rarity) : '—'} />
-        <Datum label="Tipos" value={types} />
-        {!!subtypes && <Datum label="Subtipos" value={subtypes} />}
       </View>
 
       <OwnedLine
@@ -1427,15 +1448,6 @@ function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag
       />
       <CardIssues issues={issues} />
       <CardControls card={card} actions={actions} crown={crown} />
-    </View>
-  );
-}
-
-function Datum({ label, value, children }: { label: string; value?: string; children?: ReactNode }) {
-  return (
-    <View style={{ flexShrink: 1 }}>
-      <Text style={styles.datumLabel}>{label}</Text>
-      {children ?? <Text style={styles.datumValue}>{value}</Text>}
     </View>
   );
 }
@@ -1577,14 +1589,15 @@ function Draggable({
 /** One card of the gallery view: thumbnail, copies (👑 for commanders) and a ⚠ mark. */
 function GalleryTile({
   card,
-  owned,
+  info,
+  layout,
   invalid,
-  crown,
   onPress,
 }: {
   card: DeckCard;
-  /** Copies in the collection (green: enough, yellow: some, none: none). */
-  owned?: number;
+  /** What the tile's icons show, and where (Ajustes → Cartas y listas). */
+  info: CardInfo;
+  layout: GalleryLayout;
   invalid: boolean;
   crown: boolean;
   onPress: () => void;
@@ -1600,15 +1613,7 @@ function GalleryTile({
           recyclingKey={card.oracleId}
         />
       )}
-      <Text style={styles.badge}>
-        {crown && card.isCommander ? '👑 ' : ''}x{card.quantity}
-      </Text>
-      {invalid && <Text style={styles.warnBadge}>⚠</Text>}
-      {!!owned && (
-        <View style={[styles.ownedBadge, { backgroundColor: owned >= card.quantity ? colors.add : colors.undo }]}>
-          <MaterialCommunityIcons name="package-variant-closed" size={13} color={colors.bg} />
-        </View>
-      )}
+      <TileIcons layout={layout} info={info} />
     </Pressable>
   );
 }

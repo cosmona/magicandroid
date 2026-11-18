@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { galleryFor, listFor, RowLines, TileIcons, type CardInfo } from '@/listLayout';
 import { useRememberedSet } from '@/hooks/useRememberedSet';
 import {
   ActivityIndicator,
@@ -75,7 +76,7 @@ import {
   type DeckCard,
   addCardToMaybe,
 } from '@/db/database';
-import { RARITY_LABELS } from '@/icons';
+
 import { priceTotal, useCardDetails } from '@/hooks/useCardDetails';
 import { notifyWantedChanged, setWanted, useWantedVersion } from '@/hooks/useWanted';
 import { colors, formatEur } from '@/theme';
@@ -513,6 +514,29 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     }
   };
 
+  // Ajustes → Cartas y listas: what the list rows and the gallery tiles show.
+  const listLayout = listFor(prefs, 'collection');
+  const galleryLayout = galleryFor(prefs, 'collection');
+  const infoOf = (card: CollectionCard): CardInfo => {
+    const u = usage[card.oracleId] ?? [];
+    const used = u.reduce((n, x) => n + x.quantity, 0);
+    return {
+      name: card.name,
+      printedName: card.printedName,
+      manaCost: card.manaCost,
+      typeLine: card.typeLine,
+      set: card.setCode,
+      lang: card.lang,
+      rarity: card.rarity,
+      price: showPrices ? details[card.scryfallId]?.eur : null,
+      tags: prefs.showTags === false ? [] : (cardTags[card.oracleId] ?? []).map((t) => tagsByUid[t]).filter(Boolean),
+      quantity: card.quantity,
+      wanted: wantedIds.has(card.scryfallId),
+      decks: prefs.showOwned === false ? [] : u.map((x) => ({ name: x.deckName, quantity: x.quantity })),
+      free: u.length ? (ownedByOracle[card.oracleId] ?? card.quantity) - used : undefined,
+    };
+  };
+
   const header = (
     <View>
       <View style={styles.titleRow}>
@@ -799,10 +823,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                         recyclingKey={card.scryfallId}
                       />
                     )}
-                    <Text style={styles.badge}>{card.quantity > 0 ? `x${card.quantity}` : '♥'}</Text>
-                    {card.quantity > 0 && wantedIds.has(card.scryfallId) && (
-                      <Text style={[styles.badge, { left: 4, right: undefined, color: WANT_COLOR }]}>♥</Text>
-                    )}
+                    <TileIcons layout={galleryLayout} info={infoOf(card)} />
                     {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
                   </Pressable>
                 ))}
@@ -810,7 +831,6 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
             );
           }
           const card = item.card;
-          const price = showPrices ? details[card.scryfallId]?.eur : undefined;
           // Código de colores: wanted and not owned = pink border.
           const tint = prefs.colorCode !== false && card.quantity === 0 && wantedIds.has(card.scryfallId) ? { borderColor: WANT_COLOR } : null;
           return (
@@ -831,40 +851,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                   <Text style={styles.name} numberOfLines={1}>
                     {displayName(card)}
                   </Text>
-                  <Text style={styles.meta} numberOfLines={1}>
-                    {card.setCode.toUpperCase()} · {LANGUAGE_NAMES[card.lang] ?? card.lang}
-                    {card.rarity ? ` · ${RARITY_LABELS[card.rarity] ?? card.rarity}` : ''}
-                    {price != null && <Text style={styles.value}> · {formatEur(price)}</Text>}
-                  </Text>
-                  <Text style={styles.meta} numberOfLines={1}>
-                    {card.typeLine}
-                  </Text>
-                  {prefs.showTags !== false && (cardTags[card.oracleId] ?? []).length > 0 && (
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-                      {(cardTags[card.oracleId] ?? []).map((u) => tagsByUid[u] && <TagChip key={u} tag={tagsByUid[u]} small />)}
-                    </View>
-                  )}
-                  {prefs.showOwned !== false && inDecks.has(card.oracleId) && (() => {
-                    // «En: Krenko (2), Elfos (1) · 1 libre»: which decks use it and how many copies are left over.
-                    const u = usage[card.oracleId] ?? [];
-                    const used = u.reduce((n, x) => n + x.quantity, 0);
-                    const total = ownedByOracle[card.oracleId] ?? card.quantity;
-                    const free = total - used;
-                    return (
-                      <Text style={styles.inDeck} numberOfLines={2}>
-                        En {u.map((x) => `${x.deckName} (${x.quantity})`).join(', ') || 'algún mazo'}
-                        <Text style={{ color: free > 0 ? colors.textMuted : colors.undo }}>
-                          {' · '}
-                          {free > 0 ? `${free} libre${free > 1 ? 's' : ''}` : free === 0 ? 'ninguna libre' : `faltan ${-free}`}
-                        </Text>
-                      </Text>
-                    );
-                  })()}
-                  {wantedIds.has(card.scryfallId) && (
-                    <Text style={[styles.inDeck, { color: WANT_COLOR }]}>
-                      ♥ {card.quantity === 0 ? 'La quieres (no la tienes)' : 'La quieres'}
-                    </Text>
-                  )}
+                  <RowLines layout={listLayout} info={infoOf(card)} />
                 </View>
               </View>
               <CardControlsRow>

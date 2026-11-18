@@ -393,6 +393,13 @@ Si la carta está en algún mazo verás «En algún mazo» en verde. La vista **
 Botón ⚙ de la cabecera:
 
 - **Idioma de las cartas:** las cartas se muestran en ese idioma cuando existen.
+- **Cartas y listas → Elegir datos e iconos** (como en el PC), para el mazo y la colección:
+  - **Lista:** qué datos salen en cada línea de la fila de cada carta (coste, tipo, tipos, subtipos, texto, F/R, edición,
+    idioma, rareza, precio, legalidad, etiquetas, en tu colección, en tus mazos, La quiero…). Toca un dato para moverlo
+    (antes, después, subir o bajar de línea) o quitarlo; **＋** añade otro a esa línea. De 1 a 5 líneas, con vista previa.
+  - **Galería:** dónde va cada icono sobre la carta (copias, en tu colección, La quiero, Posibles, problemas, en algún mazo,
+    precio, rareza, edición, idioma, etiquetas). Toca una casilla de la cuadrícula de 3 × 4 y marca los iconos de esa casilla.
+  - **Restablecer** vuelve a lo de siempre.
 - **Vista del mazo por defecto:** lista, galería, grande o texto.
 - **Etiquetas:** muestra u oculta las etiquetas de las cartas y los mazos en las listas (se pueden seguir poniendo).
 - **Vibración** al añadir y descartar.

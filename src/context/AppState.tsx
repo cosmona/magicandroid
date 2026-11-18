@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import type { GalleryLayout, LayoutPlace, ListLayout } from '@/listLayout';
 import { useSQLiteContext } from 'expo-sqlite';
 import { DEFAULT_FILTERS, type Filters } from '@/api/scryfall';
 import type { DeckGroupBy } from '@/deck/group';
@@ -35,6 +36,9 @@ export interface Prefs {
   deckView: DeckView;
   /** How the deck sheet groups the cards. */
   deckGroup: DeckGroupBy;
+  /** Ajustes → Cartas y listas: the lines of each list view and the icons of each gallery. */
+  listLayout?: Partial<Record<LayoutPlace, ListLayout>>;
+  galleryLayout?: Partial<Record<LayoutPlace, GalleryLayout>>;
   /** Order of the cards inside each group of the deck. */
   deckSort?: DeckSort;
   /** Second level of the deck's grouping ('none' = no subgroups). */
