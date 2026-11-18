@@ -846,53 +846,51 @@ export function DeckSheet() {
 
       <Modal visible={groupMenu} transparent animationType="fade" onRequestClose={() => setGroupMenu(false)}>
         <Pressable style={styles.issuesBackdrop} onPress={() => setGroupMenu(false)}>
-          <Pressable style={styles.groupMenu} onPress={() => {}}>
-            <Text style={styles.groupMenuTitle}>Agrupar por</Text>
-            {DECK_GROUP_OPTIONS.map((o) => (
-              <Pressable
-                key={o.key}
-                style={[styles.groupOption, groupBy === o.key && styles.groupOptionOn]}
-                onPress={() => {
-                  setPrefs({ ...prefs, deckGroup: o.key as DeckGroupBy });
-                  setCollapsed(new Set());
-                  setGroupMenu(false);
-                }}
-              >
-                <MaterialCommunityIcons
-                  name={groupBy === o.key ? 'radiobox-marked' : 'radiobox-blank'}
-                  size={20}
-                  color={groupBy === o.key ? colors.accent : colors.textMuted}
-                />
-                <Text style={styles.groupOptionText}>{o.label}</Text>
-              </Pressable>
-            ))}
-            {groupBy !== 'none' && (
-              <>
-                <Text style={[styles.groupMenuTitle, { marginTop: 10 }]}>Subgrupo</Text>
-                {[{ key: 'none', label: 'Ninguno' }, ...DECK_GROUP_OPTIONS.filter((o) => o.key !== groupBy && o.key !== 'none')].map((o) => (
+          <Pressable style={[styles.groupMenu, { maxHeight: '85%' }]} onPress={() => {}}>
+            <ScrollView contentContainerStyle={{ gap: 8 }}>
+              <Text style={styles.groupMenuTitle}>Agrupar por</Text>
+              <View style={styles.menuGrid}>
+                {DECK_GROUP_OPTIONS.map((o) => (
                   <Pressable
                     key={o.key}
-                    style={[styles.groupOption, subGroupBy === o.key && styles.groupOptionOn]}
+                    style={[styles.menuChip, groupBy === o.key && styles.menuChipOn]}
                     onPress={() => {
-                      setPrefs({ ...prefs, deckSubGroup: o.key as DeckGroupBy });
+                      setPrefs({ ...prefs, deckGroup: o.key as DeckGroupBy });
                       setCollapsed(new Set());
-                      setGroupMenu(false);
+                      if (o.key === 'none') setGroupMenu(false);
                     }}
                   >
-                    <MaterialCommunityIcons
-                      name={subGroupBy === o.key ? 'radiobox-marked' : 'radiobox-blank'}
-                      size={20}
-                      color={subGroupBy === o.key ? colors.accent : colors.textMuted}
-                    />
-                    <Text style={styles.groupOptionText}>{o.label}</Text>
+                    <Text style={[styles.menuChipText, groupBy === o.key && { color: colors.bg }]}>{o.label}</Text>
                   </Pressable>
                 ))}
-              </>
-            )}
-            <Text style={styles.groupMenuHelp}>
-              Toca el título de un grupo para plegarlo. Mantén pulsada una carta y arrástrala abajo para pasarla al
-              banquillo (o del banquillo al mazo).
-            </Text>
+              </View>
+              {groupBy !== 'none' && (
+                <>
+                  <Text style={[styles.groupMenuTitle, { marginTop: 6 }]}>Subgrupo</Text>
+                  <View style={styles.menuGrid}>
+                    {[{ key: 'none', label: 'Ninguno' }, ...DECK_GROUP_OPTIONS.filter((o) => o.key !== groupBy && o.key !== 'none')].map((o) => (
+                      <Pressable
+                        key={o.key}
+                        style={[styles.menuChip, subGroupBy === o.key && styles.menuChipOn]}
+                        onPress={() => {
+                          setPrefs({ ...prefs, deckSubGroup: o.key as DeckGroupBy });
+                          setCollapsed(new Set());
+                        }}
+                      >
+                        <Text style={[styles.menuChipText, subGroupBy === o.key && { color: colors.bg }]}>{o.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
+              <Text style={styles.groupMenuHelp}>
+                Toca el título de un grupo para plegarlo. Mantén pulsada una carta y arrástrala abajo para pasarla al
+                banquillo (o del banquillo al mazo).
+              </Text>
+              <Pressable style={styles.menuDone} onPress={() => setGroupMenu(false)}>
+                <Text style={styles.menuDoneText}>Listo</Text>
+              </Pressable>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -1663,6 +1661,20 @@ const DECK_SORTS: { key: DeckSort; label: string }[] = [
 ];
 
 const styles = StyleSheet.create({
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  menuChip: {
+    flexBasis: '30%',
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  menuChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  menuChipText: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  menuDone: { marginTop: 4, alignItems: 'center', paddingVertical: 11, borderRadius: 10, backgroundColor: colors.accent },
+  menuDoneText: { color: colors.bg, fontWeight: '900', fontSize: 15 },
   issuesIcon: {
     flexDirection: 'row',
     alignItems: 'center',

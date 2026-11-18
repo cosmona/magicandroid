@@ -650,39 +650,48 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
       <Modal visible={groupMenu} transparent animationType="fade" onRequestClose={() => setGroupMenu(false)}>
         <Pressable style={styles.menuBackdrop} onPress={() => setGroupMenu(false)}>
           <Pressable style={styles.menuBox} onPress={() => {}}>
-            <Text style={styles.menuTitle}>Agrupar por</Text>
-            {GROUPINGS.filter((g) => showPrices || g !== 'price').map((g) => (
-              <Pressable
-                key={g}
-                style={styles.menuOption}
-                onPress={() => {
-                  setGroupBy(g);
-                  setCollapsed(new Set());
-                }}
-              >
-                <MaterialCommunityIcons name={groupBy === g ? 'radiobox-marked' : 'radiobox-blank'} size={20} color={groupBy === g ? colors.accent : colors.textMuted} />
-                <Text style={styles.menuText}>{GROUP_LABELS[g]}</Text>
-              </Pressable>
-            ))}
-            {effectiveGroup !== 'none' && (
-              <>
-                <Text style={[styles.menuTitle, { marginTop: 10 }]}>Subgrupo</Text>
-                {GROUPINGS.filter((g) => g !== effectiveGroup && (showPrices || g !== 'price')).map((g) => (
+            <ScrollView contentContainerStyle={{ gap: 8 }}>
+              <Text style={styles.menuTitle}>Agrupar por</Text>
+              <View style={styles.menuGrid}>
+                {GROUPINGS.filter((g) => showPrices || g !== 'price').map((g) => (
                   <Pressable
                     key={g}
-                    style={styles.menuOption}
+                    style={[styles.menuChip, groupBy === g && styles.menuChipOn]}
                     onPress={() => {
-                      setSubGroupBy(g);
+                      setGroupBy(g);
                       setCollapsed(new Set());
-                      setGroupMenu(false);
+                      if (g === 'none') setGroupMenu(false);
                     }}
                   >
-                    <MaterialCommunityIcons name={effectiveSub === g ? 'radiobox-marked' : 'radiobox-blank'} size={20} color={effectiveSub === g ? colors.accent : colors.textMuted} />
-                    <Text style={styles.menuText}>{g === 'none' ? 'Ninguno' : GROUP_LABELS[g]}</Text>
+                    <Text style={[styles.menuChipText, groupBy === g && { color: colors.bg }]}>{GROUP_LABELS[g]}</Text>
                   </Pressable>
                 ))}
-              </>
-            )}
+              </View>
+              {effectiveGroup !== 'none' && (
+                <>
+                  <Text style={[styles.menuTitle, { marginTop: 6 }]}>Subgrupo</Text>
+                  <View style={styles.menuGrid}>
+                    {GROUPINGS.filter((g) => g !== effectiveGroup && (showPrices || g !== 'price')).map((g) => (
+                      <Pressable
+                        key={g}
+                        style={[styles.menuChip, effectiveSub === g && styles.menuChipOn]}
+                        onPress={() => {
+                          setSubGroupBy(g);
+                          setCollapsed(new Set());
+                        }}
+                      >
+                        <Text style={[styles.menuChipText, effectiveSub === g && { color: colors.bg }]}>
+                          {g === 'none' ? 'Ninguno' : GROUP_LABELS[g]}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
+              <Pressable style={styles.menuDone} onPress={() => setGroupMenu(false)}>
+                <Text style={styles.menuDoneText}>Listo</Text>
+              </Pressable>
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -1020,7 +1029,21 @@ const styles = StyleSheet.create({
   },
   tagChips: { gap: 6, paddingHorizontal: 16, paddingBottom: 6, alignItems: 'center' },
   menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  menuBox: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, gap: 2, borderWidth: 1, borderColor: colors.border },
+  menuBox: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border, maxHeight: '85%' },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  menuChip: {
+    flexBasis: '30%',
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  menuChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  menuChipText: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  menuDone: { marginTop: 8, alignSelf: 'stretch', alignItems: 'center', paddingVertical: 11, borderRadius: 10, backgroundColor: colors.accent },
+  menuDoneText: { color: colors.bg, fontWeight: '900', fontSize: 15 },
   menuTitle: { color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 4 },
   menuOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   menuText: { color: colors.text, fontSize: 15 },
