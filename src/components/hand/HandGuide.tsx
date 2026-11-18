@@ -1,11 +1,12 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors } from '@/theme';
 
 /** One card of the drawn fan: tilted around its bottom, its title highlighted. */
 function FanCard({ angle, offset }: { angle: number; offset: number }) {
   return (
-    <View style={[styles.fanCard, { transform: [{ translateX: offset }, { translateY: 40 }, { rotate: `${angle}deg` }, { translateY: -40 }] }]}>
+    <View style={[styles.fanCard, { transformOrigin: '50% 100%', transform: [{ translateX: offset }, { rotate: `${angle}deg` }] }]}>
       <View style={styles.fanTitle} />
       <View style={styles.fanArt} />
       <View style={styles.fanLine} />
@@ -33,8 +34,8 @@ function StandDrawing() {
       </View>
       <View style={styles.cardsSide} />
       <View style={styles.table} />
-      <Text style={[styles.tag, { left: 6, top: 4 }]}>Móvil en el soporte</Text>
-      <Text style={[styles.tag, { right: 6, bottom: 22 }]}>Tu mano</Text>
+      <Text style={[styles.tag, { left: 130, top: 8 }]}>Móvil en el soporte</Text>
+      <Text style={[styles.tag, { right: 14, top: 70 }]}>Tu mano</Text>
       <Text style={[styles.tag, { left: '38%', bottom: 22 }]}>30–40 cm</Text>
     </View>
   );
@@ -45,8 +46,8 @@ function FanDrawing() {
   return (
     <View style={[styles.scene, { alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 10 }]}>
       <View style={{ width: 200, height: 130, alignItems: 'center', justifyContent: 'flex-end' }}>
-        {[-24, -12, 0, 12, 24].map((a, i) => (
-          <FanCard key={a} angle={a} offset={(i - 2) * 14} />
+        {[-30, -15, 0, 15, 30].map((a, i) => (
+          <FanCard key={a} angle={a} offset={(i - 2) * 10} />
         ))}
       </View>
       <View style={styles.titleNote}>
@@ -69,7 +70,7 @@ const TIPS: [string, string][] = [
 export function HandGuide({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.screen}>
+      <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
         <ScrollView contentContainerStyle={styles.body}>
           <View style={styles.beta}>
             <Text style={styles.betaText}>BETA</Text>
@@ -96,7 +97,7 @@ export function HandGuide({ visible, onClose }: { visible: boolean; onClose: () 
         <Pressable style={styles.ok} onPress={onClose} accessibilityRole="button">
           <Text style={styles.okText}>Entendido</Text>
         </Pressable>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
