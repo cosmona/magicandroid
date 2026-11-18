@@ -96,8 +96,9 @@ Para corregir una decisión, abre el **historial** y toca la carta: vuelves a el
 
 ### Los botones del lateral
 
-A la derecha de la carta, a mano del pulgar (la flecha **›** de arriba los oculta y la carta usa todo el ancho; la
-pestaña **‹** del borde los vuelve a mostrar):
+A la derecha de la carta, a mano del pulgar. Están ocultos para dejar la carta entera: **desliza a la izquierda la
+pestaña ‹** del lado derecho (o tócala) para sacarlos. Se esconden solos a los 4 segundos, al deslizarlos a la derecha
+o al usar uno. La pestaña está un poco separada del borde para no activar el gesto «atrás» de Android.
 
 - **♡ La quiero:** apunta esta versión (edición e idioma) para conseguirla; relleno si ya la quieres y con «Otra» si
   quieres otra versión.

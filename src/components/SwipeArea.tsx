@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, PanResponder, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -22,13 +22,13 @@ import { addCardToDeck, addCardToMaybe, changeMaybeQuantity, changeQuantity, get
 import { useCardQueue } from '@/hooks/useCardQueue';
 import { colors } from '@/theme';
 
-/** Width kept on the right of the card for the rail of buttons. */
-const RAIL_ROOM = 50;
+/** The side rail closes by itself after this long without touching it. */
+const RAIL_AUTO_HIDE_MS = 4000;
 
 /** Card stack in the middle of the screen (the web's Deck view): right = add, left = discard. */
 export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const db = useSQLiteContext();
-  const { ready, filters, ensureActiveDeck, refresh, prefs, setPrefs, activeDeck, activeCards, activeMaybe } = useAppState();
+  const { ready, filters, ensureActiveDeck, refresh, prefs, activeDeck, activeCards, activeMaybe } = useAppState();
   // «Solo en mi colección»: your cards (Scryfall data of each printing, cached) with the filters applied on the phone.
   const queue = useCardQueue(filters, ready, prefs.language, async (f) => {
     const rows = await getCollection(db, 'paper');
@@ -126,16 +126,46 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     else queue.back();
   };
 
-  // The side rail can be hidden (the card then takes the whole width); remembered.
-  const railHidden = !!prefs.swipeRailHidden;
-  const toggleRail = () => setPrefs({ ...prefs, swipeRailHidden: !railHidden });
+  // The side rail: hidden until you swipe left from the right edge (or tap its tab); it closes by
+  // itself after a while, with a swipe to the right, or when one of its buttons is used.
+  const [railOpen, setRailOpen] = useState(false);
+  const [railTouch, setRailTouch] = useState(0);
+  const [slide] = useState(() => new Animated.Value(1));
+  useEffect(() => {
+    Animated.timing(slide, { toValue: railOpen ? 0 : 1, duration: 180, useNativeDriver: true }).start();
+    if (!railOpen) return;
+    const t = setTimeout(() => setRailOpen(false), RAIL_AUTO_HIDE_MS);
+    return () => clearTimeout(t);
+  }, [railOpen, railTouch, slide]);
+  const [edgePan] = useState(() =>
+    PanResponder.create({
+      // Only a horizontal drag to the left from the edge (a tap goes to the tab).
+      onMoveShouldSetPanResponder: (_, g) => g.dx < -8 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderRelease: (_, g) => {
+        if (g.dx < -24) setRailOpen(true);
+      },
+    }),
+  );
+  const [railPan] = useState(() =>
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => g.dx > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderRelease: (_, g) => {
+        if (g.dx > 24) setRailOpen(false);
+      },
+    }),
+  );
+  /** A rail button: does its thing and closes the rail. */
+  const railAction = (fn: () => void) => () => {
+    fn();
+    setRailOpen(false);
+  };
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     setArea({ width, height });
   };
   // Room on the right for the side rail of buttons (when shown).
-  const cardWidth = area.width ? Math.min(area.width - 32 - (railHidden ? 0 : RAIL_ROOM), (area.height - 10) / CARD_RATIO) : 0;
+  const cardWidth = area.width ? Math.min(area.width - 32, (area.height - 10) / CARD_RATIO) : 0;
   const cardSize = { width: cardWidth, height: cardWidth * CARD_RATIO };
 
   const card = queue.current;
@@ -190,34 +220,46 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
         </View>
       )}
       <View style={styles.cardArea} onLayout={onLayout}>
-        <View style={[styles.cardSlot, { paddingRight: railHidden ? 0 : RAIL_ROOM }]}>
+        <View style={styles.cardSlot}>
         {cardSize.width > 0 && body}
         </View>
-        {card && railHidden && (
-          // Hidden: just a small tab to bring the buttons back.
-          <HintButton hint="Mostrar los botones" onPress={toggleRail} style={styles.railTab} hitSlop={8}>
-            <MaterialCommunityIcons name="chevron-left" size={22} color={colors.text} />
-          </HintButton>
+        {card && (
+          // The tab near the right edge: swipe it left (or tap it) to bring the buttons.
+          <View style={styles.edge} {...edgePan.panHandlers}>
+            {!railOpen && (
+              <HintButton hint="Mostrar los botones (o desliza desde el borde)" onPress={() => setRailOpen(true)} style={styles.railTab} hitSlop={8}>
+                <MaterialCommunityIcons name="chevron-left" size={20} color={colors.text} />
+              </HintButton>
+            )}
+          </View>
         )}
-        {card && !railHidden && (
+        {card && (
           // Everything about the card at a thumb's reach, over its right edge.
-          <View style={styles.rail}>
-            <HintButton hint="Ocultar los botones" onPress={toggleRail} style={styles.railHide} hitSlop={8}>
-              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
-            </HintButton>
-            <WantRailButton card={card} />
-            <View style={styles.railItem}>
+          <Animated.View
+            pointerEvents={railOpen ? 'auto' : 'none'}
+            style={[
+              styles.rail,
+              { opacity: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
+              { transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 70] }) }] },
+            ]}
+            onTouchStart={() => setRailTouch((n) => n + 1)}
+            {...railPan.panHandlers}
+          >
+            <View onTouchEnd={() => setTimeout(() => setRailOpen(false), 250)}>
+              <WantRailButton card={card} />
+            </View>
+            <View style={styles.railItem} onTouchEnd={() => setRailOpen(false)}>
               <OwnRoundButton card={card} size={42} />
               <Text style={styles.railLabel}>La tengo</Text>
             </View>
-            <RailButton icon="information-outline" hint="Ficha completa (todo lo de Scryfall)" label="Ficha" onPress={() => setOpen('info')} />
-            <RailButton icon="puzzle-outline" hint="Sinergias y combos de la carta" label="Sinergias" onPress={() => setOpen('synergy')} />
+            <RailButton icon="information-outline" hint="Ficha completa (todo lo de Scryfall)" label="Ficha" onPress={railAction(() => setOpen('info'))} />
+            <RailButton icon="puzzle-outline" hint="Sinergias y combos de la carta" label="Sinergias" onPress={railAction(() => setOpen('synergy'))} />
             {card.backImageUrl && (
-              <RailButton icon="rotate-3d-variant" hint="Ver la otra cara" label="Girar" active={showBack} onPress={() => setShowBack((b) => !b)} />
+              <RailButton icon="rotate-3d-variant" hint="Ver la otra cara" label="Girar" active={showBack} onPress={railAction(() => setShowBack((b) => !b))} />
             )}
-            <RailButton icon="translate" hint="Idioma de la carta" label={card.lang.toUpperCase()} small onPress={() => setPicker('language')} />
-            <RailButton icon="palette-outline" hint="Otras artes de la carta" label="Arte" small onPress={() => setPicker('art')} />
-          </View>
+            <RailButton icon="translate" hint="Idioma de la carta" label={card.lang.toUpperCase()} small onPress={railAction(() => setPicker('language'))} />
+            <RailButton icon="palette-outline" hint="Otras artes de la carta" label="Arte" small onPress={railAction(() => setPicker('art'))} />
+          </Animated.View>
         )}
       </View>
       {card && (
@@ -449,20 +491,16 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 14, paddingVertical: 8 },
   rail: { position: 'absolute', right: 6, top: 0, bottom: 0, justifyContent: 'center', gap: 8 },
   railItem: { alignItems: 'center', gap: 2 },
-  railHide: { alignSelf: 'center', width: 30, height: 22, alignItems: 'center', justifyContent: 'center' },
+  // Away from the screen edge: Android's «back» gesture starts there.
+  edge: { position: 'absolute', right: 18, top: '35%', height: 120, width: 34, justifyContent: 'center', alignItems: 'flex-end' },
   railTab: {
-    position: 'absolute',
-    right: 0,
-    top: '45%',
     width: 26,
-    height: 54,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
+    height: 64,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(20,16,28,0.82)',
     borderWidth: 1,
-    borderRightWidth: 0,
     borderColor: colors.border,
   },
   railLabel: { color: colors.text, fontSize: 10, fontWeight: '800', textShadowColor: '#000', textShadowRadius: 4 },
