@@ -492,6 +492,12 @@ pantalla no se apaga.
 - **Quién hace el daño:** con 3 o más jugadores, el lado **−** se parte en un botón por rival, con su color y su nombre
   (y «Otro» para lo demás): toca el del jugador que te hace el daño. Con 2 jugadores se sobreentiende que es el otro.
   El lado **＋** es un solo botón.
+- **Turnos y fases** (menú ⚙ → Pantalla → Turnos y fases): entre las dos filas sale una barra con de quién es el
+  turno (en su color), el turno, la ronda y su tiempo, y la fase o el paso en que estáis (Inicio: enderezar,
+  mantenimiento, robar · Principal 1 · Combate: inicio, atacantes, bloqueos, daño, final · Principal 2 · Final: paso
+  final, limpieza), con un punto por cada uno. **▶** (o tocar la fase) avanza; tras la limpieza pasa al siguiente
+  jugador. **⏭** pasa el turno; mantenlo pulsado para quitar los turnos. El ⚙ del menú pasa a esa barra y el recuadro
+  del jugador del turno se marca en blanco. Las estadísticas suman los turnos de cada uno y su duración media.
 - **Estadísticas de la partida:** cuando solo queda un jugador sale «Fin de la partida»: el ganador, cuánto ha durado,
   el daño total, premios (más daño hecho, golpe más fuerte, el más castigado, más vida ganada, daño de comandante),
   los números de cada jugador (vidas, daño hecho y recibido, comandante, vida ganada, mínimo, golpe mayor, veneno,

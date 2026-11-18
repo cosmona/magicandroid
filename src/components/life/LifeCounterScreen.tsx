@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, type LayoutChangeEvent } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Directory, File, Paths } from 'expo-file-system';
@@ -33,6 +33,11 @@ import {
   setEffect,
   setPhoto,
   setShow,
+  nextPhase,
+  nextTurn,
+  prevPhase,
+  startTurns,
+  stopTurns,
   SHOW_OPTIONS,
   winnerOf,
   type LifeEffects,
@@ -46,6 +51,7 @@ import {
 } from '@/life/game';
 import { colors } from '@/theme';
 import { GameStatsModal } from '@/components/life/GameStats';
+import { TurnBar } from '@/components/life/TurnBar';
 
 const KEEP_AWAKE_TAG = 'life-counter';
 /** The time of a change (for the game's statistics). */
@@ -107,6 +113,7 @@ export function LifeCounterScreen() {
   const rotatedIndexes = new Set(rows[0]);
   const winner = winnerOf(game);
   const count = game.players.length;
+  const turnsOn = settings.show.turns;
   // The game's statistics: by themselves when only one is left (once per game), and from the menu.
   const [statsOpen, setStatsOpen] = useState(false);
   const statsShownFor = useRef<string | null>(null);
@@ -132,7 +139,27 @@ export function LifeCounterScreen() {
   return (
     <View style={[styles.screen, { paddingBottom: insets.bottom + 6 }]}>
       {rows.map((row, r) => (
-        <View key={r} style={styles.row}>
+        <Fragment key={r}>
+        {/* Turns: a strip between the two rows (readable from both sides of the table). */}
+        {r === 1 && turnsOn && (
+          <TurnBar
+            game={game}
+            first={first}
+            onStart={(p) => setGame((g) => startTurns(g, p, now()))}
+            onNext={() => {
+              buzz();
+              setGame((g) => nextPhase(g, now()));
+            }}
+            onPrev={() => setGame((g) => prevPhase(g))}
+            onPass={() => {
+              buzz();
+              setGame((g) => nextTurn(g, now()));
+            }}
+            onStop={() => setGame((g) => stopTurns(g))}
+            onMenu={() => setMenuOpen(true)}
+          />
+        )}
+        <View style={styles.row}>
           {row.map((i) => (
             <PlayerPanel
               key={i}
@@ -143,6 +170,7 @@ export function LifeCounterScreen() {
               rotated={r === 0}
               first={first === i}
               winner={winner === i}
+              turn={turnsOn && game.turn?.player === i}
               onLife={(delta, from) => lifeChange(i, delta, from)}
               onOpen={() => setDetail(i)}
               event={events[i]}
@@ -158,8 +186,10 @@ export function LifeCounterScreen() {
             />
           ))}
         </View>
+        </Fragment>
       ))}
 
+      {!turnsOn && (
       <Pressable
         style={({ pressed }) => [styles.menuButton, pressed && { opacity: 0.7 }]}
         onPress={() => setMenuOpen(true)}
@@ -168,6 +198,7 @@ export function LifeCounterScreen() {
       >
         <MaterialCommunityIcons name="cog-outline" size={26} color={colors.bg} />
       </Pressable>
+      )}
 
       {detail !== null && game.players[detail] && (
         <PlayerDetail
@@ -234,11 +265,14 @@ function PlayerPanel({
   rotated,
   first,
   winner,
+  turn,
   onLife,
   onOpen,
   event,
   onCommander,
 }: {
+  /** It's this player's turn (turn controller). */
+  turn?: boolean;
   index: number;
   player: Player;
   players: Player[];
@@ -296,7 +330,7 @@ function PlayerPanel({
 
   return (
     <View
-      style={[styles.panel, { backgroundColor: PLAYER_COLORS[player.color] }, rotated && styles.rotated, danger && styles.danger]}
+      style={[styles.panel, { backgroundColor: PLAYER_COLORS[player.color] }, rotated && styles.rotated, danger && styles.danger, turn && styles.turn]}
       onLayout={(e: LayoutChangeEvent) => setSize(e.nativeEvent.layout)}
     >
       <Animated.View
@@ -1080,6 +1114,7 @@ const styles = StyleSheet.create({
   boothFrame: { width: 280, height: 280, borderRadius: 140, overflow: 'hidden', borderWidth: 4, alignItems: 'center', justifyContent: 'center' },
   boothCount: { color: '#fff', fontSize: 110, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 18 },
   danger: { borderWidth: 3, borderColor: 'rgba(255,70,70,0.9)' },
+  turn: { borderWidth: 3, borderColor: '#fff' },
   segments: { flex: 1, gap: 3, paddingTop: 5, paddingBottom: 70 },
   segment: { flex: 1, borderRadius: 10, justifyContent: 'center', paddingHorizontal: 8 },
   segmentInner: { flexDirection: 'row', alignItems: 'center', gap: 4 },

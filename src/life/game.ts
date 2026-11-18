@@ -29,7 +29,88 @@ export interface LifeGame {
   startedAt?: number;
   /** Everything that happened, in order (for the statistics at the end). */
   log?: LifeEvent[];
+  /** The turn controller: whose turn, which one and which phase (when it's on). */
+  turn?: TurnState;
 }
+
+/** The phases and steps of a Magic turn, in order. */
+export const PHASES: { key: string; label: string; short: string; group: string; hint: string }[] = [
+  { key: 'untap', label: 'Enderezar', short: 'Enderezar', group: 'Inicio', hint: 'Endereza tus permanentes. Nadie recibe prioridad.' },
+  { key: 'upkeep', label: 'Mantenimiento', short: 'Mantenim.', group: 'Inicio', hint: 'Se disparan las habilidades «al comienzo de tu mantenimiento».' },
+  { key: 'draw', label: 'Robar', short: 'Robar', group: 'Inicio', hint: 'Roba una carta (el primer jugador no roba en su primer turno).' },
+  { key: 'main1', label: 'Fase principal 1', short: 'Principal 1', group: 'Principal 1', hint: 'Juega una tierra, criaturas, conjuros y lo que quieras.' },
+  { key: 'combat', label: 'Inicio del combate', short: 'Inicio', group: 'Combate', hint: 'Último momento para actuar antes de atacar.' },
+  { key: 'attackers', label: 'Declarar atacantes', short: 'Atacantes', group: 'Combate', hint: 'Elige qué criaturas atacan y a quién; se giran.' },
+  { key: 'blockers', label: 'Declarar bloqueadores', short: 'Bloqueos', group: 'Combate', hint: 'Los defensores eligen cómo bloquear.' },
+  { key: 'damage', label: 'Daño de combate', short: 'Daño', group: 'Combate', hint: 'Las criaturas hacen su daño (primero las de daña primero).' },
+  { key: 'endCombat', label: 'Final del combate', short: 'Final', group: 'Combate', hint: 'Se disparan las habilidades «al final del combate».' },
+  { key: 'main2', label: 'Fase principal 2', short: 'Principal 2', group: 'Principal 2', hint: 'Otra fase principal: tierra (si no la jugaste), hechizos…' },
+  { key: 'end', label: 'Paso final', short: 'Final', group: 'Final', hint: 'Se disparan las habilidades «al comienzo del paso final».' },
+  { key: 'cleanup', label: 'Limpieza', short: 'Limpieza', group: 'Final', hint: 'Descarta hasta 7 cartas; se quita el daño de las criaturas.' },
+];
+/** The groups of phases, in order (Inicio, Principal 1, Combate, Principal 2, Final). */
+export const PHASE_GROUPS = [...new Set(PHASES.map((p) => p.group))];
+
+export interface TurnState {
+  /** Whose turn it is. */
+  player: number;
+  /** Turn number (1, 2, 3… one per player's turn). */
+  number: number;
+  /** Index in PHASES. */
+  phase: number;
+  /** When this turn started (ms). */
+  startedAt: number;
+  /** Turns already played: who and how long (for the statistics). */
+  history: { player: number; ms: number }[];
+}
+
+/** Starts the turns with `player` (turn 1, untap step). */
+export const startTurns = (game: LifeGame, player: number, at: number): LifeGame => ({
+  ...game,
+  turn: { player, number: 1, phase: 0, startedAt: at, history: [] },
+});
+export const stopTurns = (game: LifeGame): LifeGame => ({ ...game, turn: undefined });
+
+/** The next player still in the game after `from`. */
+function nextAlive(game: LifeGame, from: number): number {
+  const n = game.players.length;
+  for (let k = 1; k <= n; k++) {
+    const i = (from + k) % n;
+    if (!lossReason(game.players[i])) return i;
+  }
+  return (from + 1) % n;
+}
+
+/** Ends the turn: the next player (still in the game) starts at «Enderezar». */
+export function nextTurn(game: LifeGame, at: number): LifeGame {
+  const t = game.turn;
+  if (!t) return game;
+  return {
+    ...game,
+    turn: {
+      player: nextAlive(game, t.player),
+      number: t.number + 1,
+      phase: 0,
+      startedAt: at,
+      history: [...t.history, { player: t.player, ms: Math.max(0, at - t.startedAt) }],
+    },
+  };
+}
+
+/** Next phase / step (after «Limpieza», the next player's turn). */
+export function nextPhase(game: LifeGame, at: number): LifeGame {
+  const t = game.turn;
+  if (!t) return game;
+  return t.phase >= PHASES.length - 1 ? nextTurn(game, at) : { ...game, turn: { ...t, phase: t.phase + 1 } };
+}
+
+/** Back one phase (not into the previous turn). */
+export const prevPhase = (game: LifeGame): LifeGame =>
+  game.turn && game.turn.phase > 0 ? { ...game, turn: { ...game.turn, phase: game.turn.phase - 1 } } : game;
+
+/** Straight to a phase of the current turn. */
+export const goToPhase = (game: LifeGame, phase: number): LifeGame =>
+  game.turn ? { ...game, turn: { ...game.turn, phase: Math.max(0, Math.min(PHASES.length - 1, phase)) } } : game;
 
 /** One change during the game: life (−/+), commander damage or poison of `player`, caused by `from`. */
 export interface LifeEvent {
@@ -54,6 +135,8 @@ export interface LifeShow {
   commander: boolean;
   /** Poison counter on the bottom button. */
   poison: boolean;
+  /** The turn controller (whose turn and the phases of Magic). */
+  turns: boolean;
 }
 
 /** Effects (Partida → Efectos). */
@@ -82,7 +165,7 @@ export interface LifeSettings {
 }
 
 export const DEFAULT_LIFE_SETTINGS: LifeSettings = {
-  show: { name: true, delta: true, steps: true, sources: true, commander: true, poison: true },
+  show: { name: true, delta: true, steps: true, sources: true, commander: true, poison: true, turns: false },
   effects: { photos: false, flash: true, shake: false, floating: true, heartbeat: true, skull: true, confetti: true, sound: false },
 };
 
@@ -93,6 +176,7 @@ export const SHOW_OPTIONS: { key: keyof LifeShow; label: string; hint: string }[
   { key: 'sources', label: 'Quién hace el daño', hint: 'Con 3 o más jugadores, los lados − / ＋ se parten en un botón por jugador, con su color.' },
   { key: 'commander', label: 'Daño de comandante', hint: 'Una píldora por rival con − / ＋.' },
   { key: 'poison', label: 'Veneno', hint: 'El contador de veneno en el botón de abajo.' },
+  { key: 'turns', label: 'Turnos y fases', hint: 'De quién es el turno, el número de turno y las fases de Magic (enderezar, mantenimiento, robar, principal, combate…), con su tiempo.' },
 ];
 
 export const EFFECT_OPTIONS: { key: keyof LifeEffects; label: string; hint: string; icon: string }[] = [
@@ -226,6 +310,9 @@ export interface PlayerStats {
   highest: number;
   /** The biggest single hit received (taps a moment apart count as one). */
   biggestHit: number;
+  /** Turns played and their average length (ms), with the turn controller. */
+  turns: number;
+  avgTurn: number;
   /** Order of elimination (1 = first out), and who dealt the last damage. */
   outOrder?: number;
   outAt?: number;
@@ -240,6 +327,8 @@ export interface GameStats {
   dealt: number[][];
   winner: number | null;
   events: number;
+  /** Turns played (with the turn controller). */
+  turns: number;
 }
 
 /** The game's statistics, from its log (replayed from the starting life). */
@@ -258,7 +347,15 @@ export function gameStats(game: LifeGame): GameStats {
     lowest: game.startingLife,
     highest: game.startingLife,
     biggestHit: 0,
+    turns: 0,
+    avgTurn: 0,
   }));
+  for (const h of game.turn?.history ?? []) {
+    const s = players[h.player];
+    if (!s) continue;
+    s.avgTurn = (s.avgTurn * s.turns + h.ms) / (s.turns + 1);
+    s.turns += 1;
+  }
   const dealt = game.players.map(() => game.players.map(() => 0));
   const lastHit: { at: number; amount: number; from?: number }[] = game.players.map(() => ({ at: 0, amount: 0 }));
   let outCount = 0;
@@ -308,7 +405,7 @@ export function gameStats(game: LifeGame): GameStats {
   const first = game.startedAt ?? log[0]?.at ?? 0;
   const last = log.length ? log[log.length - 1].at : first;
   void n;
-  return { duration: Math.max(0, last - first), players, dealt, winner: winnerOf(game), events: log.length };
+  return { duration: Math.max(0, last - first), players, dealt, winner: winnerOf(game), events: log.length, turns: game.turn?.history.length ?? 0 };
 }
 
 export const renamePlayer = (game: LifeGame, index: number, name: string) =>

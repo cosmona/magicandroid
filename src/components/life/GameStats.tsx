@@ -67,6 +67,7 @@ export function GameStatsModal({ game, onClose, onNewGame }: { game: LifeGame; o
             )}
             <View style={styles.facts}>
               <Fact value={formatDuration(st.duration)} label="de partida" />
+              {st.turns > 0 && <Fact value={String(st.turns)} label="turnos" />}
               <Fact value={String(st.players.reduce((n, s) => n + s.damageTaken, 0))} label="de daño en total" />
             </View>
           </View>
@@ -110,6 +111,8 @@ export function GameStatsModal({ game, onClose, onNewGame }: { game: LifeGame; o
                   <Cell label="Mínimo" value={s.lowest} />
                   <Cell label="Golpe mayor" value={s.biggestHit} />
                   <Cell label="Veneno" value={s.poison} />
+                  {st.turns > 0 && <Cell label="Turnos" value={s.turns} />}
+                  {st.turns > 0 && <Cell label="Seg./turno" value={Math.round(s.avgTurn / 1000)} />}
                 </View>
               </View>
             );
