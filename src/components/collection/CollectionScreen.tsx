@@ -84,7 +84,7 @@ import { colors, formatEur } from '@/theme';
 /** Color of «La quiero» (hearts). */
 const WANT_COLOR = '#ff7a9c';
 
-type CollectionView = 'list' | 'gallery';
+type CollectionView = 'list' | 'gallery' | 'big' | 'text';
 const GROUPINGS: GroupBy[] = ['none', 'color', 'type', 'subtype', 'set', 'rarity', 'cost', 'price', 'lang', 'copies', 'deck', 'tag'];
 const GALLERY_COLUMNS = 3;
 
@@ -107,7 +107,7 @@ const cardKey = (c: CollectionCard) => c.scryfallId;
 
 export function CollectionScreen({ search }: { search?: { q: string; t: string } } = {}) {
   const db = useSQLiteContext();
-  const { prefs, ensureActiveDeck, refresh, decks, setActiveDeckId } = useAppState();
+  const { prefs, setPrefs, ensureActiveDeck, refresh, decks, setActiveDeckId } = useAppState();
   // A deck seen from the collection (null = all your cards); choosing one makes it the active deck.
   const [viewDeckId, setViewDeckId] = useState<number | null>(null);
   const [viewDeckCards, setViewDeckCards] = useState<DeckCard[]>([]);
@@ -139,7 +139,9 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     setSearchKey(`${search.q}|${search.t}`);
     setQuery(search.q);
   }
-  const [view, setView] = useState<CollectionView>('list');
+  // The view (like the deck's: list, gallery, big, text), remembered.
+  const view: CollectionView = prefs.collectionView ?? 'list';
+  const setView = (v: CollectionView) => setPrefs({ ...prefs, collectionView: v });
   const [remote, setRemote] = useState<{ q: string; cards: Card[]; loading: boolean }>({
     q: '',
     cards: [],
@@ -309,7 +311,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
       if (groupBy !== 'none') out.push({ type: 'header', key: `h:${group.key}`, group, collapsed: isCollapsed });
       if (isCollapsed) continue;
       const put = (list: CollectionCard[], prefix: string) => {
-        if (view === 'list') {
+        if (view !== 'gallery') {
           for (const card of list) out.push({ type: 'card', key: `${prefix}:${card.scryfallId}`, card });
         } else {
           for (let i = 0; i < list.length; i += GALLERY_COLUMNS) {
@@ -611,12 +613,11 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
             pressed && { opacity: 0.6 },
           ]}
           onPress={() => setFiltering(true)}
+          accessibilityLabel={filterCount ? `Filtros (${filterCount})` : 'Filtros'}
           accessibilityRole="button"
         >
           <MaterialCommunityIcons name="filter-variant" size={18} color={filterCount ? colors.bg : colors.accent} />
-          <Text style={[styles.filterText, filterCount > 0 && { color: colors.bg }]}>
-            Filtros{filterCount ? ` · ${filterCount}` : ''}
-          </Text>
+          {filterCount > 0 && <Text style={[styles.filterText, { color: colors.bg }]}>{filterCount}</Text>}
         </Pressable>
         <Pressable
           style={[styles.toolChip, onlyWanted && { borderColor: WANT_COLOR }]}
@@ -634,6 +635,16 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         >
           <MaterialCommunityIcons name="checkbox-multiple-marked-outline" size={19} color={sel.selecting ? colors.bg : colors.textMuted} />
         </Pressable>
+        {effectiveGroup !== 'none' && (
+          // One button: closes every group, or opens them all if any is closed.
+          <Pressable
+            style={styles.toolIcon}
+            onPress={() => setCollapsed(collapsed.size ? new Set() : new Set(groups.map((g) => g.key)))}
+            accessibilityLabel={collapsed.size ? 'Abrir todos los grupos' : 'Cerrar todos los grupos'}
+          >
+            <MaterialCommunityIcons name={collapsed.size ? 'unfold-more-horizontal' : 'unfold-less-horizontal'} size={19} color={colors.textMuted} />
+          </Pressable>
+        )}
         <Pressable
           style={[styles.toolIcon, effectiveGroup !== 'none' && styles.groupChipOn]}
           onPress={() => setGroupMenu(true)}
@@ -642,14 +653,14 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           <MaterialCommunityIcons name="format-list-group" size={19} color={effectiveGroup !== 'none' ? colors.bg : colors.textMuted} />
         </Pressable>
         <View style={styles.viewSwitch}>
-          {(['list', 'gallery'] as const).map((v) => (
+          {VIEWS.map((v) => (
             <Pressable
-              key={v}
-              style={[styles.viewOption, view === v && styles.viewOptionSelected]}
-              onPress={() => setView(v)}
-              accessibilityLabel={v === 'list' ? 'Lista' : 'Galería'}
+              key={v.key}
+              style={[styles.viewOption, view === v.key && styles.viewOptionSelected]}
+              onPress={() => setView(v.key)}
+              accessibilityLabel={v.label}
             >
-              <MaterialCommunityIcons name={v === 'list' ? 'view-list' : 'view-grid'} size={17} color={view === v ? colors.bg : colors.textMuted} />
+              <MaterialCommunityIcons name={v.icon} size={17} color={view === v.key ? colors.bg : colors.textMuted} />
             </Pressable>
           ))}
         </View>
@@ -833,27 +844,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           const card = item.card;
           // Código de colores: wanted and not owned = pink border.
           const tint = prefs.colorCode !== false && card.quantity === 0 && wantedIds.has(card.scryfallId) ? { borderColor: WANT_COLOR } : null;
-          return (
-            <View style={[styles.row, tint]}>
-              {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
-              <View style={styles.rowTop}>
-                <Pressable onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
-                  {card.imageUrl && (
-                    <Image
-                      source={{ uri: smallImageUrl(card.imageUrl) }}
-                      style={styles.thumb}
-                      contentFit="cover"
-                      recyclingKey={card.scryfallId}
-                    />
-                  )}
-                </Pressable>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {displayName(card)}
-                  </Text>
-                  <RowLines layout={listLayout} info={infoOf(card)} />
-                </View>
-              </View>
+          const controls = (
               <CardControlsRow>
                 {card.quantity > 0 ? (
                   <QuantityStepper value={card.quantity} onSub={() => change(card, -1)} onAdd={() => change(card, 1)} />
@@ -905,6 +896,84 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                   />
                 )}
               </CardControlsRow>
+          );
+          if (view === 'text') {
+            // One line per card: copies, name (⚠ wanted / tags), cost and − ＋.
+            const tags = prefs.showTags === false ? [] : (cardTags[card.oracleId] ?? []).map((u) => tagsByUid[u]).filter(Boolean);
+            return (
+              <View style={[styles.textRow, tint]}>
+                {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
+                <Text style={styles.textQty}>{card.quantity}</Text>
+                <Pressable style={{ flex: 1, minWidth: 0 }} onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
+                  <Text style={styles.textName} numberOfLines={1}>
+                    {displayName(card)}
+                    {wantedIds.has(card.scryfallId) ? <Text style={{ color: WANT_COLOR }}> ♥</Text> : null}
+                  </Text>
+                  {tags.length > 0 && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                      {tags.map((t) => (
+                        <TagChip key={t.uid} tag={t} small />
+                      ))}
+                    </View>
+                  )}
+                </Pressable>
+                <Pressable style={styles.textStep} onPress={() => change(card, -1)} hitSlop={4} accessibilityLabel="Una copia menos" disabled={card.quantity === 0}>
+                  <MaterialCommunityIcons name="minus" size={14} color={colors.text} />
+                </Pressable>
+                <Pressable style={styles.textStep} onPress={() => (card.quantity > 0 ? change(card, 1) : gotIt(card))} hitSlop={4} accessibilityLabel="Una copia más">
+                  <MaterialCommunityIcons name="plus" size={14} color={colors.text} />
+                </Pressable>
+                <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
+                  <ManaCost cost={card.manaCost} />
+                </View>
+              </View>
+            );
+          }
+          if (view === 'big') {
+            // The card at full width, its icons over it (Ajustes → Cartas y listas) and its buttons under.
+            return (
+              <View style={[styles.bigCard, tint]}>
+                <Pressable onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
+                  {card.imageUrl && (
+                    <Image
+                      source={{ uri: card.imageUrl }}
+                      placeholder={{ uri: smallImageUrl(card.imageUrl) }}
+                      placeholderContentFit="contain"
+                      style={styles.bigImage}
+                      contentFit="contain"
+                      recyclingKey={card.scryfallId}
+                      transition={120}
+                    />
+                  )}
+                  <TileIcons layout={galleryLayout} info={infoOf(card)} />
+                  {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
+                </Pressable>
+                {controls}
+              </View>
+            );
+          }
+          return (
+            <View style={[styles.row, tint]}>
+              {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
+              <View style={styles.rowTop}>
+                <Pressable onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
+                  {card.imageUrl && (
+                    <Image
+                      source={{ uri: smallImageUrl(card.imageUrl) }}
+                      style={styles.thumb}
+                      contentFit="cover"
+                      recyclingKey={card.scryfallId}
+                    />
+                  )}
+                </Pressable>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={styles.name} numberOfLines={1}>
+                    {displayName(card)}
+                  </Text>
+                  <RowLines layout={listLayout} info={infoOf(card)} />
+                </View>
+              </View>
+              {controls}
             </View>
           );
         }}
@@ -994,7 +1063,31 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   );
 }
 
+const VIEWS: { key: CollectionView; label: string; icon: 'view-list' | 'view-grid' | 'view-agenda-outline' | 'format-list-text' }[] = [
+  { key: 'list', label: 'Lista', icon: 'view-list' },
+  { key: 'gallery', label: 'Galería', icon: 'view-grid' },
+  { key: 'big', label: 'Grande', icon: 'view-agenda-outline' },
+  { key: 'text', label: 'Texto', icon: 'format-list-text' },
+];
+
 const styles = StyleSheet.create({
+  textRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    borderLeftWidth: 2,
+    borderLeftColor: 'transparent',
+  },
+  textQty: { color: colors.text, fontWeight: '900', fontSize: 15, minWidth: 18, textAlign: 'center' },
+  textName: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  textStep: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  bigCard: { marginHorizontal: 12, marginBottom: 14, gap: 8, borderRadius: 16, borderWidth: 1, borderColor: 'transparent' },
+  bigImage: { width: '100%', aspectRatio: 488 / 680, borderRadius: 14 },
   toolChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1006,7 +1099,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   toolIcon: {
-    width: 36,
+    width: 34,
     height: 34,
     borderRadius: 17,
     alignItems: 'center',
@@ -1105,7 +1198,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   viewSwitch: { flexDirection: 'row', borderRadius: 8, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
-  viewOption: { paddingVertical: 6, paddingHorizontal: 14, backgroundColor: colors.surface },
+  viewOption: { paddingVertical: 7, paddingHorizontal: 8, backgroundColor: colors.surface },
   viewOptionSelected: { backgroundColor: colors.accent },
   viewOptionText: { color: colors.text, fontWeight: '800' },
   empty: { color: colors.textMuted, textAlign: 'center', padding: 32, lineHeight: 20 },
@@ -1125,13 +1218,13 @@ const styles = StyleSheet.create({
   name: { color: colors.text, fontWeight: '800', fontSize: 15 },
   meta: { color: colors.textMuted, fontSize: 12 },
   galleryRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 8, marginTop: 6 },
-  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, marginTop: 10 },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, marginTop: 10 },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     height: 34,
-    paddingHorizontal: 12,
+    paddingHorizontal: 9,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.accent,

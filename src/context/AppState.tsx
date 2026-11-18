@@ -36,6 +36,8 @@ export interface Prefs {
   deckView: DeckView;
   /** How the deck sheet groups the cards. */
   deckGroup: DeckGroupBy;
+  /** Colección's view (list, gallery, big, text). */
+  collectionView?: 'list' | 'gallery' | 'big' | 'text';
   /** Ajustes → Cartas y listas: the lines of each list view and the icons of each gallery. */
   listLayout?: Partial<Record<LayoutPlace, ListLayout>>;
   galleryLayout?: Partial<Record<LayoutPlace, GalleryLayout>>;

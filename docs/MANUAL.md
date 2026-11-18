@@ -330,8 +330,10 @@ Usa **←** para volver y **↗** para abrirla en Scryfall.
 ## 6. Colección
 
 Arriba: el nombre (toca para ver un mazo dentro de la colección) con el total de cartas y su valor; la búsqueda con
-**importar** y la **cámara**; y una fila con **Filtros**, **♡ La quiero** (solo las que quieres), **seleccionar**,
-**agrupar** (agrupación y subgrupo en un menú) y **lista / galería**. Si tienes etiquetas, debajo salen para filtrar
+**importar** y la **cámara**; y una fila con **Filtros** (con el número de filtros activos), **♡ La quiero** (solo las que
+quieres), **seleccionar**, **abrir o cerrar todos los grupos** (al agrupar), **agrupar** (agrupación y subgrupo en un
+menú) y las mismas **vistas que el mazo**: lista, galería, grande (la carta a todo el ancho con sus botones) y texto (una
+línea por carta con − ＋). La vista elegida se recuerda. Si tienes etiquetas, debajo salen para filtrar
 (la última abre su gestión).
 
 <table><tr><td align="center"><img src="img/coleccion.jpg" width="240" alt="Tu colección"><br><sub>Tu colección</sub></td></tr></table>
