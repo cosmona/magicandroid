@@ -640,6 +640,21 @@ export function DeckSheet() {
 
   const listData = useMemo<ListItem[]>(() => [{ type: 'bar', key: '_bar' }, { type: 'pre', key: '_pre' }, ...items], [items]);
 
+  // Swiping the list left / right goes to the next / previous view (a horizontal move only: the list
+  // still scrolls up and down, and cards are still dragged with a long press).
+  const stepView = (step: number) => {
+    const i = VIEWS.findIndex((v) => v.key === mode);
+    setMode(VIEWS[(i + step + VIEWS.length) % VIEWS.length].key);
+  };
+  // (Inside the sheet the gestures are the gesture handler's: a horizontal pan; vertical moves scroll.)
+  const viewSwipe = usePanGesture({
+    activeOffsetX: [-30, 30],
+    failOffsetY: [-15, 15],
+    onDeactivate: (e) => {
+      if (!e.canceled && Math.abs(e.translationX) > 70) scheduleOnRN(stepView, e.translationX < 0 ? 1 : -1);
+    },
+  });
+
   // Scrolls with the cards: the problem list can get long.
   const listHeader = (
     <View>
@@ -668,188 +683,192 @@ export function DeckSheet() {
 
   return (
     <View style={styles.sheet} ref={sheetRef} collapsable={false}>
-      <FlatList
-        key={mode}
-        data={listData}
-        stickyHeaderIndices={[1]}
-        keyExtractor={(item) => item.key}
-        ListHeaderComponent={<SheetDragArea>{header}</SheetDragArea>}
-        ListFooterComponent={
-          // Always there for decks that can have one (so it can be found), and whenever it has cards.
-          activeDeck ? (
-            <View>
-              {activeCards.length > 0 && !validation.usesCommander && (
+      <GestureDetector gesture={viewSwipe}>
+      <View style={{ flex: 1 }}>
+        <FlatList
+          key={mode}
+          data={listData}
+          stickyHeaderIndices={[1]}
+          keyExtractor={(item) => item.key}
+          ListHeaderComponent={<SheetDragArea>{header}</SheetDragArea>}
+          ListFooterComponent={
+            // Always there for decks that can have one (so it can be found), and whenever it has cards.
+            activeDeck ? (
+              <View>
+                {activeCards.length > 0 && !validation.usesCommander && (
+                  <ZoneSection
+                    zone="side"
+                    title="Banquillo"
+                    icon="tray-full"
+                    empty="Vacío. Pasa cartas aquí con el botón de la bandeja ↓ de cada carta, manteniéndola pulsada y arrastrándola abajo, o importando una lista con banquillo (sideboard)."
+                    cards={activeSideboard}
+                    moves={[
+                      { to: 'main', icon: 'tray-arrow-up', hint: 'Pasar una copia al mazo' },
+                      { to: 'maybe', icon: 'help-circle-outline', hint: 'Pasar una copia a Posibles' },
+                    ]}
+                    onAdd={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, 1))}
+                    onSub={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, -1))}
+                    onMove={(c, to) => run(moveCopy(db, activeDeck.id, c.oracleId, to, 'side'))}
+                    drag={drag}
+                    open={!collapsed.has(SIDEBOARD_KEY)}
+                    onToggle={() => toggleGroup(SIDEBOARD_KEY)}
+                  />
+                )}
+                {tokens.length > 0 && (
+                  // The deck's tokens, next to Banquillo and Posibles (view or print them).
+                  <Pressable style={styles.tokensRow} onPress={() => setShowTokens(true)}>
+                    <MaterialCommunityIcons name="cards-outline" size={20} color={colors.info} />
+                    <Text style={styles.tokensTitle}>Fichas</Text>
+                    <Text style={styles.tokensCount}>{tokens.length}</Text>
+                    <Text style={styles.tokensHint} numberOfLines={1}>
+                      {tokens.map((t) => t.name).join(', ')}
+                    </Text>
+                    <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
+                  </Pressable>
+                )}
                 <ZoneSection
-                  zone="side"
-                  title="Banquillo"
-                  icon="tray-full"
-                  empty="Vacío. Pasa cartas aquí con el botón de la bandeja ↓ de cada carta, manteniéndola pulsada y arrastrándola abajo, o importando una lista con banquillo (sideboard)."
-                  cards={activeSideboard}
+                  zone="maybe"
+                  title="Posibles"
+                  icon="help-circle-outline"
+                  empty="Cartas que te estás pensando o quieres probar: no cuentan para el mazo (ni tamaño, ni validación, ni estadísticas, ni precio). Pásalas aquí con el botón ? de cada carta, o mantén pulsado ✓ al pasar cartas."
+                  cards={activeMaybe}
                   moves={[
                     { to: 'main', icon: 'tray-arrow-up', hint: 'Pasar una copia al mazo' },
-                    { to: 'maybe', icon: 'help-circle-outline', hint: 'Pasar una copia a Posibles' },
+                    ...(validation.usesCommander
+                      ? []
+                      : [{ to: 'side' as const, icon: 'tray-arrow-down' as const, hint: 'Pasar una copia al banquillo' }]),
                   ]}
-                  onAdd={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, 1))}
-                  onSub={(c) => run(changeSideboardQuantity(db, activeDeck.id, c.oracleId, -1))}
-                  onMove={(c, to) => run(moveCopy(db, activeDeck.id, c.oracleId, to, 'side'))}
+                  onAdd={(c) => run(changeMaybeQuantity(db, activeDeck.id, c.oracleId, 1))}
+                  onSub={(c) => run(changeMaybeQuantity(db, activeDeck.id, c.oracleId, -1))}
+                  onMove={(c, to) => run(moveCopy(db, activeDeck.id, c.oracleId, to, 'maybe'))}
                   drag={drag}
-                  open={!collapsed.has(SIDEBOARD_KEY)}
-                  onToggle={() => toggleGroup(SIDEBOARD_KEY)}
+                  open={!collapsed.has(MAYBE_KEY)}
+                  onToggle={() => toggleGroup(MAYBE_KEY)}
                 />
-              )}
-              {tokens.length > 0 && (
-                // The deck's tokens, next to Banquillo and Posibles (view or print them).
-                <Pressable style={styles.tokensRow} onPress={() => setShowTokens(true)}>
-                  <MaterialCommunityIcons name="cards-outline" size={20} color={colors.info} />
-                  <Text style={styles.tokensTitle}>Fichas</Text>
-                  <Text style={styles.tokensCount}>{tokens.length}</Text>
-                  <Text style={styles.tokensHint} numberOfLines={1}>
-                    {tokens.map((t) => t.name).join(', ')}
-                  </Text>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
+              </View>
+            ) : undefined
+          }
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          nestedScrollEnabled
+          ListEmptyComponent={
+            activeDeck ? (
+              <Text style={styles.empty}>Mazo vacío. Desliza cartas a la derecha para añadirlas.</Text>
+            ) : undefined
+          }
+          initialNumToRender={mode === 'big' ? 2 : 8}
+          windowSize={mode === 'big' ? 3 : 7}
+          renderItem={({ item: entry }) => {
+            if (entry.type === 'bar') return <SheetDragArea>{buttonsBar}</SheetDragArea>;
+            if (entry.type === 'pre')
+              return (
+                <View>
+                  {actionsRow}
+                  {listHeader}
+                </View>
+              );
+            if (entry.type === 'sub') {
+              return (
+                <Pressable
+                  style={styles.subHeader}
+                  onPress={() => toggleGroup(entry.subKey)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: !entry.collapsed }}
+                >
+                  <MaterialCommunityIcons name={entry.collapsed ? 'chevron-right' : 'chevron-down'} size={16} color={colors.textMuted} />
+                  <Text style={styles.subTitle}>{entry.label}</Text>
+                  <Text style={styles.subCount}>{entry.count}</Text>
                 </Pressable>
-              )}
-              <ZoneSection
-                zone="maybe"
-                title="Posibles"
-                icon="help-circle-outline"
-                empty="Cartas que te estás pensando o quieres probar: no cuentan para el mazo (ni tamaño, ni validación, ni estadísticas, ni precio). Pásalas aquí con el botón ? de cada carta, o mantén pulsado ✓ al pasar cartas."
-                cards={activeMaybe}
-                moves={[
-                  { to: 'main', icon: 'tray-arrow-up', hint: 'Pasar una copia al mazo' },
-                  ...(validation.usesCommander
-                    ? []
-                    : [{ to: 'side' as const, icon: 'tray-arrow-down' as const, hint: 'Pasar una copia al banquillo' }]),
-                ]}
-                onAdd={(c) => run(changeMaybeQuantity(db, activeDeck.id, c.oracleId, 1))}
-                onSub={(c) => run(changeMaybeQuantity(db, activeDeck.id, c.oracleId, -1))}
-                onMove={(c, to) => run(moveCopy(db, activeDeck.id, c.oracleId, to, 'maybe'))}
-                drag={drag}
-                open={!collapsed.has(MAYBE_KEY)}
-                onToggle={() => toggleGroup(MAYBE_KEY)}
-              />
-            </View>
-          ) : undefined
-        }
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 24 }}
-        nestedScrollEnabled
-        ListEmptyComponent={
-          activeDeck ? (
-            <Text style={styles.empty}>Mazo vacío. Desliza cartas a la derecha para añadirlas.</Text>
-          ) : undefined
-        }
-        initialNumToRender={mode === 'big' ? 2 : 8}
-        windowSize={mode === 'big' ? 3 : 7}
-        renderItem={({ item: entry }) => {
-          if (entry.type === 'bar') return <SheetDragArea>{buttonsBar}</SheetDragArea>;
-          if (entry.type === 'pre')
+              );
+            }
+            if (entry.type === 'header') {
+              return (
+                <Pressable
+                  style={styles.groupHeader}
+                  onPress={() => toggleGroup(entry.group.key)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: !entry.collapsed }}
+                >
+                  <MaterialCommunityIcons
+                    name={entry.collapsed ? 'chevron-right' : 'chevron-down'}
+                    size={20}
+                    color={colors.textMuted}
+                  />
+                  <Text style={styles.groupTitle}>{entry.group.label}</Text>
+                  <Text style={styles.groupCount}>{entry.group.count}</Text>
+                </Pressable>
+              );
+            }
+            if (entry.type === 'row') {
+              return (
+                <View style={styles.galleryRow}>
+                  {entry.cards.map((item) => (
+                    <Draggable
+                      key={item.oracleId}
+                      oracleId={item.oracleId}
+                      from="main"
+                      drag={drag}
+                      style={styles.galleryCell}
+                    >
+                      <GalleryTile
+                        info={infoOf(item)}
+                        layout={galleryLayout}
+                        card={item}
+                        invalid={!!validation.cardIssues[item.oracleId]}
+                        crown={validation.usesCommander}
+                        onPress={() => actions.preview(item)}
+                      />
+                    </Draggable>
+                  ))}
+                </View>
+              );
+            }
+            const item = entry.card;
             return (
-              <View>
-                {actionsRow}
-                {listHeader}
-              </View>
-            );
-          if (entry.type === 'sub') {
-            return (
-              <Pressable
-                style={styles.subHeader}
-                onPress={() => toggleGroup(entry.subKey)}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: !entry.collapsed }}
-              >
-                <MaterialCommunityIcons name={entry.collapsed ? 'chevron-right' : 'chevron-down'} size={16} color={colors.textMuted} />
-                <Text style={styles.subTitle}>{entry.label}</Text>
-                <Text style={styles.subCount}>{entry.count}</Text>
-              </Pressable>
-            );
-          }
-          if (entry.type === 'header') {
-            return (
-              <Pressable
-                style={styles.groupHeader}
-                onPress={() => toggleGroup(entry.group.key)}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: !entry.collapsed }}
-              >
-                <MaterialCommunityIcons
-                  name={entry.collapsed ? 'chevron-right' : 'chevron-down'}
-                  size={20}
-                  color={colors.textMuted}
-                />
-                <Text style={styles.groupTitle}>{entry.group.label}</Text>
-                <Text style={styles.groupCount}>{entry.group.count}</Text>
-              </Pressable>
-            );
-          }
-          if (entry.type === 'row') {
-            return (
-              <View style={styles.galleryRow}>
-                {entry.cards.map((item) => (
-                  <Draggable
-                    key={item.oracleId}
-                    oracleId={item.oracleId}
-                    from="main"
+              <>
+                {mode === 'text' ? (
+                  <TextRow
+                    card={item}
+                    issues={validation.cardIssues[item.oracleId]}
+                    owned={owned ? (owned[item.oracleId] ?? 0) : undefined}
+                    tags={prefs.showTags === false ? [] : (deckTags[item.oracleId] ?? []).map((u) => allTags.find((t) => t.uid === u)).filter((t) => !!t)}
+                    onPress={() => actions.preview(item)}
+                    onAdd={() => actions.add(item)}
+                    onSub={() => actions.sub(item)}
+                  />
+                ) : mode === 'big' ? (
+                  <BigCard
+                    card={item}
+                    actions={actions}
+                    issues={validation.cardIssues[item.oracleId]}
+                    crown={validation.usesCommander}
+                    owned={owned?.[item.oracleId]}
+                    wanted={wantedIds.has(item.scryfallId)}
+                    details={details[item.scryfallId]}
+                    showPrice={prefs.pricesDeckCards}
                     drag={drag}
-                    style={styles.galleryCell}
-                  >
-                    <GalleryTile
-                      info={infoOf(item)}
-                      layout={galleryLayout}
-                      card={item}
-                      invalid={!!validation.cardIssues[item.oracleId]}
-                      crown={validation.usesCommander}
-                      onPress={() => actions.preview(item)}
-                    />
-                  </Draggable>
-                ))}
-              </View>
+                  />
+                ) : (
+                  <CardRow
+                    info={infoOf(item)}
+                    layout={listLayout}
+                    card={item}
+                    actions={actions}
+                    issues={validation.cardIssues[item.oracleId]}
+                    crown={validation.usesCommander}
+                    owned={owned?.[item.oracleId]}
+                    wanted={wantedIds.has(item.scryfallId)}
+                    details={details[item.scryfallId]}
+                    showPrice={prefs.pricesDeckCards}
+                    drag={drag}
+                  />
+                )}
+              </>
             );
-          }
-          const item = entry.card;
-          return (
-            <>
-              {mode === 'text' ? (
-                <TextRow
-                  card={item}
-                  issues={validation.cardIssues[item.oracleId]}
-                  owned={owned ? (owned[item.oracleId] ?? 0) : undefined}
-                  tags={prefs.showTags === false ? [] : (deckTags[item.oracleId] ?? []).map((u) => allTags.find((t) => t.uid === u)).filter((t) => !!t)}
-                  onPress={() => actions.preview(item)}
-                  onAdd={() => actions.add(item)}
-                  onSub={() => actions.sub(item)}
-                />
-              ) : mode === 'big' ? (
-                <BigCard
-                  card={item}
-                  actions={actions}
-                  issues={validation.cardIssues[item.oracleId]}
-                  crown={validation.usesCommander}
-                  owned={owned?.[item.oracleId]}
-                  wanted={wantedIds.has(item.scryfallId)}
-                  details={details[item.scryfallId]}
-                  showPrice={prefs.pricesDeckCards}
-                  drag={drag}
-                />
-              ) : (
-                <CardRow
-                  info={infoOf(item)}
-                  layout={listLayout}
-                  card={item}
-                  actions={actions}
-                  issues={validation.cardIssues[item.oracleId]}
-                  crown={validation.usesCommander}
-                  owned={owned?.[item.oracleId]}
-                  wanted={wantedIds.has(item.scryfallId)}
-                  details={details[item.scryfallId]}
-                  showPrice={prefs.pricesDeckCards}
-                  drag={drag}
-                />
-              )}
-            </>
-          );
-        }}
-      />
+          }}
+        />
+      </View>
+      </GestureDetector>
 
       {dragging && (
         <>

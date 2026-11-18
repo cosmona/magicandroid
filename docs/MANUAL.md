@@ -334,7 +334,9 @@ Arriba: el nombre (toca para ver un mazo dentro de la colección) con el total d
 **importar** y la **cámara**; y una fila con **Filtros** (con el número de filtros activos), **♡ La quiero** (solo las que
 quieres), **seleccionar**, **abrir o cerrar todos los grupos** (al agrupar), **agrupar** (agrupación y subgrupo en un
 menú) y las mismas **vistas que el mazo**: lista, galería, grande (la carta a todo el ancho con sus botones) y texto (una
-línea por carta con − ＋). La vista elegida se recuerda. Al bajar por la lista, el título y el buscador suben y la fila de botones se queda fija arriba. Si tienes etiquetas, debajo salen para filtrar
+línea por carta con − ＋). La vista elegida se recuerda. Al bajar por la lista, el título y el buscador suben y la fila de botones se queda fija arriba, con el
+nombre en pequeño (tócalo para cambiar de mazo). **Desliza la lista a la izquierda o a la derecha** para pasar a la
+vista siguiente o a la anterior (también en el mazo). Si tienes etiquetas, debajo salen para filtrar
 (la última abre su gestión).
 
 <table><tr><td align="center"><img src="img/coleccion.jpg" width="240" alt="Tu colección"><br><sub>Tu colección</sub></td></tr></table>

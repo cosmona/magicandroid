@@ -3,6 +3,7 @@ import { galleryFor, listFor, RowLines, TileIcons, type CardInfo } from '@/listL
 import { useRememberedSet } from '@/hooks/useRememberedSet';
 import {
   ActivityIndicator,
+  PanResponder,
   Modal,
   Alert,
   Pressable,
@@ -143,7 +144,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   }
   // The view (like the deck's: list, gallery, big, text), remembered.
   const view: CollectionView = prefs.collectionView ?? 'list';
-  const setView = (v: CollectionView) => setPrefs({ ...prefs, collectionView: v });
+  const setView = useCallback((v: CollectionView) => setPrefs({ ...prefs, collectionView: v }), [prefs, setPrefs]);
   const [remote, setRemote] = useState<{ q: string; cards: Card[]; loading: boolean }>({
     q: '',
     cards: [],
@@ -541,12 +542,31 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     };
   };
 
+  // Swiping the list left / right goes to the next / previous view (a horizontal move only: the list
+  // still scrolls up and down, and cards are still dragged with a long press).
+  const viewPan = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 24 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+        onPanResponderRelease: (_, g) => {
+          if (Math.abs(g.dx) < 70) return;
+          const i = VIEWS.findIndex((v) => v.key === view);
+          setView(VIEWS[(i + (g.dx < 0 ? 1 : -1) + VIEWS.length) % VIEWS.length].key);
+        },
+      }),
+    [view, setView],
+  );
+
+  // When the title has scrolled away, a small one shows in the sticky row.
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [pinned, setPinned] = useState(false);
+
   // The sticky row of buttons and what goes under it (search results) come first in the list.
   const listData = useMemo<Item[]>(() => [{ type: 'toolbar', key: '_toolbar' }, { type: 'extras', key: '_extras' }, ...items], [items]);
 
   // The title and the search scroll away; the row of buttons stays at the top (sticky).
   const header = (
-    <View>
+    <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
       <View style={styles.titleRow}>
         <Pressable onPress={() => setPickingDeck(true)} style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }} accessibilityLabel="Ver toda la colección o las cartas de un mazo">
           <Text style={styles.title} numberOfLines={1}>
@@ -615,6 +635,18 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   );
   const toolbarBlock = (
     <View style={styles.stickyBar}>
+      {pinned && (
+        <Pressable onPress={() => setPickingDeck(true)} style={styles.pinnedTitle} accessibilityLabel="Ver toda la colección o las cartas de un mazo">
+          <Text style={styles.pinnedTitleText} numberOfLines={1}>
+            {viewDeck ? `🃏 ${viewDeck.name}` : '📦 Mi colección'}
+            <Text style={styles.pinnedTitleMeta}>
+              {'  '}
+              {stats.total} cartas
+            </Text>
+          </Text>
+          <MaterialCommunityIcons name="chevron-down" size={16} color={colors.accent} />
+        </Pressable>
+      )}
       <View style={styles.toolbar}>
         <Pressable
           style={({ pressed }) => [
@@ -784,217 +816,224 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
-      <FlatList
-        data={listData}
-        stickyHeaderIndices={[1]}
-        keyExtractor={(item) => item.key}
-        ListHeaderComponent={header}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: sel.selecting ? 140 : 24 }}
-        initialNumToRender={12}
-        windowSize={7}
-        ListEmptyComponent={
-          searching ? undefined : filterCount ? (
-            <Text style={styles.empty}>Ninguna carta cumple los filtros.</Text>
-          ) : (
-            <Text style={styles.empty}>
-              Tu colección está vacía.{'\n'}Busca cartas arriba, o pulsa 📦 en «Construir» para añadir la carta que
-              tienes delante.
-            </Text>
-          )
-        }
-        renderItem={({ item }) => {
-          if (item.type === 'toolbar') return toolbarBlock;
-          if (item.type === 'extras') return extras;
-          if (item.type === 'sub') {
-            return (
-              <Pressable style={styles.subHeader} onPress={() => toggleGroup(item.subKey)}>
-                <MaterialCommunityIcons name={item.collapsed ? 'chevron-right' : 'chevron-down'} size={18} color={colors.textMuted} />
-                {item.group.symbols && <ManaCost cost={item.group.symbols} size={14} />}
-                <Text style={styles.subTitle} numberOfLines={1}>
-                  {item.group.title}
-                </Text>
-                <Text style={styles.subTitle}>{item.group.copies}</Text>
-              </Pressable>
-            );
+      <View style={{ flex: 1 }} {...viewPan.panHandlers}>
+        <FlatList
+          data={listData}
+          stickyHeaderIndices={[1]}
+          onScroll={(e) => {
+            const p = headerHeight > 0 && e.nativeEvent.contentOffset.y > headerHeight - 4;
+            if (p !== pinned) setPinned(p);
+          }}
+          scrollEventThrottle={64}
+          keyExtractor={(item) => item.key}
+          ListHeaderComponent={header}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: sel.selecting ? 140 : 24 }}
+          initialNumToRender={12}
+          windowSize={7}
+          ListEmptyComponent={
+            searching ? undefined : filterCount ? (
+              <Text style={styles.empty}>Ninguna carta cumple los filtros.</Text>
+            ) : (
+              <Text style={styles.empty}>
+                Tu colección está vacía.{'\n'}Busca cartas arriba, o pulsa 📦 en «Construir» para añadir la carta que
+                tienes delante.
+              </Text>
+            )
           }
-          if (item.type === 'header') {
-            const { group } = item;
-            return (
-              <Pressable style={styles.groupHeader} onPress={() => toggleGroup(group.key)}>
-                <MaterialCommunityIcons
-                  name={item.collapsed ? 'chevron-right' : 'chevron-down'}
-                  size={22}
-                  color={colors.textMuted}
-                />
-                {group.symbols && <ManaCost cost={group.symbols} size={18} />}
-                <Text style={styles.groupTitle} numberOfLines={1}>
-                  {group.title}
-                </Text>
-                <Text style={styles.groupMeta}>
-                  {group.copies}
-                  {showPrices && group.value > 0 && <Text style={styles.value}> · {formatEur(group.value)}</Text>}
-                </Text>
-              </Pressable>
+          renderItem={({ item }) => {
+            if (item.type === 'toolbar') return toolbarBlock;
+            if (item.type === 'extras') return extras;
+            if (item.type === 'sub') {
+              return (
+                <Pressable style={styles.subHeader} onPress={() => toggleGroup(item.subKey)}>
+                  <MaterialCommunityIcons name={item.collapsed ? 'chevron-right' : 'chevron-down'} size={18} color={colors.textMuted} />
+                  {item.group.symbols && <ManaCost cost={item.group.symbols} size={14} />}
+                  <Text style={styles.subTitle} numberOfLines={1}>
+                    {item.group.title}
+                  </Text>
+                  <Text style={styles.subTitle}>{item.group.copies}</Text>
+                </Pressable>
+              );
+            }
+            if (item.type === 'header') {
+              const { group } = item;
+              return (
+                <Pressable style={styles.groupHeader} onPress={() => toggleGroup(group.key)}>
+                  <MaterialCommunityIcons
+                    name={item.collapsed ? 'chevron-right' : 'chevron-down'}
+                    size={22}
+                    color={colors.textMuted}
+                  />
+                  {group.symbols && <ManaCost cost={group.symbols} size={18} />}
+                  <Text style={styles.groupTitle} numberOfLines={1}>
+                    {group.title}
+                  </Text>
+                  <Text style={styles.groupMeta}>
+                    {group.copies}
+                    {showPrices && group.value > 0 && <Text style={styles.value}> · {formatEur(group.value)}</Text>}
+                  </Text>
+                </Pressable>
+              );
+            }
+            if (item.type === 'row') {
+              return (
+                <View style={styles.galleryRow}>
+                  {item.cards.map((card) => (
+                    <Pressable key={card.scryfallId} style={styles.galleryItem} onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
+                      {card.imageUrl && (
+                        <Image
+                          source={{ uri: smallImageUrl(card.imageUrl) }}
+                          style={styles.galleryImage}
+                          contentFit="contain"
+                          recyclingKey={card.scryfallId}
+                        />
+                      )}
+                      <TileIcons layout={galleryLayout} info={infoOf(card)} />
+                      {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
+                    </Pressable>
+                  ))}
+                </View>
+              );
+            }
+            const card = item.card;
+            // Código de colores: wanted and not owned = pink border.
+            const tint = prefs.colorCode !== false && card.quantity === 0 && wantedIds.has(card.scryfallId) ? { borderColor: WANT_COLOR } : null;
+            const controls = (
+                <CardControlsRow>
+                  {card.quantity > 0 ? (
+                    <QuantityStepper value={card.quantity} onSub={() => change(card, -1)} onAdd={() => change(card, 1)} />
+                  ) : (
+                    <Pressable style={styles.gotIt} onPress={() => gotIt(card)} accessibilityLabel="Ya la tienes: pásala a tu colección">
+                      <Text style={styles.gotItText}>＋ La tengo</Text>
+                    </Pressable>
+                  )}
+                  <CardIconButton
+                    icon={wantedIds.has(card.scryfallId) ? 'heart' : 'heart-outline'}
+                    hint={wantedIds.has(card.scryfallId) ? 'Quitar de «La quiero»' : 'La quiero (más copias)'}
+                    tone={wantedIds.has(card.scryfallId) ? 'danger' : undefined}
+                    onPress={() => toggleWant(card)}
+                  />
+                  <CardIconButton icon="tag-outline" hint="Etiquetas" onPress={() => setTagCard({ oracleId: card.oracleId, name: displayName(card) })} />
+                  <CardIconButton
+                    icon="information-outline"
+                    tone="info"
+                    hint="Ficha completa"
+                    onPress={() => setInfoId(card.scryfallId)}
+                  />
+                  <CardIconButton
+                    icon="cards-playing-outline"
+                    tone="primary"
+                    hint="Añadir al mazo activo"
+                    onPress={() => addToDeck(card)}
+                  />
+                  {card.quantity > 0 && (
+                    <CardIconButton
+                      icon="pencil-outline"
+                      tone="primary"
+                      hint="Cambiar arte o idioma"
+                      onPress={() => setPrintingCard(card)}
+                    />
+                  )}
+                  <CardIconButton
+                    icon="share-variant-outline"
+                    hint="Compartir"
+                    onPress={() =>
+                      setShareCard({ scryfallId: card.scryfallId, name: displayName(card), imageUrl: card.imageUrl })
+                    }
+                  />
+                  {card.quantity > 0 && (
+                    <CardIconButton
+                      icon="trash-can-outline"
+                      hint="Quitar de la colección"
+                      danger
+                      onPress={() => confirmRemove(card)}
+                    />
+                  )}
+                </CardControlsRow>
             );
-          }
-          if (item.type === 'row') {
-            return (
-              <View style={styles.galleryRow}>
-                {item.cards.map((card) => (
-                  <Pressable key={card.scryfallId} style={styles.galleryItem} onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
+            if (view === 'text') {
+              // One line per card: copies, name (⚠ wanted / tags), cost and − ＋.
+              const tags = prefs.showTags === false ? [] : (cardTags[card.oracleId] ?? []).map((u) => tagsByUid[u]).filter(Boolean);
+              return (
+                <View style={[styles.textRow, tint]}>
+                  {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
+                  <Text style={styles.textQty}>{card.quantity}</Text>
+                  <Pressable style={{ flex: 1, minWidth: 0 }} onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
+                    <Text style={styles.textName} numberOfLines={1}>
+                      {displayName(card)}
+                      {wantedIds.has(card.scryfallId) ? <Text style={{ color: WANT_COLOR }}> ♥</Text> : null}
+                    </Text>
+                    {tags.length > 0 && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                        {tags.map((t) => (
+                          <TagChip key={t.uid} tag={t} small />
+                        ))}
+                      </View>
+                    )}
+                  </Pressable>
+                  <Pressable style={styles.textStep} onPress={() => change(card, -1)} hitSlop={4} accessibilityLabel="Una copia menos" disabled={card.quantity === 0}>
+                    <MaterialCommunityIcons name="minus" size={14} color={colors.text} />
+                  </Pressable>
+                  <Pressable style={styles.textStep} onPress={() => (card.quantity > 0 ? change(card, 1) : gotIt(card))} hitSlop={4} accessibilityLabel="Una copia más">
+                    <MaterialCommunityIcons name="plus" size={14} color={colors.text} />
+                  </Pressable>
+                  <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
+                    <ManaCost cost={card.manaCost} />
+                  </View>
+                </View>
+              );
+            }
+            if (view === 'big') {
+              // The card at full width, its icons over it (Ajustes → Cartas y listas) and its buttons under.
+              return (
+                <View style={[styles.bigCard, tint]}>
+                  <Pressable onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
                     {card.imageUrl && (
                       <Image
-                        source={{ uri: smallImageUrl(card.imageUrl) }}
-                        style={styles.galleryImage}
+                        source={{ uri: card.imageUrl }}
+                        placeholder={{ uri: smallImageUrl(card.imageUrl) }}
+                        placeholderContentFit="contain"
+                        style={styles.bigImage}
                         contentFit="contain"
                         recyclingKey={card.scryfallId}
+                        transition={120}
                       />
                     )}
                     <TileIcons layout={galleryLayout} info={infoOf(card)} />
                     {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
                   </Pressable>
-                ))}
-              </View>
-            );
-          }
-          const card = item.card;
-          // Código de colores: wanted and not owned = pink border.
-          const tint = prefs.colorCode !== false && card.quantity === 0 && wantedIds.has(card.scryfallId) ? { borderColor: WANT_COLOR } : null;
-          const controls = (
-              <CardControlsRow>
-                {card.quantity > 0 ? (
-                  <QuantityStepper value={card.quantity} onSub={() => change(card, -1)} onAdd={() => change(card, 1)} />
-                ) : (
-                  <Pressable style={styles.gotIt} onPress={() => gotIt(card)} accessibilityLabel="Ya la tienes: pásala a tu colección">
-                    <Text style={styles.gotItText}>＋ La tengo</Text>
-                  </Pressable>
-                )}
-                <CardIconButton
-                  icon={wantedIds.has(card.scryfallId) ? 'heart' : 'heart-outline'}
-                  hint={wantedIds.has(card.scryfallId) ? 'Quitar de «La quiero»' : 'La quiero (más copias)'}
-                  tone={wantedIds.has(card.scryfallId) ? 'danger' : undefined}
-                  onPress={() => toggleWant(card)}
-                />
-                <CardIconButton icon="tag-outline" hint="Etiquetas" onPress={() => setTagCard({ oracleId: card.oracleId, name: displayName(card) })} />
-                <CardIconButton
-                  icon="information-outline"
-                  tone="info"
-                  hint="Ficha completa"
-                  onPress={() => setInfoId(card.scryfallId)}
-                />
-                <CardIconButton
-                  icon="cards-playing-outline"
-                  tone="primary"
-                  hint="Añadir al mazo activo"
-                  onPress={() => addToDeck(card)}
-                />
-                {card.quantity > 0 && (
-                  <CardIconButton
-                    icon="pencil-outline"
-                    tone="primary"
-                    hint="Cambiar arte o idioma"
-                    onPress={() => setPrintingCard(card)}
-                  />
-                )}
-                <CardIconButton
-                  icon="share-variant-outline"
-                  hint="Compartir"
-                  onPress={() =>
-                    setShareCard({ scryfallId: card.scryfallId, name: displayName(card), imageUrl: card.imageUrl })
-                  }
-                />
-                {card.quantity > 0 && (
-                  <CardIconButton
-                    icon="trash-can-outline"
-                    hint="Quitar de la colección"
-                    danger
-                    onPress={() => confirmRemove(card)}
-                  />
-                )}
-              </CardControlsRow>
-          );
-          if (view === 'text') {
-            // One line per card: copies, name (⚠ wanted / tags), cost and − ＋.
-            const tags = prefs.showTags === false ? [] : (cardTags[card.oracleId] ?? []).map((u) => tagsByUid[u]).filter(Boolean);
-            return (
-              <View style={[styles.textRow, tint]}>
-                {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
-                <Text style={styles.textQty}>{card.quantity}</Text>
-                <Pressable style={{ flex: 1, minWidth: 0 }} onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
-                  <Text style={styles.textName} numberOfLines={1}>
-                    {displayName(card)}
-                    {wantedIds.has(card.scryfallId) ? <Text style={{ color: WANT_COLOR }}> ♥</Text> : null}
-                  </Text>
-                  {tags.length > 0 && (
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
-                      {tags.map((t) => (
-                        <TagChip key={t.uid} tag={t} small />
-                      ))}
-                    </View>
-                  )}
-                </Pressable>
-                <Pressable style={styles.textStep} onPress={() => change(card, -1)} hitSlop={4} accessibilityLabel="Una copia menos" disabled={card.quantity === 0}>
-                  <MaterialCommunityIcons name="minus" size={14} color={colors.text} />
-                </Pressable>
-                <Pressable style={styles.textStep} onPress={() => (card.quantity > 0 ? change(card, 1) : gotIt(card))} hitSlop={4} accessibilityLabel="Una copia más">
-                  <MaterialCommunityIcons name="plus" size={14} color={colors.text} />
-                </Pressable>
-                <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
-                  <ManaCost cost={card.manaCost} />
+                  {controls}
                 </View>
-              </View>
-            );
-          }
-          if (view === 'big') {
-            // The card at full width, its icons over it (Ajustes → Cartas y listas) and its buttons under.
+              );
+            }
             return (
-              <View style={[styles.bigCard, tint]}>
-                <Pressable onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
-                  {card.imageUrl && (
-                    <Image
-                      source={{ uri: card.imageUrl }}
-                      placeholder={{ uri: smallImageUrl(card.imageUrl) }}
-                      placeholderContentFit="contain"
-                      style={styles.bigImage}
-                      contentFit="contain"
-                      recyclingKey={card.scryfallId}
-                      transition={120}
-                    />
-                  )}
-                  <TileIcons layout={galleryLayout} info={infoOf(card)} />
-                  {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
-                </Pressable>
+              <View style={[styles.row, tint]}>
+                {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
+                <View style={styles.rowTop}>
+                  <Pressable onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
+                    {card.imageUrl && (
+                      <Image
+                        source={{ uri: smallImageUrl(card.imageUrl) }}
+                        style={styles.thumb}
+                        contentFit="cover"
+                        recyclingKey={card.scryfallId}
+                      />
+                    )}
+                  </Pressable>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.name} numberOfLines={1}>
+                      {displayName(card)}
+                    </Text>
+                    <RowLines layout={listLayout} info={infoOf(card)} />
+                  </View>
+                </View>
                 {controls}
               </View>
             );
-          }
-          return (
-            <View style={[styles.row, tint]}>
-              {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
-              <View style={styles.rowTop}>
-                <Pressable onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
-                  {card.imageUrl && (
-                    <Image
-                      source={{ uri: smallImageUrl(card.imageUrl) }}
-                      style={styles.thumb}
-                      contentFit="cover"
-                      recyclingKey={card.scryfallId}
-                    />
-                  )}
-                </Pressable>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {displayName(card)}
-                  </Text>
-                  <RowLines layout={listLayout} info={infoOf(card)} />
-                </View>
-              </View>
-              {controls}
-            </View>
-          );
-        }}
-      />
+          }}
+        />
+      </View>
 
       <CardTagsSheet oracleId={tagCard?.oracleId ?? null} name={tagCard?.name} onClose={() => setTagCard(null)} />
       <TagsManagerSheet visible={managingTags} onClose={() => setManagingTags(false)} />
@@ -1088,6 +1127,9 @@ const VIEWS: { key: CollectionView; label: string; icon: 'view-list' | 'view-gri
 ];
 
 const styles = StyleSheet.create({
+  pinnedTitle: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 14, paddingTop: 6 },
+  pinnedTitleText: { color: colors.accent, fontSize: 14, fontWeight: '800', flexShrink: 1 },
+  pinnedTitleMeta: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
   stickyBar: { backgroundColor: colors.bg, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   textRow: {
     flexDirection: 'row',
