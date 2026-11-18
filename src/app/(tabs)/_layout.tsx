@@ -33,6 +33,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen name="collection" options={{ title: 'Colección', tabBarIcon: icon('bookshelf') }} />
       <Tabs.Screen name="life" options={{ title: 'Vidas', tabBarIcon: icon('heart-outline', 'heart') }} />
+      <Tabs.Screen name="hand" options={{ title: 'Mano', tabBarIcon: icon('hand-back-right-outline', 'hand-back-right') }} />
     </Tabs>
   );
 }
