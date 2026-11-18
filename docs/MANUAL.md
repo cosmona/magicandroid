@@ -86,7 +86,7 @@ añade en el idioma que elijas; en el resto solo cambia lo que ves.
 | Gesto | Qué hace |
 |---|---|
 | Deslizar la carta a la **derecha** | La añade al mazo activo (si no tienes ninguno, crea «Mazo sin nombre») |
-| Deslizar a la **izquierda** | La descarta |
+| Deslizar a la **izquierda** | La descarta (si ya está en el mazo, le quita una copia) |
 | Deslizar hacia **arriba** | La aparta en **Posibles** del mazo |
 | **Tocar** la carta | Abre su ficha: idioma, otras artes, Cardmarket, La tengo, La quiero, ± al mazo y a Posibles, texto, legalidad y Ficha completa (con ‹ › para pasar por los resultados) |
 
@@ -116,7 +116,8 @@ A la derecha de la carta, a mano del pulgar:
 Debajo de la carta, en una línea (se desliza si no cabe):
 
 - **Historial** con la posición en los resultados (`1/723`).
-- **En el mazo** y **en Posibles** cuando ya la llevas; toca **«en Posibles ⊖»** para quitar una de Posibles.
+- **− ＋ Mazo N** y **− ＋ Posibles N**, como en el PC: añade o quita copias de la carta en el mazo activo o en
+  Posibles sin pasarla (se rellenan de color cuando ya la llevas).
 - **⚠ No legal / Prohibida** en el formato del mazo activo.
 
 ### Los botones de abajo

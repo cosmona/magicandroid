@@ -18,7 +18,7 @@ import { LanguagePickerModal } from '@/components/LanguagePicker';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
-import { addCardToDeck, addCardToMaybe, changeMaybeQuantity, getCollection } from '@/db/database';
+import { addCardToDeck, addCardToMaybe, changeMaybeQuantity, changeQuantity, getCollection } from '@/db/database';
 import { useCardQueue } from '@/hooks/useCardQueue';
 import { colors } from '@/theme';
 
@@ -93,7 +93,29 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     } else {
       buzz('discard');
       decide(card.id, 'discarded');
+      // Already in the deck: discarding it takes a copy out.
+      const copies = activeCards.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0;
+      if (activeDeck && copies > 0) {
+        await changeQuantity(db, activeDeck.id, card.oracleId, -1);
+        onToast(`−1 ${displayName(card)} (${copies - 1} en el mazo)`);
+        refresh(activeDeck.id);
+      }
     }
+  };
+
+  /** − / ＋ of the deck and «Posibles» for the card on screen (without swiping it). */
+  const changeCopies = async (where: 'deck' | 'maybe', delta: 1 | -1) => {
+    const shown = queue.current;
+    if (!shown) return;
+    if (delta < 0 && !activeDeck) return;
+    const deck = delta > 0 ? await ensureActiveDeck() : activeDeck!;
+    if (where === 'deck') {
+      if (delta > 0) await addCardToDeck(db, deck.id, shown);
+      else await changeQuantity(db, deck.id, shown.oracleId, -1);
+    } else if (delta > 0) await addCardToMaybe(db, deck.id, shown);
+    else await changeMaybeQuantity(db, deck.id, shown.oracleId, -1);
+    buzz(delta > 0 ? 'add' : 'discard');
+    refresh(deck.id);
   };
 
   // Arrows: move through the cards without adding or discarding.
@@ -190,31 +212,22 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
               {queue.position}/{queue.total.toLocaleString('es-ES')}
             </Text>
           </HintButton>
-          {inDeck > 0 && (
-            <View style={[styles.chip, { borderColor: colors.add }]}>
-              <MaterialCommunityIcons name="cards-playing" size={15} color={colors.add} />
-              <Text style={[styles.chipText, { color: colors.add }]}>{inDeck} en el mazo</Text>
-            </View>
-          )}
-          {inMaybe > 0 && (
-            // Tap: one copy less in «Posibles».
-            <HintButton
-              hint="Quitar una de Posibles"
-              onPress={async () => {
-                if (!activeDeck) return;
-                await changeMaybeQuantity(db, activeDeck.id, card.oracleId, -1);
-                buzz('discard');
-                onToast(`− ${displayName(card)} de Posibles`);
-                refresh(activeDeck.id);
-              }}
-              style={[styles.chip, { borderColor: colors.info }]}
-              hitSlop={4}
-            >
-              <MaterialCommunityIcons name="help-circle-outline" size={15} color={colors.info} />
-              <Text style={[styles.chipText, { color: colors.info }]}>{inMaybe} en Posibles</Text>
-              <MaterialCommunityIcons name="minus-circle" size={17} color={colors.info} />
-            </HintButton>
-          )}
+          <Stepper
+            icon="cards-playing"
+            label="Mazo"
+            value={inDeck}
+            color={colors.add}
+            onSub={() => changeCopies('deck', -1)}
+            onAdd={() => changeCopies('deck', 1)}
+          />
+          <Stepper
+            icon="help-circle-outline"
+            label="Posibles"
+            value={inMaybe}
+            color={colors.info}
+            onSub={() => changeCopies('maybe', -1)}
+            onAdd={() => changeCopies('maybe', 1)}
+          />
           {notLegal && (
             <View style={[styles.chip, { borderColor: colors.discard }]}>
               <MaterialCommunityIcons name="alert-outline" size={15} color={colors.discard} />
@@ -293,6 +306,46 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
           }}
         />
       </BottomSheet>
+    </View>
+  );
+}
+
+/** − [icon label N] ＋, like the PC's deck buttons: the copies of the card on screen in the deck or «Posibles». */
+function Stepper(props: {
+  icon: 'cards-playing' | 'help-circle-outline';
+  label: string;
+  value: number;
+  color: string;
+  onSub: () => void;
+  onAdd: () => void;
+}) {
+  const on = props.value > 0;
+  return (
+    <View style={[styles.stepper, { borderColor: props.color }, on && { backgroundColor: props.color }]}>
+      <Pressable
+        onPress={props.onSub}
+        disabled={!on}
+        hitSlop={4}
+        style={({ pressed }) => [styles.stepperSide, (pressed || !on) && { opacity: on ? 0.6 : 0.35 }]}
+        accessibilityLabel={`Una copia menos en ${props.label}`}
+      >
+        <MaterialCommunityIcons name="minus" size={18} color={on ? colors.bg : props.color} />
+      </Pressable>
+      <Pressable
+        onPress={props.onAdd}
+        hitSlop={4}
+        style={({ pressed }) => [styles.stepperMain, pressed && { opacity: 0.6 }]}
+        accessibilityLabel={`Una copia más en ${props.label}`}
+      >
+        <MaterialCommunityIcons name="plus" size={16} color={on ? colors.bg : props.color} />
+        <MaterialCommunityIcons name={props.icon} size={15} color={on ? colors.bg : props.color} />
+        <Text style={[styles.stepperText, { color: on ? colors.bg : props.color }]}>{props.label}</Text>
+        {on && (
+          <View style={styles.stepperBadge}>
+            <Text style={[styles.stepperBadgeText, { color: props.color }]}>{props.value}</Text>
+          </View>
+        )}
+      </Pressable>
     </View>
   );
 }
@@ -393,6 +446,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   chipText: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  stepper: { flexDirection: 'row', alignItems: 'center', height: 32, borderRadius: 16, borderWidth: 1.5, overflow: 'hidden' },
+  stepperSide: {
+    width: 32,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(0,0,0,0.25)',
+  },
+  stepperMain: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, height: '100%' },
+  stepperText: { fontSize: 13, fontWeight: '800' },
+  stepperBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  stepperBadgeText: { fontSize: 12, fontWeight: '900' },
   iconRound: {
     width: 44,
     height: 44,
