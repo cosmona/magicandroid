@@ -1054,7 +1054,12 @@ export function DeckSheet() {
             const index = order.findIndex((c) => c.oracleId === preview.oracleId);
             return index < 0
               ? undefined
-              : { index, total: order.length, onMove: (step: number) => order[index + step] && setPreviewId(order[index + step].oracleId) };
+              : {
+                  index,
+                  total: order.length,
+                  onMove: (step: number) => order[index + step] && setPreviewId(order[index + step].oracleId),
+                  cardAt: (i: number) => order[i]?.scryfallId,
+                };
           })()}
           extra={
             <View style={{ gap: 8 }}>

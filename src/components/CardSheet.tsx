@@ -1,5 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { GestureDetector, GestureHandlerRootView, usePanGesture } from 'react-native-gesture-handler';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { Image } from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -30,33 +33,22 @@ const LEGAL_LABEL: Record<string, string> = { legal: 'Legal', not_legal: 'No leg
 const LEGAL_COLOR: Record<string, string> = { legal: colors.add, not_legal: colors.textMuted, banned: colors.discard, restricted: colors.undo };
 
 /**
- * The enlarged card, full screen (like the PC's card sheet): header with its tags, the big image (tap
- * to see it alone; ⟲ turns double-faced cards), language / other arts / Cardmarket / share, the name
- * and printing, «La tengo» / «La quiero», the active deck and «Posibles» with − / ＋, which of your
- * decks have it, its text, data and legality in the deck's format, and «Ficha completa» (all of
- * Scryfall, synergies and combos). `card` is the printing or its Scryfall id; `onPrinting` keeps a
- * language / art change (the deck's or collection's card), otherwise it only changes what's shown.
+ * One card of the sheet: everything about it (`card` is the printing or its Scryfall id; `onPrinting`
+ * keeps a language / art change, otherwise it only changes what's shown).
  */
-export function CardSheet({
+function CardPage({
   card: initial,
-  onClose,
   onPrinting,
   exact = false,
-  subtitle,
   extra,
-  nav,
+  onTitle,
 }: {
   card: Card | string;
-  onClose: () => void;
   onPrinting?: (card: Card) => void;
-  /** Show this printing as it is (else in the preferred language when the id is given). */
   exact?: boolean;
-  /** Where it was opened from (shown in the header). */
-  subtitle?: string;
-  /** More things for this card (the deck's buttons and validation). */
   extra?: ReactNode;
-  /** ‹ › through the list it was opened from. */
-  nav?: { index: number; total: number; onMove: (step: number) => void };
+  /** The page on screen tells the header its card's name. */
+  onTitle?: (title: string | null) => void;
 }) {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
@@ -161,51 +153,13 @@ export function CardSheet({
   const image = card ? (back && card.backImageUrl) || card.imageUrl : null;
   const format = activeDeck?.format;
 
-  return (
-    <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={[styles.screen, { paddingTop: insets.top }]}>
-        {/* Header: close, where it comes from, ‹ n / total ›. */}
-        <View style={styles.head}>
-          <Pressable onPress={onClose} hitSlop={10} style={styles.headBtn} accessibilityLabel="Cerrar">
-            <MaterialCommunityIcons name="close" size={24} color={colors.text} />
-          </Pressable>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.headTitle} numberOfLines={1}>
-              {card ? displayName(card) : 'Carta'}
-            </Text>
-            {!!subtitle && (
-              <Text style={styles.headSub} numberOfLines={1}>
-                {subtitle}
-              </Text>
-            )}
-          </View>
-          {nav && nav.total > 1 && (
-            <View style={styles.navRow}>
-              <Pressable
-                onPress={() => nav.onMove(-1)}
-                disabled={nav.index === 0}
-                hitSlop={8}
-                style={[styles.headBtn, nav.index === 0 && { opacity: 0.3 }]}
-                accessibilityLabel="Carta anterior"
-              >
-                <MaterialCommunityIcons name="chevron-left" size={26} color={colors.text} />
-              </Pressable>
-              <Text style={styles.headSub}>
-                {nav.index + 1} / {nav.total}
-              </Text>
-              <Pressable
-                onPress={() => nav.onMove(1)}
-                disabled={nav.index >= nav.total - 1}
-                hitSlop={8}
-                style={[styles.headBtn, nav.index >= nav.total - 1 && { opacity: 0.3 }]}
-                accessibilityLabel="Carta siguiente"
-              >
-                <MaterialCommunityIcons name="chevron-right" size={26} color={colors.text} />
-              </Pressable>
-            </View>
-          )}
-        </View>
+  const title = card ? displayName(card) : null;
+  useEffect(() => {
+    onTitle?.(title);
+  }, [title, onTitle]);
 
+  return (
+    <View style={{ flex: 1 }}>
         {failed ? (
           <Text style={[styles.muted, { padding: 24, textAlign: 'center' }]}>No se pudo cargar la carta: comprueba la conexión.</Text>
         ) : !card ? (
@@ -359,7 +313,152 @@ export function CardSheet({
         )}
         {card && modal === 'info' && <CardInfoScreen id={card.id} onClose={() => setModal(null)} />}
         <CardTagsSheet oracleId={card && modal === 'tags' ? card.oracleId : null} name={card ? displayName(card) : undefined} onClose={() => setModal(null)} />
-      </View>
+    </View>
+  );
+}
+
+/**
+ * The enlarged card, full screen (like the PC's card sheet): header with its tags, the big image (tap
+ * to see it alone; ⟲ turns double-faced cards), language / other arts / Cardmarket / share, the name
+ * and printing, «La tengo» / «La quiero», the active deck and «Posibles» with − / ＋, which of your
+ * decks have it, its text, data and legality, and «Ficha completa». With `nav.cardAt`, dragging
+ * sideways moves through the list: the next (or previous) card comes in under the finger with all its
+ * data, and settles in when let go past a third of the screen (or with a flick).
+ */
+export function CardSheet({
+  card,
+  onClose,
+  onPrinting,
+  exact = false,
+  subtitle,
+  extra,
+  nav,
+}: {
+  card: Card | string;
+  onClose: () => void;
+  onPrinting?: (card: Card) => void;
+  /** Show this printing as it is (else in the preferred language when the id is given). */
+  exact?: boolean;
+  /** Where it was opened from (shown in the header). */
+  subtitle?: string;
+  /** More things for this card (the deck's buttons and validation). */
+  extra?: ReactNode;
+  /** ‹ › through the list it was opened from; `cardAt` gives the neighbours for the swipe. */
+  nav?: { index: number; total: number; onMove: (step: number) => void; cardAt?: (index: number) => Card | string | null | undefined };
+}) {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const [title, setTitle] = useState<string | null>(null);
+  const index = nav?.index ?? 0;
+  const prev = nav?.cardAt && index > 0 ? nav.cardAt(index - 1) : null;
+  const next = nav?.cardAt && nav && index < nav.total - 1 ? nav.cardAt(index + 1) : null;
+  const keyOf = (c: Card | string) => (typeof c === 'string' ? c : c.id);
+
+  // The row of pages sits at -index × width; dragging moves it from there.
+  const x = useSharedValue(-index * width);
+  const start = useSharedValue(0);
+  useEffect(() => {
+    x.set(withTiming(-index * width, { duration: 160, easing: Easing.out(Easing.cubic) }));
+  }, [index, width, x]);
+  const move = (step: number) => nav?.onMove(step);
+  const hasPrev = !!prev;
+  const hasNext = !!next;
+  const swipe = usePanGesture({
+    activeOffsetX: [-14, 14],
+    failOffsetY: [-12, 12],
+    onActivate: () => {
+      start.set(x.get());
+    },
+    onUpdate: (e) => {
+      let dx = e.translationX;
+      // Nothing that way: it only gives a little.
+      if ((dx > 0 && !hasPrev) || (dx < 0 && !hasNext)) dx *= 0.2;
+      x.set(start.get() + dx);
+    },
+    onDeactivate: (e) => {
+      const projected = e.translationX + e.velocityX * 0.2;
+      const base = -index * width;
+      if (!e.canceled && projected < -width / 3 && hasNext) {
+        x.set(withTiming(base - width, { duration: 180, easing: Easing.out(Easing.cubic) }, (done) => done && scheduleOnRN(move, 1)));
+      } else if (!e.canceled && projected > width / 3 && hasPrev) {
+        x.set(withTiming(base + width, { duration: 180, easing: Easing.out(Easing.cubic) }, (done) => done && scheduleOnRN(move, -1)));
+      } else {
+        x.set(withSpring(base, { damping: 22, stiffness: 220, overshootClamping: true }));
+      }
+    },
+  });
+  const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
+
+  // Each page keeps its key (its card) when it moves from the side to the middle: already loaded.
+  const pages = [
+    prev ? { card: prev, at: index - 1 } : null,
+    { card, at: index },
+    next ? { card: next, at: index + 1 } : null,
+  ].filter((p): p is { card: Card | string; at: number } => !!p);
+
+  return (
+    <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <GestureHandlerRootView style={[styles.screen, { paddingTop: insets.top }]}>
+        {/* Header: close, where it comes from, ‹ n / total ›. */}
+        <View style={styles.head}>
+          <Pressable onPress={onClose} hitSlop={10} style={styles.headBtn} accessibilityLabel="Cerrar">
+            <MaterialCommunityIcons name="close" size={24} color={colors.text} />
+          </Pressable>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.headTitle} numberOfLines={1}>
+              {title ?? 'Carta'}
+            </Text>
+            {!!subtitle && (
+              <Text style={styles.headSub} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            )}
+          </View>
+          {nav && nav.total > 1 && (
+            <View style={styles.navRow}>
+              <Pressable
+                onPress={() => nav.onMove(-1)}
+                disabled={nav.index === 0}
+                hitSlop={8}
+                style={[styles.headBtn, nav.index === 0 && { opacity: 0.3 }]}
+                accessibilityLabel="Carta anterior"
+              >
+                <MaterialCommunityIcons name="chevron-left" size={26} color={colors.text} />
+              </Pressable>
+              <Text style={styles.headSub}>
+                {nav.index + 1} / {nav.total}
+              </Text>
+              <Pressable
+                onPress={() => nav.onMove(1)}
+                disabled={nav.index >= nav.total - 1}
+                hitSlop={8}
+                style={[styles.headBtn, nav.index >= nav.total - 1 && { opacity: 0.3 }]}
+                accessibilityLabel="Carta siguiente"
+              >
+                <MaterialCommunityIcons name="chevron-right" size={26} color={colors.text} />
+              </Pressable>
+            </View>
+          )}
+        </View>
+
+        <GestureDetector gesture={swipe}>
+          <View style={{ flex: 1, overflow: 'hidden' }}>
+            <Animated.View style={[StyleSheet.absoluteFill, rowStyle]}>
+              {pages.map((pg) => (
+                <View key={keyOf(pg.card)} style={{ position: 'absolute', top: 0, bottom: 0, left: pg.at * width, width }}>
+                  <CardPage
+                    card={pg.card}
+                    exact={exact}
+                    onPrinting={pg.at === index ? onPrinting : undefined}
+                    extra={pg.at === index ? extra : undefined}
+                    onTitle={pg.at === index ? setTitle : undefined}
+                  />
+                </View>
+              ))}
+            </Animated.View>
+          </View>
+        </GestureDetector>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

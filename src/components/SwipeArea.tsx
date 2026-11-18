@@ -300,7 +300,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
           subtitle="Construir"
           onClose={() => setOpen(null)}
           onPrinting={(c) => queue.replaceCurrent(c)}
-          nav={{ index: queue.index, total: queue.total, onMove: (step) => browse(step > 0 ? 1 : -1)() }}
+          nav={{ index: queue.index, total: queue.total, onMove: (step) => browse(step > 0 ? 1 : -1)(), cardAt: (i) => queue.cards[i] }}
         />
       )}
       {card && open === 'info' && <CardInfoScreen id={card.id} onClose={() => setOpen(null)} />}

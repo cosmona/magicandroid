@@ -307,6 +307,12 @@ Bolt», «1x Sol Ring (CMR) 472»):
   resto de tu pool. Al importar a la **colección** el banquillo no se importa. Lo de *Maybeboard* nunca se importa.
 - Al terminar verás las cartas que no se encontraron.
 
+### Pasar de carta en la ficha
+
+Al abrir una carta desde el mazo, la colección o Construir, **desliza a la izquierda o a la derecha** para ir a la
+siguiente o la anterior de la lista: la otra carta entra siguiendo tu dedo, con su imagen y todos sus datos. Si sueltas
+pasado un tercio de la pantalla (o con un golpe rápido) cambia; si no, vuelve. También con ‹ › de la cabecera.
+
 ## 5. Ficha completa de una carta
 
 <table><tr><td align="center"><img src="img/ficha.jpg" width="240" alt="Ficha completa (ⓘ)"><br><sub>Ficha completa (ⓘ)</sub></td></tr></table>

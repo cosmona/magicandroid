@@ -1111,7 +1111,12 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
             const index = order.findIndex((c) => c.scryfallId === preview.scryfallId);
             return index < 0
               ? undefined
-              : { index, total: order.length, onMove: (step: number) => order[index + step] && setPreview(order[index + step]) };
+              : {
+                  index,
+                  total: order.length,
+                  onMove: (step: number) => order[index + step] && setPreview(order[index + step]),
+                  cardAt: (i: number) => order[i]?.scryfallId,
+                };
           })()}
         />
       )}
