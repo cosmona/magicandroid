@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   railLabel: { color: colors.text, fontSize: 10, fontWeight: '800', textShadowColor: '#000', textShadowRadius: 4 },
-  strip: { gap: 6, paddingHorizontal: 12, paddingTop: 8, alignItems: 'center' },
+  strip: { gap: 10, paddingHorizontal: 12, paddingTop: 8, alignItems: 'center', justifyContent: 'center', flexGrow: 1 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -487,6 +487,8 @@ export interface DeckCard {
   legalities: string | null;
   /** 1 = chosen as commander (Commander-style formats). */
   isCommander: number;
+  /** When it was added (ms): the «Orden de añadido» sort. */
+  addedAt?: number;
 }
 
 export const getDeckCards = (db: SQLiteDatabase, deckId: number) =>
@@ -494,7 +496,7 @@ export const getDeckCards = (db: SQLiteDatabase, deckId: number) =>
     `SELECT oracle_id AS oracleId, scryfall_id AS scryfallId, name, printed_name AS printedName,
             type_line AS typeLine, mana_cost AS manaCost, cmc, image_url AS imageUrl,
             oracle_text AS oracleText, rarity, quantity, color_identity AS colorIdentity,
-            legalities, is_commander AS isCommander
+            legalities, is_commander AS isCommander, added_at AS addedAt
      FROM deck_cards WHERE deck_id = ? ORDER BY is_commander DESC, cmc, name`,
     deckId,
   );

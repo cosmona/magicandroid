@@ -30,7 +30,7 @@ import { ManaCost } from '@/components/ManaCost';
 import { CardSheet } from '@/components/CardSheet';
 import { useCardDetails } from '@/hooks/useCardDetails';
 import { setWanted, useWantedPrintings } from '@/hooks/useWanted';
-import { UNNAMED_DECK, useAppState, type DeckView } from '@/context/AppState';
+import { UNNAMED_DECK, useAppState, type DeckView, type DeckSort } from '@/context/AppState';
 import {
   addCardToDeck,
   addToCollection,
@@ -108,6 +108,7 @@ export function DeckSheet() {
   const wantedIds = useWantedPrintings(db, activeCards.map((c) => c.scryfallId));
   const [mode, setMode] = useState<DeckView>(prefs.deckView);
   const [groupMenu, setGroupMenu] = useState(false);
+  const [sortMenu, setSortMenu] = useState(false);
   const [collapsed, setCollapsed] = useRememberedSet('deck');
   const [editing, setEditing] = useState(false);
   // Oracle id of the card shown enlarged; the card itself is read from the deck so its
@@ -277,9 +278,22 @@ export function DeckSheet() {
       tags: (c) => (deckTags[c.oracleId] ?? []).map((u) => tagName[u]).filter(Boolean),
     };
   }, [editions, owned, details, deckTags, allTags]);
+  // The cards in the chosen order (each group keeps it).
+  const sortBy = prefs.deckSort ?? 'cmc';
+  const sortedCards = useMemo(() => {
+    const name = (c: DeckCard) => c.printedName ?? c.name;
+    const byName = (a: DeckCard, b: DeckCard) => name(a).localeCompare(name(b), 'es');
+    const list = [...activeCards];
+    if (sortBy === 'name') list.sort(byName);
+    else if (sortBy === 'added') list.sort((a, b) => (a.addedAt ?? 0) - (b.addedAt ?? 0));
+    else if (sortBy === 'addedNew') list.sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0));
+    else if (sortBy === 'copies') list.sort((a, b) => b.quantity - a.quantity || byName(a, b));
+    else list.sort((a, b) => a.cmc - b.cmc || byName(a, b));
+    return list;
+  }, [activeCards, sortBy]);
   const groups = useMemo(
-    () => groupDeck(activeDeck ? activeCards : [], groupBy, validation.usesCommander, groupCtx),
-    [activeDeck, activeCards, groupBy, validation.usesCommander, groupCtx],
+    () => groupDeck(activeDeck ? sortedCards : [], groupBy, validation.usesCommander, groupCtx),
+    [activeDeck, sortedCards, groupBy, validation.usesCommander, groupCtx],
   );
   const items = useMemo(() => {
     const out: ListItem[] = [];
@@ -444,16 +458,39 @@ export function DeckSheet() {
       <View style={styles.titleRow}>
         {activeDeck && (
           <View style={styles.infoRow}>
+            {activeCards.length > 0 && (
+              <ValidationBanner
+                validation={validation}
+                format={activeDeck.format}
+                cards={activeCards}
+                onOpenCard={(c) => setPreviewId(c.oracleId)}
+              />
+            )}
             <View style={{ flex: 1 }} />
             {hasGroups && (
-              <>
-                <HintButton hint="Abrir todos los grupos" style={styles.groupButton} onPress={openAll} hitSlop={4}>
-                  <MaterialCommunityIcons name="unfold-more-horizontal" size={18} color={colors.textMuted} />
-                </HintButton>
-                <HintButton hint="Cerrar todos los grupos" style={styles.groupButton} onPress={closeAll} hitSlop={4}>
-                  <MaterialCommunityIcons name="unfold-less-horizontal" size={18} color={colors.textMuted} />
-                </HintButton>
-              </>
+              // One button: closes every group, or opens them all if any is closed.
+              <HintButton
+                hint={collapsed.size ? 'Abrir todos los grupos' : 'Cerrar todos los grupos'}
+                style={styles.groupButton}
+                onPress={collapsed.size ? openAll : closeAll}
+                hitSlop={4}
+              >
+                <MaterialCommunityIcons
+                  name={collapsed.size ? 'unfold-more-horizontal' : 'unfold-less-horizontal'}
+                  size={18}
+                  color={colors.textMuted}
+                />
+              </HintButton>
+            )}
+            {activeCards.length > 1 && (
+              <HintButton
+                hint={`Ordenar: ${DECK_SORTS.find((o) => o.key === sortBy)?.label}`}
+                style={[styles.groupButton, sortBy !== 'cmc' && styles.groupButtonOn]}
+                onPress={() => setSortMenu(true)}
+                hitSlop={4}
+              >
+                <MaterialCommunityIcons name="sort" size={18} color={sortBy !== 'cmc' ? colors.bg : colors.textMuted} />
+              </HintButton>
             )}
             {activeCards.length > 0 && (
               <HintButton
@@ -504,14 +541,6 @@ export function DeckSheet() {
         )}
       </View>
 
-      {activeDeck && activeCards.length > 0 && (
-        <ValidationBanner
-          validation={validation}
-          format={activeDeck.format}
-          cards={activeCards}
-          onOpenCard={(c) => setPreviewId(c.oracleId)}
-        />
-      )}
 
       {activeDeck && !toolsHidden && (
         <View style={styles.actions}>
@@ -788,6 +817,32 @@ export function DeckSheet() {
           </Animated.View>
         </>
       )}
+
+      <Modal visible={sortMenu} transparent animationType="fade" onRequestClose={() => setSortMenu(false)}>
+        <Pressable style={styles.issuesBackdrop} onPress={() => setSortMenu(false)}>
+          <Pressable style={styles.groupMenu} onPress={() => {}}>
+            <Text style={styles.groupMenuTitle}>Ordenar las cartas</Text>
+            {DECK_SORTS.map((o) => (
+              <Pressable
+                key={o.key}
+                style={[styles.groupOption, sortBy === o.key && styles.groupOptionOn]}
+                onPress={() => {
+                  setPrefs({ ...prefs, deckSort: o.key });
+                  setSortMenu(false);
+                }}
+              >
+                <MaterialCommunityIcons
+                  name={sortBy === o.key ? 'radiobox-marked' : 'radiobox-blank'}
+                  size={20}
+                  color={sortBy === o.key ? colors.accent : colors.textMuted}
+                />
+                <Text style={styles.groupOptionText}>{o.label}</Text>
+              </Pressable>
+            ))}
+            <Text style={styles.groupMenuHelp}>Dentro de cada grupo.</Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={groupMenu} transparent animationType="fade" onRequestClose={() => setGroupMenu(false)}>
         <Pressable style={styles.issuesBackdrop} onPress={() => setGroupMenu(false)}>
@@ -1141,16 +1196,8 @@ function ValidationBanner(props: {
 }) {
   const { validation: v, format, cards, onOpenCard } = props;
   const [open, setOpen] = useState(false);
-  if (!v.checked) {
-    return (
-      <View style={[styles.banner, styles.bannerNeutral]}>
-        <MaterialCommunityIcons name="information-outline" size={18} color={colors.textMuted} />
-        <Text style={[styles.bannerText, { flex: 1 }]} numberOfLines={2}>
-          Formato libre: sin comprobaciones. Elige un formato al editar.
-        </Text>
-      </View>
-    );
-  }
+  // Only when there are problems: a red ⚠ with how many; tap it for the list.
+  if (!v.checked || v.valid) return null;
   const badCards = cards.filter((c) => v.cardIssues[c.oracleId]);
   const count = v.issues.length + badCards.reduce((n, c) => n + v.cardIssues[c.oracleId].length, 0);
   const title = v.valid
@@ -1158,23 +1205,10 @@ function ValidationBanner(props: {
     : `${count} ${count === 1 ? 'problema' : 'problemas'} para ${formatLabel(format)}`;
   return (
     <>
-      <Pressable
-        style={[styles.banner, v.valid ? styles.bannerOk : styles.bannerBad]}
-        onPress={() => setOpen(true)}
-        disabled={v.valid}
-        accessibilityRole="button"
-      >
-        <MaterialCommunityIcons
-          name={v.valid ? 'check-circle-outline' : 'alert-outline'}
-          size={18}
-          color={v.valid ? colors.add : colors.discard}
-        />
-        <Text style={[styles.bannerTitle, { flex: 1 }]} numberOfLines={1}>
-          {title}
-          {v.pendingData > 0 ? ' · comprobando…' : ''}
-        </Text>
-        {!v.valid && <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />}
-      </Pressable>
+      <HintButton hint={title} style={styles.issuesIcon} onPress={() => setOpen(true)} hitSlop={4}>
+        <MaterialCommunityIcons name="alert-outline" size={17} color={colors.discard} />
+        <Text style={styles.issuesIconText}>{count}</Text>
+      </HintButton>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.issuesBackdrop} onPress={() => setOpen(false)}>
@@ -1620,7 +1654,26 @@ function CardControls({ card, actions, crown }: { card: DeckCard; actions: CardA
   );
 }
 
+const DECK_SORTS: { key: DeckSort; label: string }[] = [
+  { key: 'cmc', label: 'Coste de maná' },
+  { key: 'name', label: 'Nombre' },
+  { key: 'added', label: 'Orden de añadido (primero lo más antiguo)' },
+  { key: 'addedNew', label: 'Orden de añadido (primero lo último)' },
+  { key: 'copies', label: 'Número de copias' },
+];
+
 const styles = StyleSheet.create({
+  issuesIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    height: 30,
+    paddingHorizontal: 9,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.discard,
+  },
+  issuesIconText: { color: colors.discard, fontWeight: '900', fontSize: 13 },
   tokensRow: {
     flexDirection: 'row',
     alignItems: 'center',

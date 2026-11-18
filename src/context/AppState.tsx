@@ -24,6 +24,8 @@ const PREFS_KEY = 'prefs';
 export type DeckView = 'list' | 'gallery' | 'big' | 'text';
 
 /** User settings (Ajustes). New fields need a default here; saved prefs are merged over it. */
+export type DeckSort = 'cmc' | 'name' | 'added' | 'addedNew' | 'copies';
+
 export interface Prefs {
   /** Scryfall language code cards are shown in when available ('en' = as returned). */
   language: string;
@@ -33,6 +35,8 @@ export interface Prefs {
   deckView: DeckView;
   /** How the deck sheet groups the cards. */
   deckGroup: DeckGroupBy;
+  /** Order of the cards inside each group of the deck. */
+  deckSort?: DeckSort;
   /** Second level of the deck's grouping ('none' = no subgroups). */
   deckSubGroup?: DeckGroupBy;
   /** What you have / miss of each card («Faltan N», «✓», «En X · 1 libre»…). */

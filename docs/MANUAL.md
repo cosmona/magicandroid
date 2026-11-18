@@ -152,6 +152,10 @@ Pulsa **Buscar** para aplicar los filtros.
 
 ### La barra del mazo
 
+En la cabecera del mazo: **⚠ N** (en rojo, solo si hay problemas) abre la lista de problemas; un botón **abre o cierra
+todos los grupos**; **ordenar** elige el orden de las cartas dentro de cada grupo (coste, nombre, orden de añadido —lo
+más antiguo o lo último primero— o número de copias).
+
 Arrastra la barra hacia arriba y el mazo sube siguiendo tu dedo: si lo sueltas pasada la mitad se abre, si no vuelve
 abajo. También se abre tocándola. Los grupos y subgrupos que pliegues o abras se recuerdan, también al cerrar la app.
 
@@ -324,6 +328,11 @@ Cada bloque se **pliega y despliega** tocando su título (flecha a la derecha), 
 Usa **←** para volver y **↗** para abrirla en Scryfall.
 
 ## 6. Colección
+
+Arriba: el nombre (toca para ver un mazo dentro de la colección) con el total de cartas y su valor; la búsqueda con
+**importar** y la **cámara**; y una fila con **Filtros**, **♡ La quiero** (solo las que quieres), **seleccionar**,
+**agrupar** (agrupación y subgrupo en un menú) y **lista / galería**. Si tienes etiquetas, debajo salen para filtrar
+(la última abre su gestión).
 
 <table><tr><td align="center"><img src="img/coleccion.jpg" width="240" alt="Tu colección"><br><sub>Tu colección</sub></td></tr></table>
 

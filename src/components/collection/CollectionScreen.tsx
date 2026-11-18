@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRememberedSet } from '@/hooks/useRememberedSet';
 import {
   ActivityIndicator,
+  Modal,
   Alert,
   Pressable,
   ScrollView,
@@ -154,6 +155,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   // Second level of the grouping ('none' = no subgroups).
   const [subGroupBy, setSubGroupBy] = useState<GroupBy>('none');
+  const [groupMenu, setGroupMenu] = useState(false);
   const [collapsed, setCollapsed] = useRememberedSet('collection');
   const [inDecks, setInDecks] = useState<Set<string>>(new Set());
   // Which decks use each card, and how many copies (by oracle id).
@@ -520,7 +522,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           </Text>
           <MaterialCommunityIcons name="chevron-down" size={22} color={colors.accent} />
         </Pressable>
-        <Text style={styles.stats}>
+        <Text style={styles.stats} numberOfLines={1}>
           {stats.total} cartas · {stats.unique} distintas
           {showPrices && value.priced > 0 && <Text style={styles.value}> · ≈ {formatEur(value.eur)}</Text>}
         </Text>
@@ -592,16 +594,45 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
             Filtros{filterCount ? ` · ${filterCount}` : ''}
           </Text>
         </Pressable>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupChips}>
-          <Pressable
-            style={[styles.groupChip, onlyWanted && { borderColor: WANT_COLOR }]}
-            onPress={() => setOnlyWanted((v) => !v)}
-            accessibilityLabel="Ver solo las cartas marcadas con «La quiero»"
-          >
-            <Text style={[styles.groupChipText, onlyWanted && { color: WANT_COLOR }]}>
-              {onlyWanted ? '♥' : '♡'} Las quiero ({wanted.length})
-            </Text>
-          </Pressable>
+        <Pressable
+          style={[styles.toolChip, onlyWanted && { borderColor: WANT_COLOR }]}
+          onPress={() => setOnlyWanted((v) => !v)}
+          accessibilityLabel="Ver solo las cartas marcadas con «La quiero»"
+        >
+          <MaterialCommunityIcons name={onlyWanted ? 'heart' : 'heart-outline'} size={17} color={WANT_COLOR} />
+          <Text style={[styles.groupChipText, onlyWanted && { color: WANT_COLOR }]}>{wanted.length}</Text>
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        <Pressable
+          style={[styles.toolIcon, sel.selecting && styles.groupChipOn]}
+          onPress={() => (sel.selecting ? sel.exit() : sel.start())}
+          accessibilityLabel="Seleccionar varias cartas"
+        >
+          <MaterialCommunityIcons name="checkbox-multiple-marked-outline" size={19} color={sel.selecting ? colors.bg : colors.textMuted} />
+        </Pressable>
+        <Pressable
+          style={[styles.toolIcon, effectiveGroup !== 'none' && styles.groupChipOn]}
+          onPress={() => setGroupMenu(true)}
+          accessibilityLabel={`Agrupar: ${GROUP_LABELS[effectiveGroup]}`}
+        >
+          <MaterialCommunityIcons name="format-list-group" size={19} color={effectiveGroup !== 'none' ? colors.bg : colors.textMuted} />
+        </Pressable>
+        <View style={styles.viewSwitch}>
+          {(['list', 'gallery'] as const).map((v) => (
+            <Pressable
+              key={v}
+              style={[styles.viewOption, view === v && styles.viewOptionSelected]}
+              onPress={() => setView(v)}
+              accessibilityLabel={v === 'list' ? 'Lista' : 'Galería'}
+            >
+              <MaterialCommunityIcons name={v === 'list' ? 'view-list' : 'view-grid'} size={17} color={view === v ? colors.bg : colors.textMuted} />
+            </Pressable>
+          ))}
+        </View>
+      </View>
+      {allTags.length > 0 && (
+        // The tags filter the list; the last chip manages them.
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagChips}>
           {allTags.map((t) => (
             <TagChip
               key={t.uid}
@@ -610,51 +641,51 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
               onPress={() => setTagFilter((f) => (f.includes(t.uid) ? f.filter((x) => x !== t.uid) : [...f, t.uid]))}
             />
           ))}
-          <Pressable
-            style={[styles.groupChip, sel.selecting && styles.groupChipOn]}
-            onPress={() => (sel.selecting ? sel.exit() : sel.start())}
-            accessibilityLabel="Seleccionar varias cartas"
-          >
-            <Text style={[styles.groupChipText, sel.selecting && { color: colors.bg }]}>☑ Seleccionar</Text>
-          </Pressable>
           <Pressable style={styles.groupChip} onPress={() => setManagingTags(true)} accessibilityLabel="Gestionar etiquetas">
-            <Text style={styles.groupChipText}>🏷 Etiquetas</Text>
+            <MaterialCommunityIcons name="tag-edit-outline" size={14} color={colors.textMuted} />
           </Pressable>
-          <MaterialCommunityIcons name="format-list-group" size={18} color={colors.textMuted} />
-          {GROUPINGS.filter((g) => showPrices || g !== 'price').map((g) => (
-            <Pressable
-              key={g}
-              style={[styles.groupChip, groupBy === g && styles.groupChipOn]}
-              onPress={() => {
-                setGroupBy(g);
-                setCollapsed(new Set());
-              }}
-            >
-              <Text style={[styles.groupChipText, groupBy === g && { color: colors.bg }]}>{GROUP_LABELS[g]}</Text>
-            </Pressable>
-          ))}
         </ScrollView>
-        {effectiveGroup !== 'none' && (
-          // Second level: each group split again (Tipo › Color…).
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.groupChips, { paddingTop: 0 }]}>
-            <Text style={styles.subLabel}>Subgrupo</Text>
-            {GROUPINGS.filter((g) => g !== effectiveGroup && (showPrices || g !== 'price')).map((g) => (
+      )}
+
+      <Modal visible={groupMenu} transparent animationType="fade" onRequestClose={() => setGroupMenu(false)}>
+        <Pressable style={styles.menuBackdrop} onPress={() => setGroupMenu(false)}>
+          <Pressable style={styles.menuBox} onPress={() => {}}>
+            <Text style={styles.menuTitle}>Agrupar por</Text>
+            {GROUPINGS.filter((g) => showPrices || g !== 'price').map((g) => (
               <Pressable
                 key={g}
-                style={[styles.groupChip, effectiveSub === g && styles.groupChipOn]}
+                style={styles.menuOption}
                 onPress={() => {
-                  setSubGroupBy(g);
+                  setGroupBy(g);
                   setCollapsed(new Set());
                 }}
               >
-                <Text style={[styles.groupChipText, effectiveSub === g && { color: colors.bg }]}>
-                  {g === 'none' ? 'Ninguno' : GROUP_LABELS[g]}
-                </Text>
+                <MaterialCommunityIcons name={groupBy === g ? 'radiobox-marked' : 'radiobox-blank'} size={20} color={groupBy === g ? colors.accent : colors.textMuted} />
+                <Text style={styles.menuText}>{GROUP_LABELS[g]}</Text>
               </Pressable>
             ))}
-          </ScrollView>
-        )}
-      </View>
+            {effectiveGroup !== 'none' && (
+              <>
+                <Text style={[styles.menuTitle, { marginTop: 10 }]}>Subgrupo</Text>
+                {GROUPINGS.filter((g) => g !== effectiveGroup && (showPrices || g !== 'price')).map((g) => (
+                  <Pressable
+                    key={g}
+                    style={styles.menuOption}
+                    onPress={() => {
+                      setSubGroupBy(g);
+                      setCollapsed(new Set());
+                      setGroupMenu(false);
+                    }}
+                  >
+                    <MaterialCommunityIcons name={effectiveSub === g ? 'radiobox-marked' : 'radiobox-blank'} size={20} color={effectiveSub === g ? colors.accent : colors.textMuted} />
+                    <Text style={styles.menuText}>{g === 'none' ? 'Ninguno' : GROUP_LABELS[g]}</Text>
+                  </Pressable>
+                ))}
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {searching && (
         <View style={styles.results}>
@@ -687,24 +718,9 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         </View>
       )}
 
-      <View style={styles.listHeader}>
-        <Text style={styles.sectionTitle}>
-          {searching || filterCount ? `En tu colección (${owned.length})` : 'Tus cartas'}
-        </Text>
-        <View style={styles.viewSwitch}>
-          {(['list', 'gallery'] as const).map((v) => (
-            <Pressable
-              key={v}
-              style={[styles.viewOption, view === v && styles.viewOptionSelected]}
-              onPress={() => setView(v)}
-            >
-              <Text style={[styles.viewOptionText, view === v && { color: colors.bg }]}>
-                {v === 'list' ? '☰' : '▦'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
+      {(searching || filterCount > 0) && (
+        <Text style={[styles.sectionTitle, { paddingHorizontal: 16, paddingTop: 8 }]}>En tu colección ({owned.length})</Text>
+      )}
     </View>
   );
 
@@ -983,6 +999,31 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
 }
 
 const styles = StyleSheet.create({
+  toolChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 34,
+    paddingHorizontal: 10,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  toolIcon: {
+    width: 36,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tagChips: { gap: 6, paddingHorizontal: 16, paddingBottom: 6, alignItems: 'center' },
+  menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
+  menuBox: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, gap: 2, borderWidth: 1, borderColor: colors.border },
+  menuTitle: { color: colors.text, fontSize: 15, fontWeight: '800', marginBottom: 4 },
+  menuOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  menuText: { color: colors.text, fontSize: 15 },
   subLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '800', alignSelf: 'center' },
   subHeader: {
     flexDirection: 'row',
