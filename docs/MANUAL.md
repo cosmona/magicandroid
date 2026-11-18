@@ -86,11 +86,9 @@ añade en el idioma que elijas; en el resto solo cambia lo que ves.
 | Gesto | Qué hace |
 |---|---|
 | Deslizar la carta a la **derecha** | La añade al mazo activo (si no tienes ninguno, crea «Mazo sin nombre») |
-| Deslizar a la **izquierda** | La descarta (si ya está en el mazo, le quita una copia) |
+| Deslizar a la **izquierda** | La descarta |
 | Deslizar hacia **arriba** | La aparta en **Posibles** del mazo |
 | **Tocar** la carta | Abre su ficha: idioma, otras artes, Cardmarket, La tengo, La quiero, ± al mazo y a Posibles, texto, legalidad y Ficha completa (con ‹ › para pasar por los resultados) |
-
-Si vuelves a una carta que ya decidiste, verás «✓ Ya añadida» o «✕ Descartada».
 
 Para corregir una decisión, abre el **historial** y toca la carta: vuelves a ella.
 
@@ -117,15 +115,14 @@ o al usar uno. La pestaña está un poco separada del borde para no activar el g
 
 Debajo de la carta, en una línea (se desliza si no cabe):
 
-- **Historial** con la posición en los resultados (`1/723`).
 - **− ＋ 🃏 N** (mazo) y **− ＋ ? N** (Posibles), como en el PC: añade o quita copias de la carta en el mazo activo o en
   Posibles sin pasarla (se rellenan de color cuando ya la llevas).
 - **⚠ No legal / Prohibida** en el formato del mazo activo.
 
 ### Los botones de abajo
 
-De izquierda a derecha: **‹** carta anterior, **✕** descartar, **?** a Posibles, **✓** añadir al mazo (mantén pulsado
-para Posibles) y **›** pasar a la siguiente sin decidir.
+De izquierda a derecha: **‹** carta anterior, **✕** descartar, el **contador** (`1/723`, abre el historial), **✓** añadir
+al mazo (mantén pulsado para Posibles) y **›** pasar a la siguiente sin decidir.
 
 ### Historial ▤
 
@@ -154,6 +151,9 @@ Pulsa **Buscar** para aplicar los filtros.
 ## 4. El mazo
 
 ### La barra del mazo
+
+Arrastra la barra hacia arriba y el mazo sube siguiendo tu dedo: si lo sueltas pasada la mitad se abre, si no vuelve
+abajo. También se abre tocándola. Los grupos y subgrupos que pliegues o abras se recuerdan, también al cerrar la app.
 
 Abajo del todo está la barra del mazo activo: portada, nombre, formato, número de cartas, si es válido y su precio
 aproximado. **Tócala o deslízala hacia arriba** para abrir el mazo. Con el mazo cerrado la portada es pequeña, para dejar

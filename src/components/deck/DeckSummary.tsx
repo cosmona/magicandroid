@@ -78,7 +78,7 @@ export function DeckSummary({
       </Pressable>
       <View style={{ flex: 1 }}>
         <View style={styles.nameRow}>
-          <Text style={[styles.name, { flexShrink: 1 }]} numberOfLines={1}>
+          <Text style={[styles.name, compact && styles.nameCompact, { flexShrink: 1 }]} numberOfLines={1}>
             {activeDeck?.name ?? 'Sin mazo'}
           </Text>
           {(compact || !onTags) && prefs.showTags !== false && deckTags.map((t) => <TagChip key={t.uid} tag={t} iconOnly />)}
@@ -89,8 +89,9 @@ export function DeckSummary({
                 activeDeck.name === UNNAMED_DECK ? ' · sin guardar' : ''
               }`
             : 'Desliza a la derecha para empezar uno'}
+          {compact && prefs.pricesDeck && price.priced > 0 && <Text style={styles.price}> · ≈ {formatEur(price.eur)}</Text>}
         </Text>
-        {prefs.pricesDeck && price.priced > 0 && (
+        {!compact && prefs.pricesDeck && price.priced > 0 && (
           <View style={styles.priceRow}>
             <MaterialCommunityIcons name="tag-outline" size={14} color={colors.accent} />
             <Text style={styles.price} numberOfLines={1}>
@@ -129,6 +130,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
   },
   name: { color: colors.text, fontSize: 19, fontWeight: '800' },
+  nameCompact: { fontSize: 16 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4, marginTop: 3 },
   tagsButton: {

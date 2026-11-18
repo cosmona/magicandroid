@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRememberedSet } from '@/hooks/useRememberedSet';
 import {
   ActivityIndicator,
   Alert,
@@ -153,7 +154,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   // Second level of the grouping ('none' = no subgroups).
   const [subGroupBy, setSubGroupBy] = useState<GroupBy>('none');
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useRememberedSet('collection');
   const [inDecks, setInDecks] = useState<Set<string>>(new Set());
   // Which decks use each card, and how many copies (by oracle id).
   const [usage, setUsage] = useState<Record<string, { deckName: string; quantity: number }[]>>({});

@@ -39,6 +39,8 @@ export interface Prefs {
   showOwned?: boolean;
   /** Colors of the rows (owned green, wanted pink…). */
   colorCode?: boolean;
+  /** Groups and subgroups folded or open in each list (deck, collection…), remembered. */
+  openState?: Record<string, string[]>;
   /** «Mano» (beta): the camera reads your hand. Off unless turned on in Ajustes. */
   handBeta?: boolean;
   /** The «Mano» guide (how to place the camera) was seen. */

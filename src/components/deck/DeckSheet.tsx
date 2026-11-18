@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef, type ReactNode } from 'react';
+import { useRememberedSet } from '@/hooks/useRememberedSet';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -107,7 +108,7 @@ export function DeckSheet() {
   const wantedIds = useWantedPrintings(db, activeCards.map((c) => c.scryfallId));
   const [mode, setMode] = useState<DeckView>(prefs.deckView);
   const [groupMenu, setGroupMenu] = useState(false);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useRememberedSet('deck');
   const [editing, setEditing] = useState(false);
   // Oracle id of the card shown enlarged; the card itself is read from the deck so its
   // quantity / commander update live while the buttons under it are used.

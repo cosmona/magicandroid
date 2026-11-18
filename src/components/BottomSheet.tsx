@@ -4,6 +4,7 @@ import { GestureDetector, GestureHandlerRootView, usePanGesture } from 'react-na
 import Animated, {
   Easing,
   interpolate,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -24,6 +25,11 @@ interface Props {
   expandable?: boolean;
   /** Opens at the full screen (under the status bar): just two positions, open or closed. */
   fullScreen?: boolean;
+  /**
+   * Driven from outside while a finger drags it (the deck bar): 0 = closed … 1 = open; -1 = not
+   * driven (its own animations and drag work as usual).
+   */
+  follow?: SharedValue<number>;
   children: ReactNode;
 }
 
@@ -115,6 +121,7 @@ export function BottomSheet({
   heightRatio = 0.9,
   expandable = false,
   fullScreen = false,
+  follow,
   children,
 }: Props) {
   const { height: windowHeight } = useWindowDimensions();
@@ -142,6 +149,8 @@ export function BottomSheet({
     if (!mounted) return;
     if (visible) {
       dragClosing.set(false);
+      // A finger is moving it (it follows that instead of opening by itself).
+      if (follow && follow.get() >= 0) return;
       offset.set(withTiming(rest, OPEN));
     } else if (!dragClosing.get()) {
       offset.set(
@@ -150,7 +159,14 @@ export function BottomSheet({
         }),
       );
     }
-  }, [visible, mounted, rest, hidden, offset, dragClosing]);
+  }, [visible, mounted, rest, hidden, offset, dragClosing, follow]);
+  // Follow the outside finger.
+  useAnimatedReaction(
+    () => (follow ? follow.get() : -1),
+    (p) => {
+      if (p >= 0) offset.set(hidden - p * (hidden - rest));
+    },
+  );
 
   const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: offset.get() }] }));
   const backdropStyle = useAnimatedStyle(() => ({

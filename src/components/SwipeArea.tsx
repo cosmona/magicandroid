@@ -94,13 +94,6 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     } else {
       buzz('discard');
       decide(card.id, 'discarded');
-      // Already in the deck: discarding it takes a copy out.
-      const copies = activeCards.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0;
-      if (activeDeck && copies > 0) {
-        await changeQuantity(db, activeDeck.id, card.oracleId, -1);
-        onToast(`−1 ${displayName(card)} (${copies - 1} en el mazo)`);
-        refresh(activeDeck.id);
-      }
     }
   };
 
@@ -169,7 +162,6 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const cardSize = { width: cardWidth, height: cardWidth * CARD_RATIO };
 
   const card = queue.current;
-  const decision = card ? decisions[card.id] : undefined;
   // The card in the active deck, its price and whether the deck's format allows it.
   const inDeck = card ? (activeCards.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0) : 0;
   const inMaybe = card ? (activeMaybe.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0) : 0;
@@ -208,17 +200,6 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
 
   return (
     <View style={styles.container}>
-      {card && decision && (
-        <View style={styles.languageRow}>
-          {decision && (
-            <View style={[styles.decided, { borderColor: decision === 'added' ? colors.add : colors.discard }]}>
-              <Text style={[styles.decidedText, { color: decision === 'added' ? colors.add : colors.discard }]}>
-                {decision === 'added' ? '✓ Ya añadida' : '✕ Descartada'}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
       <View style={styles.cardArea} onLayout={onLayout}>
         <View style={styles.cardSlot}>
         {cardSize.width > 0 && body}
@@ -265,12 +246,6 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
       {card && (
         // What matters of this card, in one line: where you are, the deck, the price, the rules; language and art.
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.strip}>
-          <HintButton hint="Historial de esta búsqueda" onPress={() => setHistoryOpen(true)} style={styles.chip} hitSlop={4}>
-            <MaterialCommunityIcons name="history" size={15} color={colors.accent} />
-            <Text style={styles.chipText}>
-              {queue.position}/{queue.total.toLocaleString('es-ES')}
-            </Text>
-          </HintButton>
           <Stepper
             icon="cards-playing"
             label="Mazo"
@@ -299,7 +274,12 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
         <View style={styles.actions}>
           <SmallRound icon="chevron-left" hint="Carta anterior" disabled={queue.index === 0} onPress={browse(-1)} />
           <RoundButton symbol="✕" color={colors.discard} onPress={() => cardRef.current?.swipe('left')} />
-          <SmallRound icon="help-circle-outline" hint="A Posibles (o desliza hacia arriba)" color={colors.info} onPress={() => cardRef.current?.swipe('up')} />
+          <HintButton hint="Historial de esta búsqueda" onPress={() => setHistoryOpen(true)} style={styles.counterButton} hitSlop={6}>
+            <MaterialCommunityIcons name="history" size={16} color={colors.accent} />
+            <Text style={styles.counterText}>
+              {queue.position}/{queue.total.toLocaleString('es-ES')}
+            </Text>
+          </HintButton>
           <RoundButton
             symbol="✓"
             color={colors.add}
@@ -410,7 +390,7 @@ function Stepper(props: {
 
 /** A small round button of the bottom row (previous / next / «Posibles»). */
 function SmallRound(props: {
-  icon: 'chevron-left' | 'chevron-right' | 'help-circle-outline';
+  icon: 'chevron-left' | 'chevron-right';
   hint: string;
   color?: string;
   disabled?: boolean;
@@ -517,6 +497,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   chipText: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  counterButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 58,
+    height: 44,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  counterText: { color: colors.textMuted, fontSize: 11, fontWeight: '700' },
   stepper: { flexDirection: 'row', alignItems: 'center', height: 32, borderRadius: 16, borderWidth: 1.5, overflow: 'hidden' },
   stepperSide: {
     width: 32,
