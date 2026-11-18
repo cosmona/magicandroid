@@ -98,9 +98,10 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
     <td valign="top">
       <h4>Tus mazos</h4>
       <ul>
-        <li>Vistas <b>lista</b>, <b>galería</b>, <b>grande</b> y <b>texto</b>, <b>etiquetas</b> en los mazos, <b>agrupadas</b> por tipo, coste, color o rareza.</li>
+        <li>Vistas <b>lista</b>, <b>galería</b>, <b>grande</b> y <b>texto</b> (como la imagen para compartir, con el comandante en grande), <b>agrupadas</b> por tipo, coste, color, rareza, edición o etiqueta.</li>
+        <li><b>Etiquetas</b> en los mazos («Para torneo», «Casual»…), las mismas que las de las cartas.</li>
         <li><b>Validación</b> en tiempo real según el formato: tamaño, copias, legalidad, comandante e identidad de color.</li>
-        <li><b>Banquillo</b> en cada mazo, con un botón o arrastrando las cartas.</li>
+        <li><b>Banquillo</b> y <b>Posibles</b> en cada mazo, con un botón o arrastrando las cartas.</li>
         <li>Arte, idioma y portada de cada carta; comandante; deshacer al quitar, vaciar o borrar.</li>
         <li><b>Importa</b> listas de MTG Arena (también en español), Moxfield, Archidekt y MTGO, incluidos drafts.</li>
         <li><b>Comparte</b> el mazo como imagen, como texto o listo para importar en MTG Arena.</li>
@@ -135,7 +136,7 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
       <h4>Cada carta, al detalle</h4>
       <ul>
         <li><b>Ficha completa</b> con todo lo que Scryfall sabe de la carta y la explicación de cada dato.</li>
-        <li>Cualquier carta en grande indica si <b>está en tu mazo</b>, cambia de idioma y se marca como tuya.</li>
+        <li>Al tocar una carta se abre su <b>ficha a pantalla completa</b>, como en el PC: imagen (tócala para verla sola; las de dos caras se giran), idioma, otras artes, Cardmarket y compartir, La tengo / La quiero, «− ＋ al mazo» y «a Posibles», <b>en qué mazos está</b>, su texto con los símbolos, datos y legalidad; ‹ › para pasar a la siguiente.</li>
         <li><b>Precio</b> en Cardmarket por carta y por mazo, y la lista de lo que te falta para comprarlo de una vez.</li>
       </ul>
     </td>
@@ -153,6 +154,7 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
         <li><b>Filtros</b> y <b>agrupaciones</b> por color, tipo, subtipo, coste, rareza, edición, idioma, precio, uso en mazos, copias y etiquetas.</li>
         <li><b>Etiquetas</b> tuyas (texto, color e icono) para marcar cartas («Para cambiar», «Prestada»…) y filtrar por ellas.</li>
         <li><b>La tengo</b> y <b>La quiero</b> por versión: cada edición, idioma y arte por separado.</li>
+        <li>En cada carta, <b>en qué mazos está</b> y cuántas copias te quedan libres («En Krenko (2) · 1 libre»).</li>
         <li><b>Valor</b> de la colección en Cardmarket.</li>
         <li>Comparte cualquier carta como imagen o con su enlace de Scryfall.</li>
       </ul>
@@ -169,7 +171,8 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
       <ul>
         <li>Contador para <b>2 a 6 jugadores</b>, pensado para dejar el móvil en el centro de la mesa.</li>
         <li><b>Daño de comandante</b> de cada rival con − / ＋ en el propio recuadro, <b>veneno</b> y aviso de jugador eliminado.</li>
-        <li><b>Fotos</b> de cada jugador que salen al recibir daño, hacer daño o ganar vidas.</li>
+        <li><b>Quién hace el daño</b>: con 3 o más jugadores, cada lado del recuadro se parte en un botón por rival con su color.</li>
+        <li><b>Pantalla a tu gusto</b> (qué se ve en cada recuadro) y <b>efectos</b>: fotos de cada jugador (recibe daño, hace daño, sube vida), destellos, temblor, números al vuelo, latido con pocas vidas, calavera y confeti para el ganador.</li>
         <li><b>¿Quién empieza?</b>, dados de 6 y de 20 y moneda.</li>
         <li>La pantalla no se apaga durante la partida y el marcador se guarda solo.</li>
       </ul>
@@ -178,7 +181,7 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
 </table>
 
 En toda la app: **código de colores** coherente, **ayuda** al mantener pulsado cualquier botón y **ajustes** de idioma,
-vistas, vibración y precios. **Sincronizar con Magic Swipe para PC** por la Wi-Fi: escanea el QR del PC, revisa en la pantalla del PC todo lo que es
+vistas, etiquetas, vibración y precios. **Sincronizar con Magic Swipe para PC** por la Wi-Fi: escanea el QR del PC, revisa en la pantalla del PC todo lo que es
 distinto (mazos, colección, «La quiero» y etiquetas) con la opción sugerida ya marcada, y al aplicar los dos quedan
 iguales; antes se guarda una copia que puedes restaurar. También se puede copiar o mover todo de uno a otro. **Posibles** en cada mazo para apartar cartas que te estás pensando y
 **♡ La quiero** para apuntar las cartas que quieres conseguir (salen en tu colección).

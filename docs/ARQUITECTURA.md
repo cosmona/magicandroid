@@ -113,6 +113,11 @@ flowchart TD
   (clave `lifeCounter`). `tableRows` decide la disposición por número de jugadores; la fila de arriba se gira 180°.
   Cada recuadro son dos `Pressable` (mitad izquierda −1, derecha +1, pulsación larga ±10) con el número encima sin
   recibir toques. `useFocusEffect` + `expo-keep-awake` mantienen la pantalla encendida solo en esta pestaña.
+  Con 3+ jugadores (y `show.sources`) cada mitad se parte en un `Pressable` por rival (su color) para saber quién hace
+  el daño. `LifeGame.settings` (`lifeSettings`, `setShow`, `setEffect`; igual que en el PC) guarda qué se ve
+  (`show`) y los efectos (`effects`: fotos, destellos, temblor, números, latido, calavera, confeti), hechos con
+  `Animated` de React Native. Las fotos (`expo-camera`, cámara delantera) se copian a `documentDirectory/life-photos`
+  y la partida guarda su URI.
 - Lo que se abre encima (filtros, mazo, historial, ajustes) son **hojas inferiores**, no pantallas, para que la pila de
   cartas no se desmonte y conserve su posición.
 - La **ficha completa** (`cardInfo/CardInfoScreen`) es un `Modal` a pantalla completa, porque se abre desde dentro de la
@@ -308,7 +313,11 @@ sequenceDiagram
 - **Hoja del mazo**: `BottomSheet fullScreen` (dos posiciones, abierta a pantalla completa o cerrada). El aviso de
   cartas que faltan va en el hueco `right` de `DeckSummary`; abrir / cerrar todos los grupos usa el mismo conjunto
   `collapsed` (con el banquillo como `SIDEBOARD_KEY`).
-- **`CardBigView`** (`components/`): carta ampliada a partir de su id de Scryfall (las listas de EDHREC en la ficha y en las recomendadas): idioma preferido, 🌐, `OwnPill` y «Añadir al mazo» (`ensureActiveDeck` + `addCardToDeck`).
+- **`CardSheet`** (`components/`): la ficha de una carta a pantalla completa, como la del PC (cabecera con ‹ ›,
+  etiquetas, imagen ampliable y con la otra cara, idioma, otras artes, Cardmarket, compartir, `OwnPill`, «− ＋ al mazo»
+  y «a Posibles», en qué mazos está con `getDeckUsage`, texto con `SymbolText`, datos, legalidad y «Ficha completa»).
+  La usan el mazo (con `extra`: validación, comandante, portada, banquillo, quitar), la colección y `CardBigView`
+  (listas de EDHREC y recomendadas).
 - **Globos de ayuda**: `components/Hint` (`useHint` / `HintButton`): pulsación larga en un botón de icono → `measureInWindow` y un `Modal` transparente con su nombre encima durante 1,6 s. Lo usan `CardIconButton`, los botones de acción del mazo y los de vista/agrupar.
 - **Arrastrar cartas** (mazo ⇄ banquillo): la imagen de cada carta (y la miniatura en galería y banquillo) va en un `Draggable` (en `DeckSheet`) con
   `usePanGesture({ activateAfterLongPress: 350 })`: un toque normal sigue desplazando la lista o pulsando botones; tras la
