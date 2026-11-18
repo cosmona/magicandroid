@@ -86,10 +86,10 @@ function Scanner({ onClose, onAdded, onSearch }: Omit<Props, 'visible'>) {
     }
   };
 
-  const add = async (card: Card) => {
-    const quantity = await addToCollection(db, card, 'paper');
-    setCount((n) => n + 1);
-    const message = `✓ ${displayName(card)} (tienes ${quantity})`;
+  const add = async (card: Card, copies = 1) => {
+    const quantity = await addToCollection(db, card, 'paper', copies);
+    setCount((n) => n + copies);
+    const message = `✓ ${copies > 1 ? `${copies} × ` : ''}${displayName(card)} (tienes ${quantity})`;
     setLastAdded(message);
     onAdded(message);
     setStep({ kind: 'camera' });
@@ -134,7 +134,7 @@ function Scanner({ onClose, onAdded, onSearch }: Omit<Props, 'visible'>) {
         <FoundPanel
           card={step.card}
           onChange={setCard}
-          onAdd={() => add(step.card)}
+          onAdd={(copies) => add(step.card, copies)}
           onRetry={() => setStep({ kind: 'camera' })}
         />
       )}
@@ -180,8 +180,10 @@ function Scanner({ onClose, onAdded, onSearch }: Omit<Props, 'visible'>) {
   );
 }
 
-function FoundPanel(props: { card: Card; onChange: (card: Card) => void; onAdd: () => void; onRetry: () => void }) {
+function FoundPanel(props: { card: Card; onChange: (card: Card) => void; onAdd: (copies: number) => void; onRetry: () => void }) {
   const { card } = props;
+  // Copies to add (a new scan starts again at 1: this panel is made again).
+  const [copies, setCopies] = useState(1);
   return (
     <View style={styles.panel}>
       <View style={styles.foundRow}>
@@ -207,9 +209,29 @@ function FoundPanel(props: { card: Card; onChange: (card: Card) => void; onAdd: 
           </View>
         </View>
       </View>
+      <View style={styles.copiesRow}>
+        <Text style={styles.copiesLabel}>Copias</Text>
+        <Pressable
+          style={({ pressed }) => [styles.copiesButton, pressed && { opacity: 0.6 }]}
+          onPress={() => setCopies((n) => Math.max(1, n - 1))}
+          accessibilityLabel="Una copia menos"
+          hitSlop={6}
+        >
+          <Text style={styles.copiesSign}>−</Text>
+        </Pressable>
+        <Text style={styles.copiesValue}>{copies}</Text>
+        <Pressable
+          style={({ pressed }) => [styles.copiesButton, pressed && { opacity: 0.6 }]}
+          onPress={() => setCopies((n) => Math.min(99, n + 1))}
+          accessibilityLabel="Una copia más"
+          hitSlop={6}
+        >
+          <Text style={styles.copiesSign}>＋</Text>
+        </Pressable>
+      </View>
       <View style={styles.panelButtons}>
         <PanelButton label="↻ No es esta" onPress={props.onRetry} />
-        <PanelButton label="＋ Añadir a la colección" onPress={props.onAdd} primary />
+        <PanelButton label={copies > 1 ? `＋ Añadir ${copies}` : '＋ Añadir a la colección'} onPress={() => props.onAdd(copies)} primary />
       </View>
     </View>
   );
@@ -246,6 +268,19 @@ function Message(props: {
 }
 
 const styles = StyleSheet.create({
+  copiesRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 10 },
+  copiesLabel: { color: colors.text, fontWeight: '800', fontSize: 15, flex: 1 },
+  copiesButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  copiesSign: { color: colors.text, fontSize: 22, fontWeight: '800' },
+  copiesValue: { color: colors.text, fontSize: 20, fontWeight: '900', minWidth: 28, textAlign: 'center' },
   screen: { flex: 1, backgroundColor: '#000' },
   cameraBox: { flex: 1, overflow: 'hidden' },
   guideLayer: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 14 },
