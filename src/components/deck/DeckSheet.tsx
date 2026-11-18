@@ -1426,7 +1426,7 @@ function CardRow({ card, actions, issues, crown, owned, drag, wanted, info, layo
       <View style={styles.rowTop}>
         <Draggable oracleId={card.oracleId} from="main" drag={drag}>
           <Pressable onPress={() => actions.preview(card)}>
-            {card.imageUrl && <Image source={{ uri: card.imageUrl }} style={styles.thumb} contentFit="cover" />}
+            {card.imageUrl && <Image source={{ uri: smallImageUrl(card.imageUrl) }} style={styles.thumb} contentFit="cover" recyclingKey={card.oracleId} />}
           </Pressable>
         </Draggable>
         <View style={{ flex: 1, gap: 2 }}>

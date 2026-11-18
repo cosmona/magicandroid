@@ -49,6 +49,7 @@ cartas y una base de datos en servidor; aquí se cambió a Scryfall y almacenami
 | **Expo SDK 58** + React Native 0.88 + React 19 + TypeScript | Base de la app |
 | **Expo Router** | Navegación por archivos (`src/app/`) |
 | **expo-sqlite** | Base de datos local con migraciones |
+| **React Compiler** (`experiments.reactCompiler` en `app.json`) | Memoriza componentes y cálculos solo: las listas no se redibujan enteras con cada cambio. El código sigue sus reglas (las comprueba el lint). Si al compilar el APK no se aplica, borra la caché de Metro (`%TEMP%\metro-cache`) |
 | **react-native-gesture-handler 3** (API de hooks) + **Reanimated 4** | Deslizar cartas y hojas en el hilo de UI |
 | **expo-image** | Imágenes con caché y precarga |
 | **@expo/vector-icons** (Material Community Icons) | Iconos |
