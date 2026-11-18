@@ -154,7 +154,8 @@ Pulsa **Buscar** para aplicar los filtros.
 
 En la cabecera del mazo: **⚠ N** (en rojo, solo si hay problemas) abre la lista de problemas; un botón **abre o cierra
 todos los grupos**; **ordenar** elige el orden de las cartas dentro de cada grupo (coste, nombre, orden de añadido —lo
-más antiguo o lo último primero— o número de copias).
+más antiguo o lo último primero— o número de copias). Al bajar por las cartas, la portada, el nombre y los botones de acciones suben y la fila
+de botones (⚠, abrir/cerrar, ordenar, agrupar, vistas) se queda fija arriba.
 
 Arrastra la barra hacia arriba y el mazo sube siguiendo tu dedo: si lo sueltas pasada la mitad se abre, si no vuelve
 abajo. También se abre tocándola. Los grupos y subgrupos que pliegues o abras se recuerdan, también al cerrar la app.

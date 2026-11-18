@@ -87,7 +87,9 @@ type ListItem =
   | { type: 'header'; key: string; group: DeckGroup; collapsed: boolean }
   | { type: 'sub'; key: string; subKey: string; label: string; count: number; collapsed: boolean }
   | { type: 'card'; key: string; card: DeckCard }
-  | { type: 'row'; key: string; cards: DeckCard[] };
+  | { type: 'row'; key: string; cards: DeckCard[] }
+  | { type: 'bar'; key: string }
+  | { type: 'pre'; key: string };
 
 const VIEWS: { key: DeckView; label: string; icon: IconName }[] = [
   { key: 'list', label: 'Lista', icon: 'format-list-bulleted' },
@@ -451,9 +453,10 @@ export function DeckSheet() {
   const unnamed = activeDeck?.name === UNNAMED_DECK;
   const toolsHidden = prefs.deckToolsHidden;
 
-  // Fixed above the cards; dragging anywhere on it (buttons included) moves the sheet.
+  // The deck's summary scrolls away with the cards; the row of buttons stays at the top (sticky).
+  // Dragging the summary or the buttons moves the sheet.
   const header = (
-    <View style={styles.top}>
+    <View>
       <View style={styles.titleRow}>
         <DeckSummary
           onPressCover={() => setPicking((p) => !p)}
@@ -488,6 +491,10 @@ export function DeckSheet() {
       {/* Without a deck the picker is the only way forward: always show it then. */}
       {(picking || !activeDeck) && <DeckPicker onPicked={() => setPicking(false)} />}
 
+    </View>
+  );
+  const buttonsBar = (
+    <View style={styles.stickyBar}>
       <View style={styles.titleRow}>
         {activeDeck && (
           <View style={styles.infoRow}>
@@ -575,6 +582,10 @@ export function DeckSheet() {
       </View>
 
 
+    </View>
+  );
+  const actionsRow = (
+    <View style={styles.top}>
       {activeDeck && !toolsHidden && (
         <View style={styles.actions}>
           <Action
@@ -627,6 +638,8 @@ export function DeckSheet() {
     </View>
   );
 
+  const listData = useMemo<ListItem[]>(() => [{ type: 'bar', key: '_bar' }, { type: 'pre', key: '_pre' }, ...items], [items]);
+
   // Scrolls with the cards: the problem list can get long.
   const listHeader = (
     <View>
@@ -655,12 +668,12 @@ export function DeckSheet() {
 
   return (
     <View style={styles.sheet} ref={sheetRef} collapsable={false}>
-      <SheetDragArea>{header}</SheetDragArea>
       <FlatList
         key={mode}
-        data={items}
+        data={listData}
+        stickyHeaderIndices={[1]}
         keyExtractor={(item) => item.key}
-        ListHeaderComponent={listHeader}
+        ListHeaderComponent={<SheetDragArea>{header}</SheetDragArea>}
         ListFooterComponent={
           // Always there for decks that can have one (so it can be found), and whenever it has cards.
           activeDeck ? (
@@ -729,6 +742,14 @@ export function DeckSheet() {
         initialNumToRender={mode === 'big' ? 2 : 8}
         windowSize={mode === 'big' ? 3 : 7}
         renderItem={({ item: entry }) => {
+          if (entry.type === 'bar') return <SheetDragArea>{buttonsBar}</SheetDragArea>;
+          if (entry.type === 'pre')
+            return (
+              <View>
+                {actionsRow}
+                {listHeader}
+              </View>
+            );
           if (entry.type === 'sub') {
             return (
               <Pressable
@@ -1780,6 +1801,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
   },
   top: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  stickyBar: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   titleRow: { paddingHorizontal: 14 },
   // Under the cover + name: collection status, view switch, buttons toggle.
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 8 },
