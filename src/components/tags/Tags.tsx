@@ -216,6 +216,39 @@ export function CardTagsSheet({ oracleId, name, onClose }: { oracleId: string | 
   );
 }
 
+/** Tags for several cards at once: on = all of them have it; a tap puts it on all (or takes it off all). */
+export function BulkTagsSheet({ oracleIds, onClose }: { oracleIds: string[] | null; onClose: () => void }) {
+  const db = useSQLiteContext();
+  const tags = useTags();
+  const ids = [...new Set(oracleIds ?? [])];
+  const map = useCardTags(ids);
+  const countOf = (uid: string) => ids.filter((id) => (map[id] ?? []).includes(uid)).length;
+  const toggle = async (tag: Tag) => {
+    const all = countOf(tag.uid) === ids.length;
+    for (const id of ids) await setCardTag(db, tag.uid, id, !all);
+    notifyTagsChanged();
+  };
+  return (
+    <BottomSheet visible={!!oracleIds} onClose={onClose} heightRatio={0.5}>
+      <View style={styles.sheet}>
+        <Text style={styles.title}>Etiquetas de {ids.length} {ids.length === 1 ? 'carta' : 'cartas'}</Text>
+        <Text style={styles.hint}>Toca una para ponérsela a todas (o quitársela, si todas la tienen).</Text>
+        <View style={styles.wrap}>
+          {tags.map((t) => {
+            const n = countOf(t.uid);
+            return (
+              <View key={t.uid} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <TagChip tag={t} selected={n === ids.length && n > 0} onPress={() => toggle(t)} />
+                {n > 0 && n < ids.length && <Text style={styles.hint}>{n}/{ids.length}</Text>}
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    </BottomSheet>
+  );
+}
+
 /** Create, edit and delete tags: text, color and icon. */
 export function TagsManagerSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const db = useSQLiteContext();

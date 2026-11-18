@@ -31,9 +31,11 @@ import {
 import { BottomSheet } from '@/components/BottomSheet';
 import { CardScanner } from '@/components/collection/CardScanner';
 import { CollectionFilterPanel } from '@/components/collection/CollectionFilterPanel';
-import { CardTagsSheet, TagChip, TagsManagerSheet, useCardTags, useTags } from '@/components/tags/Tags';
+import { BulkTagsSheet, CardTagsSheet, TagChip, TagsManagerSheet, useCardTags, useTags } from '@/components/tags/Tags';
 import { ManaCost } from '@/components/ManaCost';
 import { CardSheet } from '@/components/CardSheet';
+import { SelectionBar, SelectOverlay, useSelection, type BulkAction } from '@/components/Selection';
+import * as Clipboard from 'expo-clipboard';
 import { DeckInCollectionBar, DeckPickerModal } from '@/components/collection/DeckInCollection';
 import {
   activeFilterCount,
@@ -69,6 +71,7 @@ import {
   getDeckUsage,
   getDeckCards,
   type DeckCard,
+  addCardToMaybe,
 } from '@/db/database';
 import { RARITY_LABELS } from '@/icons';
 import { priceTotal, useCardDetails } from '@/hooks/useCardDetails';
@@ -97,6 +100,8 @@ const MAX_RESULTS = 20;
  * The search box filters the collection and, at the same time, searches Scryfall to add
  * new cards (added in the default language from settings when available).
  */
+const cardKey = (c: CollectionCard) => c.scryfallId;
+
 export function CollectionScreen({ search }: { search?: { q: string; t: string } } = {}) {
   const db = useSQLiteContext();
   const { prefs, ensureActiveDeck, refresh, decks, setActiveDeckId } = useAppState();
@@ -322,6 +327,78 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     return out;
   }, [groups, groupBy, collapsed, view, effectiveSub, organizeCtx]);
 
+  // ---- Several cards selected (long press or «Seleccionar»): a bar at the bottom with what to do.
+  const shownCards = useMemo(() => items.flatMap((it) => (it.type === 'card' ? [it.card] : it.type === 'row' ? it.cards : [])), [items]);
+  const sel = useSelection(shownCards, cardKey);
+  const [bulkTags, setBulkTags] = useState<string[] | null>(null);
+  const bulkActions: BulkAction[] = [
+    {
+      label: 'Al mazo',
+      icon: 'cards-playing-outline',
+      color: colors.accent,
+      onPress: async () => {
+        const full = await getCardsByIds(sel.chosen.map((c) => c.scryfallId)).catch(() => []);
+        const deck = await ensureActiveDeck();
+        for (const c of full) await addCardToDeck(db, deck.id, c);
+        await refresh(deck.id);
+        showToast(`${full.length} añadidas a «${deck.name}»`);
+        load();
+      },
+    },
+    {
+      label: 'A Posibles',
+      icon: 'help-circle-outline',
+      color: colors.info,
+      onPress: async () => {
+        const full = await getCardsByIds(sel.chosen.map((c) => c.scryfallId)).catch(() => []);
+        const deck = await ensureActiveDeck();
+        for (const c of full) await addCardToMaybe(db, deck.id, c);
+        await refresh(deck.id);
+        showToast(`${full.length} apartadas en Posibles`);
+      },
+    },
+    { label: 'Etiquetas', icon: 'tag-outline', onPress: () => setBulkTags(sel.chosen.map((c) => c.oracleId)) },
+    {
+      label: 'La quiero',
+      icon: 'heart-outline',
+      color: WANT_COLOR,
+      onPress: async () => {
+        const full = await getCardsByIds(sel.chosen.map((c) => c.scryfallId)).catch(() => []);
+        for (const c of full) await setWanted(db, c, true);
+        notifyWantedChanged();
+        load();
+      },
+    },
+    {
+      label: 'Copiar lista',
+      icon: 'content-copy',
+      onPress: async () => {
+        await Clipboard.setStringAsync(sel.chosen.map((c) => `${Math.max(1, c.quantity)} ${c.name}`).join('\n'));
+        showToast('Lista copiada');
+      },
+    },
+    {
+      label: 'Quitar',
+      icon: 'trash-can-outline',
+      color: colors.discard,
+      onPress: () => {
+        const list = sel.chosen.filter((c) => c.quantity > 0);
+        Alert.alert('Quitar de la colección', `¿Quitar ${list.length} ${list.length === 1 ? 'carta' : 'cartas'} de tu colección?`, [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Quitar',
+            style: 'destructive',
+            onPress: async () => {
+              for (const c of list) await removeFromCollection(db, c.scryfallId, place);
+              sel.exit();
+              load();
+            },
+          },
+        ]);
+      },
+    },
+  ];
+
   const toggleGroup = (key: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -532,6 +609,13 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
               onPress={() => setTagFilter((f) => (f.includes(t.uid) ? f.filter((x) => x !== t.uid) : [...f, t.uid]))}
             />
           ))}
+          <Pressable
+            style={[styles.groupChip, sel.selecting && styles.groupChipOn]}
+            onPress={() => (sel.selecting ? sel.exit() : sel.start())}
+            accessibilityLabel="Seleccionar varias cartas"
+          >
+            <Text style={[styles.groupChipText, sel.selecting && { color: colors.bg }]}>☑ Seleccionar</Text>
+          </Pressable>
           <Pressable style={styles.groupChip} onPress={() => setManagingTags(true)} accessibilityLabel="Gestionar etiquetas">
             <Text style={styles.groupChipText}>🏷 Etiquetas</Text>
           </Pressable>
@@ -630,7 +714,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         keyExtractor={(item) => item.key}
         ListHeaderComponent={header}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: sel.selecting ? 140 : 24 }}
         initialNumToRender={12}
         windowSize={7}
         ListEmptyComponent={
@@ -680,7 +764,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
             return (
               <View style={styles.galleryRow}>
                 {item.cards.map((card) => (
-                  <Pressable key={card.scryfallId} style={styles.galleryItem} onPress={() => setPreview(card)}>
+                  <Pressable key={card.scryfallId} style={styles.galleryItem} onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
                     {card.imageUrl && (
                       <Image
                         source={{ uri: smallImageUrl(card.imageUrl) }}
@@ -693,6 +777,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                     {card.quantity > 0 && wantedIds.has(card.scryfallId) && (
                       <Text style={[styles.badge, { left: 4, right: undefined, color: WANT_COLOR }]}>♥</Text>
                     )}
+                    {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
                   </Pressable>
                 ))}
               </View>
@@ -704,8 +789,9 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           const tint = prefs.colorCode !== false && card.quantity === 0 && wantedIds.has(card.scryfallId) ? { borderColor: WANT_COLOR } : null;
           return (
             <View style={[styles.row, tint]}>
+              {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
               <View style={styles.rowTop}>
-                <Pressable onPress={() => setPreview(card)}>
+                <Pressable onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
                   {card.imageUrl && (
                     <Image
                       source={{ uri: smallImageUrl(card.imageUrl) }}
@@ -862,6 +948,8 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
       )}
       {shareCard && <CardShareSheet card={shareCard} onClose={() => setShareCard(null)} />}
 
+      <SelectionBar sel={sel} total={shownCards.length} actions={bulkActions} />
+      <BulkTagsSheet oracleIds={bulkTags} onClose={() => setBulkTags(null)} />
       {toast && (
         <View style={styles.toast} pointerEvents="none">
           <Text style={styles.toastText}>{toast}</Text>
