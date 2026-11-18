@@ -6,7 +6,7 @@ export type ColorKey = 'W' | 'U' | 'B' | 'R' | 'G' | 'C';
 export type TypeKey =
   'creature' | 'planeswalker' | 'battle' | 'land' | 'instant' | 'sorcery' | 'artifact' | 'enchantment' | 'other';
 export type Usage = 'all' | 'inDeck' | 'free';
-export type GroupBy = 'none' | 'color' | 'type' | 'set' | 'rarity' | 'cost' | 'price' | 'lang' | 'subtype' | 'deck' | 'tag' | 'copies';
+export type GroupBy = 'none' | 'color' | 'type' | 'set' | 'rarity' | 'cost' | 'price' | 'lang' | 'subtype' | 'deck' | 'tag' | 'copies' | 'byDeck';
 
 export interface CollectionFilter {
   /** Card has any of these colors ('C' = colorless). Empty = any. */
@@ -88,6 +88,7 @@ export const GROUP_LABELS: Record<GroupBy, string> = {
   deck: 'En mazos',
   tag: 'Etiqueta',
   copies: 'Copias',
+  byDeck: 'Por mazo',
 };
 
 /** Colors in the mana cost (hybrid counts both). Colorless costs → []. */
@@ -134,6 +135,8 @@ export interface OrganizeContext {
   tags?: Record<string, string[]>;
   /** Language names, for the «Idioma» grouping. */
   langNames?: Record<string, string>;
+  /** Names of the decks that use each card (by oracle id), for «Por mazo». */
+  deckNames?: Record<string, string[]>;
 }
 
 export function applyFilter(cards: CollectionCard[], f: CollectionFilter, ctx: OrganizeContext): CollectionCard[] {
@@ -262,6 +265,12 @@ export function groupCards(cards: CollectionCard[], by: GroupBy, ctx: OrganizeCo
         const names = ctx.tags?.[c.oracleId] ?? [];
         if (names.length) for (const n of names) put(`t:${n}`, n, c);
         else put('~', 'Sin etiqueta', c);
+        break;
+      }
+      case 'byDeck': {
+        const names = ctx.deckNames?.[c.oracleId] ?? [];
+        if (names.length) for (const n of names) put(`m:${n}`, n, c);
+        else put('~', 'En ningún mazo', c);
         break;
       }
       case 'copies':

@@ -967,6 +967,13 @@ export async function getDeckOracleIds(db: SQLiteDatabase): Promise<Set<string>>
   return new Set(rows.map((r) => r.oracleId));
 }
 
+/** Copies of each card in each deck (main deck), with the deck's name: which decks use your cards. */
+export const getDeckUsage = (db: SQLiteDatabase) =>
+  db.getAllAsync<{ oracleId: string; deckId: number; deckName: string; quantity: number }>(
+    `SELECT c.oracle_id AS oracleId, d.id AS deckId, d.name AS deckName, c.quantity
+     FROM deck_cards c JOIN decks d ON d.id = c.deck_id ORDER BY d.name`,
+  );
+
 /** Copies owned of each card (any printing/language), by oracle id. */
 export async function getOwnedCounts(
   db: SQLiteDatabase,
