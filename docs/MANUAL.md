@@ -96,7 +96,8 @@ Para corregir una decisión, abre el **historial** y toca la carta: vuelves a el
 
 ### Los botones del lateral
 
-A la derecha de la carta, a mano del pulgar:
+A la derecha de la carta, a mano del pulgar (la flecha **›** de arriba los oculta y la carta usa todo el ancho; la
+pestaña **‹** del borde los vuelve a mostrar):
 
 - **♡ La quiero:** apunta esta versión (edición e idioma) para conseguirla; relleno si ya la quieres y con «Otra» si
   quieres otra versión.
@@ -116,7 +117,7 @@ A la derecha de la carta, a mano del pulgar:
 Debajo de la carta, en una línea (se desliza si no cabe):
 
 - **Historial** con la posición en los resultados (`1/723`).
-- **− ＋ Mazo N** y **− ＋ Posibles N**, como en el PC: añade o quita copias de la carta en el mazo activo o en
+- **− ＋ 🃏 N** (mazo) y **− ＋ ? N** (Posibles), como en el PC: añade o quita copias de la carta en el mazo activo o en
   Posibles sin pasarla (se rellenan de color cuando ya la llevas).
 - **⚠ No legal / Prohibida** en el formato del mazo activo.
 

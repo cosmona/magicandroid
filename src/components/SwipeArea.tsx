@@ -28,7 +28,7 @@ const RAIL_ROOM = 50;
 /** Card stack in the middle of the screen (the web's Deck view): right = add, left = discard. */
 export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const db = useSQLiteContext();
-  const { ready, filters, ensureActiveDeck, refresh, prefs, activeDeck, activeCards, activeMaybe } = useAppState();
+  const { ready, filters, ensureActiveDeck, refresh, prefs, setPrefs, activeDeck, activeCards, activeMaybe } = useAppState();
   // «Solo en mi colección»: your cards (Scryfall data of each printing, cached) with the filters applied on the phone.
   const queue = useCardQueue(filters, ready, prefs.language, async (f) => {
     const rows = await getCollection(db, 'paper');
@@ -45,7 +45,8 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [historyOpen, setHistoryOpen] = useState(false);
   const [showBack, setShowBack] = useState(false);
-  const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
+  // The card area's size (the card's own size follows from it and from the rail being shown).
+  const [area, setArea] = useState({ width: 0, height: 0 });
   const cardRef = useRef<SwipeCardHandle>(null);
   const [picker, setPicker] = useState<'language' | 'art' | null>(null);
   // The card's own screens: its sheet (tap on the card), «Ficha completa» and «Sinergias».
@@ -125,12 +126,17 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     else queue.back();
   };
 
+  // The side rail can be hidden (the card then takes the whole width); remembered.
+  const railHidden = !!prefs.swipeRailHidden;
+  const toggleRail = () => setPrefs({ ...prefs, swipeRailHidden: !railHidden });
+
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
-    // Room on the right for the side rail of buttons.
-    const w = Math.min(width - 32 - RAIL_ROOM, height / CARD_RATIO);
-    setCardSize({ width: w, height: w * CARD_RATIO });
+    setArea({ width, height });
   };
+  // Room on the right for the side rail of buttons (when shown).
+  const cardWidth = area.width ? Math.min(area.width - 32 - (railHidden ? 0 : RAIL_ROOM), (area.height - 10) / CARD_RATIO) : 0;
+  const cardSize = { width: cardWidth, height: cardWidth * CARD_RATIO };
 
   const card = queue.current;
   const decision = card ? decisions[card.id] : undefined;
@@ -184,10 +190,21 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
         </View>
       )}
       <View style={styles.cardArea} onLayout={onLayout}>
+        <View style={[styles.cardSlot, { paddingRight: railHidden ? 0 : RAIL_ROOM }]}>
         {cardSize.width > 0 && body}
-        {card && (
+        </View>
+        {card && railHidden && (
+          // Hidden: just a small tab to bring the buttons back.
+          <HintButton hint="Mostrar los botones" onPress={toggleRail} style={styles.railTab} hitSlop={8}>
+            <MaterialCommunityIcons name="chevron-left" size={22} color={colors.text} />
+          </HintButton>
+        )}
+        {card && !railHidden && (
           // Everything about the card at a thumb's reach, over its right edge.
           <View style={styles.rail}>
+            <HintButton hint="Ocultar los botones" onPress={toggleRail} style={styles.railHide} hitSlop={8}>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
+            </HintButton>
             <WantRailButton card={card} />
             <View style={styles.railItem}>
               <OwnRoundButton card={card} size={42} />
@@ -338,8 +355,7 @@ function Stepper(props: {
         accessibilityLabel={`Una copia más en ${props.label}`}
       >
         <MaterialCommunityIcons name="plus" size={16} color={on ? colors.bg : props.color} />
-        <MaterialCommunityIcons name={props.icon} size={15} color={on ? colors.bg : props.color} />
-        <Text style={[styles.stepperText, { color: on ? colors.bg : props.color }]}>{props.label}</Text>
+        <MaterialCommunityIcons name={props.icon} size={17} color={on ? colors.bg : props.color} />
         {on && (
           <View style={styles.stepperBadge}>
             <Text style={[styles.stepperBadgeText, { color: props.color }]}>{props.value}</Text>
@@ -411,7 +427,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  cardArea: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 10, paddingRight: RAIL_ROOM },
+  cardArea: { flex: 1 },
+  cardSlot: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 10 },
   arrow: {
     position: 'absolute',
     top: '50%',
@@ -432,6 +449,22 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 14, paddingVertical: 8 },
   rail: { position: 'absolute', right: 6, top: 0, bottom: 0, justifyContent: 'center', gap: 8 },
   railItem: { alignItems: 'center', gap: 2 },
+  railHide: { alignSelf: 'center', width: 30, height: 22, alignItems: 'center', justifyContent: 'center' },
+  railTab: {
+    position: 'absolute',
+    right: 0,
+    top: '45%',
+    width: 26,
+    height: 54,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(20,16,28,0.82)',
+    borderWidth: 1,
+    borderRightWidth: 0,
+    borderColor: colors.border,
+  },
   railLabel: { color: colors.text, fontSize: 10, fontWeight: '800', textShadowColor: '#000', textShadowRadius: 4 },
   strip: { gap: 6, paddingHorizontal: 12, paddingTop: 8, alignItems: 'center' },
   chip: {

@@ -43,6 +43,8 @@ export interface Prefs {
   handBeta?: boolean;
   /** The «Mano» guide (how to place the camera) was seen. */
   handGuideSeen?: boolean;
+  /** Construir: the side rail of buttons (La quiero, La tengo, Ficha…) hidden. */
+  swipeRailHidden?: boolean;
   /** Hide Android's navigation buttons (swipe up from the bottom edge to show them). */
   hideNavBar: boolean;
   /** Deck sheet's action buttons and deck picker hidden (more room for the cards). */
