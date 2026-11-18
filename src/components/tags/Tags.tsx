@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSQLiteContext } from 'expo-sqlite';
 import { BottomSheet } from '@/components/BottomSheet';
-import { createTag, deleteTag, getCardTags, getTags, setCardTag, updateTag, type Tag } from '@/db/database';
+import { createTag, deleteTag, getCardTags, getDeckTags, getTags, setCardTag, setDeckTag, updateTag, type Tag } from '@/db/database';
 import { colors } from '@/theme';
 
 type Glyph = keyof typeof MaterialCommunityIcons.glyphMap;
@@ -89,19 +89,97 @@ export function useCardTags(oracleIds: string[]): Record<string, string[]> {
   return map;
 }
 
-/** A tag: its icon and text in its color (outlined when `selected` is false). */
-export function TagChip({ tag, onPress, selected }: { tag: Tag; onPress?: () => void; selected?: boolean }) {
+/** Tag uids of every deck (by deck uid), kept up to date. */
+export function useDeckTags(): Record<string, string[]> {
+  const db = useSQLiteContext();
+  const version = useTagsVersion();
+  const [map, setMap] = useState<Record<string, string[]>>({});
+  useEffect(() => {
+    getDeckTags(db)
+      .then(setMap)
+      .catch(() => {});
+  }, [db, version]);
+  return map;
+}
+
+/** Dark or white text, whichever reads better on the tag's color. */
+export function tagTextColor(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return '#fff';
+  const n = parseInt(m[1], 16);
+  const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  return lum > 0.62 ? '#1a1a1a' : '#fff';
+}
+
+/**
+ * A tag: its icon and text in its color (outlined when `selected` is false). `small` for lists;
+ * `iconOnly` shows just the icon in a colored dot (deck bar, deck tiles).
+ */
+export function TagChip({
+  tag,
+  onPress,
+  selected,
+  small,
+  iconOnly,
+}: {
+  tag: Tag;
+  onPress?: () => void;
+  selected?: boolean;
+  small?: boolean;
+  iconOnly?: boolean;
+}) {
   const outline = selected === false;
+  const fg = outline ? tag.color : tagTextColor(tag.color);
+  if (iconOnly)
+    return (
+      <View style={[styles.dot, { backgroundColor: tag.color }]} accessibilityLabel={`Etiqueta ${tag.name}`}>
+        <MaterialCommunityIcons name={glyphOf(tag.icon)} size={11} color={fg} />
+      </View>
+    );
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
-      style={[styles.chip, { borderColor: tag.color, backgroundColor: outline ? 'transparent' : tag.color }]}
+      style={[styles.chip, small && styles.chipSmall, { borderColor: tag.color, backgroundColor: outline ? 'transparent' : tag.color }]}
       accessibilityLabel={`Etiqueta ${tag.name}${selected ? ', puesta' : ''}`}
     >
-      <MaterialCommunityIcons name={glyphOf(tag.icon)} size={12} color={outline ? tag.color : '#fff'} />
-      <Text style={[styles.chipText, { color: outline ? tag.color : '#fff' }]}>{tag.name}</Text>
+      <MaterialCommunityIcons name={glyphOf(tag.icon)} size={small ? 12 : 14} color={fg} />
+      <Text style={[styles.chipText, small && styles.chipTextSmall, { color: fg }]}>{tag.name}</Text>
     </Pressable>
+  );
+}
+
+/** Bottom sheet for one deck: every tag to put on or take off, and «Gestionar etiquetas». */
+export function DeckTagsSheet({ deckUid, name, onClose }: { deckUid: string | null; name?: string; onClose: () => void }) {
+  const db = useSQLiteContext();
+  const tags = useTags();
+  const on = useDeckTags()[deckUid ?? ''] ?? [];
+  const [managing, setManaging] = useState(false);
+  const toggle = async (tag: Tag) => {
+    if (!deckUid) return;
+    await setDeckTag(db, tag.uid, deckUid, !on.includes(tag.uid));
+    notifyTagsChanged();
+  };
+  return (
+    <>
+      <BottomSheet visible={!!deckUid && !managing} onClose={onClose} heightRatio={0.5}>
+        <View style={styles.sheet}>
+          <Text style={styles.title}>Etiquetas del mazo{name ? ` · ${name}` : ''}</Text>
+          <Text style={styles.hint}>Las mismas etiquetas que las cartas: «Para torneo», «Casual», «En construcción»…</Text>
+          {tags.length === 0 && <Text style={styles.hint}>Aún no tienes etiquetas. Créalas con «Gestionar etiquetas».</Text>}
+          <View style={styles.wrap}>
+            {tags.map((t) => (
+              <TagChip key={t.uid} tag={t} selected={on.includes(t.uid)} onPress={() => toggle(t)} />
+            ))}
+          </View>
+          <Pressable style={styles.link} onPress={() => setManaging(true)}>
+            <MaterialCommunityIcons name="cog-outline" size={18} color={colors.accent} />
+            <Text style={styles.linkText}>Gestionar etiquetas</Text>
+          </Pressable>
+        </View>
+      </BottomSheet>
+      <TagsManagerSheet visible={managing} onClose={() => setManaging(false)} />
+    </>
   );
 }
 
@@ -230,8 +308,11 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: 18, fontWeight: '900' },
   hint: { color: colors.textMuted, fontSize: 13 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, height: 24 },
-  chipText: { fontSize: 12, fontWeight: '700' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, height: 26 },
+  chipText: { fontSize: 13, fontWeight: '800' },
+  chipSmall: { height: 18, borderRadius: 9, paddingHorizontal: 5, gap: 2 },
+  chipTextSmall: { fontSize: 10.5 },
+  dot: { width: 17, height: 17, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   link: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
   linkText: { color: colors.accent, fontWeight: '700' },
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },

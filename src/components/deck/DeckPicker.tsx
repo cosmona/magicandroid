@@ -7,6 +7,7 @@ import { artCropUrl } from '@/api/scryfall';
 import { DeckFormModal } from '@/components/DeckFormModal';
 import { ImportListModal } from '@/components/ImportListModal';
 import { useAppState } from '@/context/AppState';
+import { TagChip, useDeckTags, useTags } from '@/components/tags/Tags';
 import { createDeck } from '@/db/database';
 import { colors, formatLabel } from '@/theme';
 
@@ -19,6 +20,8 @@ export function DeckPicker({ onPicked }: { onPicked?: () => void }) {
   const { decks, activeDeck, setActiveDeckId } = useAppState();
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const allTags = useTags();
+  const deckTags = useDeckTags();
 
   const create = async (name: string, format: string | null) => {
     const id = await createDeck(db, name, format);
@@ -55,6 +58,13 @@ export function DeckPicker({ onPicked }: { onPicked?: () => void }) {
                   contentFit="cover"
                 />
               )}
+              {/* The deck's tags, as icons over the cover. */}
+              <View style={styles.tagIcons}>
+                {(deckTags[deck.uid] ?? []).map((u) => {
+                  const t = allTags.find((x) => x.uid === u);
+                  return t ? <TagChip key={u} tag={t} iconOnly /> : null;
+                })}
+              </View>
             </View>
             <Text style={styles.tileName} numberOfLines={1}>
               {deck.name}
@@ -109,6 +119,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.surfaceAlt,
   },
+  tagIcons: { position: 'absolute', left: 3, bottom: 3, right: 3, flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
   tileName: { color: colors.text, fontSize: 12, fontWeight: '700' },
   tileMeta: { color: colors.textMuted, fontSize: 10 },
 });

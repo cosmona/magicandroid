@@ -60,7 +60,8 @@ import { RARITY_LABELS } from '@/icons';
 import { colors, formatEur, formatLabel, TONE_COLORS, type Tone } from '@/theme';
 import { validateDeck, type DeckValidation } from '@/validation';
 import { DECK_GROUP_OPTIONS, groupDeck, type DeckGroup, type DeckGroupBy, type DeckGroupContext } from '@/deck/group';
-import { useCardTags, useTags } from '@/components/tags/Tags';
+import { DeckTagsSheet, TagChip, useCardTags, useTags } from '@/components/tags/Tags';
+import type { Tag } from '@/db/database';
 
 /** Color of «La quiero» (hearts). */
 const WANT_COLOR = '#ff7a9c';
@@ -91,6 +92,7 @@ const VIEWS: { key: DeckView; label: string; icon: IconName }[] = [
   { key: 'list', label: 'Lista', icon: 'format-list-bulleted' },
   { key: 'gallery', label: 'Galería', icon: 'view-grid-outline' },
   { key: 'big', label: 'Grande', icon: 'view-agenda-outline' },
+  { key: 'text', label: 'Texto', icon: 'text-box-outline' },
 ];
 
 /**
@@ -156,6 +158,7 @@ export function DeckSheet() {
   const [printingCard, setPrintingCard] = useState<DeckCard | null>(null);
   // "Mis mazos" drops down from the cover, like a select.
   const [picking, setPicking] = useState(false);
+  const [taggingDeck, setTaggingDeck] = useState(false);
   // Printing shown in the full Scryfall info screen.
   const [infoId, setInfoId] = useState<string | null>(null);
 
@@ -397,6 +400,7 @@ export function DeckSheet() {
         <DeckSummary
           onPressCover={() => setPicking((p) => !p)}
           pickerOpen={picking}
+          onTags={() => setTaggingDeck(true)}
           right={
             activeDeck && missing !== null && activeCards.length > 0 ? (
               <HintButton
@@ -557,6 +561,21 @@ export function DeckSheet() {
           No hay ningún mazo cargado. Elige uno, crea uno con ＋ o desliza una carta a la derecha.
         </Text>
       )}
+      {/* «Texto»: the commander(s) in big, as on the shared deck picture. */}
+      {mode === 'text' && validation.usesCommander && activeCards.some((c) => c.isCommander) && (
+        <View style={styles.textCommanders}>
+          {activeCards
+            .filter((c) => c.isCommander && c.imageUrl)
+            .map((c) => (
+              <Pressable key={c.oracleId} onPress={() => actions.preview(c)} style={{ alignItems: 'center', gap: 4 }}>
+                <Image source={{ uri: c.imageUrl! }} style={styles.textCommanderImage} contentFit="cover" />
+                <Text style={styles.textCommanderName} numberOfLines={1}>
+                  👑 {displayName(c)}
+                </Text>
+              </Pressable>
+            ))}
+        </View>
+      )}
     </View>
   );
 
@@ -668,7 +687,17 @@ export function DeckSheet() {
           const item = entry.card;
           return (
             <>
-              {mode === 'big' ? (
+              {mode === 'text' ? (
+                <TextRow
+                  card={item}
+                  issues={validation.cardIssues[item.oracleId]}
+                  owned={owned?.[item.oracleId]}
+                  tags={prefs.showTags === false ? [] : (deckTags[item.oracleId] ?? []).map((u) => allTags.find((t) => t.uid === u)).filter((t) => !!t)}
+                  onPress={() => actions.preview(item)}
+                  onAdd={() => actions.add(item)}
+                  onSub={() => actions.sub(item)}
+                />
+              ) : mode === 'big' ? (
                 <BigCard
                   card={item}
                   actions={actions}
@@ -751,6 +780,8 @@ export function DeckSheet() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <DeckTagsSheet deckUid={taggingDeck ? (activeDeck?.uid ?? null) : null} name={activeDeck?.name} onClose={() => setTaggingDeck(false)} />
 
       {shopping && (
         <MissingCardsModal
@@ -1138,6 +1169,57 @@ function CardIssues({ issues }: { issues?: string[] }) {
 }
 
 /** One card of the list view, with the same data the web table showed. */
+/** «Texto» view line: copies · name · ⚠ · tags · ✓ / falta N · − ＋ · mana cost (like the shared deck list). */
+function TextRow({
+  card,
+  issues,
+  owned,
+  tags,
+  onPress,
+  onAdd,
+  onSub,
+}: {
+  card: DeckCard;
+  issues?: string[];
+  owned?: number;
+  tags: Tag[];
+  onPress: () => void;
+  onAdd: () => void;
+  onSub: () => void;
+}) {
+  const missing = owned === undefined ? null : Math.max(0, card.quantity - owned);
+  return (
+    <View style={styles.textRow}>
+      <Text style={styles.textQty}>{card.quantity}</Text>
+      <Pressable style={{ flex: 1, minWidth: 0 }} onPress={onPress} accessibilityLabel={`Ver ${displayName(card)}`}>
+        <Text style={styles.textName} numberOfLines={1}>
+          {displayName(card)}
+          {issues ? <Text style={{ color: colors.discard }}> ⚠</Text> : null}
+        </Text>
+        {tags.length > 0 && (
+          <View style={styles.textTags}>
+            {tags.map((t) => (
+              <TagChip key={t.uid} tag={t} small />
+            ))}
+          </View>
+        )}
+      </Pressable>
+      {missing !== null && (
+        <Text style={[styles.textNote, { color: missing ? colors.undo : colors.add }]}>{missing ? `falta ${missing}` : '✓'}</Text>
+      )}
+      <Pressable style={styles.textStep} onPress={onSub} hitSlop={4} accessibilityLabel="Quitar una copia">
+        <MaterialCommunityIcons name="minus" size={14} color={colors.text} />
+      </Pressable>
+      <Pressable style={styles.textStep} onPress={onAdd} hitSlop={4} accessibilityLabel="Añadir una copia">
+        <MaterialCommunityIcons name="plus" size={14} color={colors.text} />
+      </Pressable>
+      <View style={{ minWidth: 44, alignItems: 'flex-end' }}>
+        <ManaCost cost={card.manaCost} />
+      </View>
+    </View>
+  );
+}
+
 function CardRow({ card, actions, issues, crown, owned, details, showPrice, drag, wanted }: CardProps) {
   const [types, subtypes] = card.typeLine.split(' — ');
   const stats = statsOf(details);
@@ -1449,6 +1531,31 @@ function CardControls({ card, actions, crown }: { card: DeckCard; actions: CardA
 }
 
 const styles = StyleSheet.create({
+  textRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  textQty: { color: colors.accent, fontWeight: '900', fontSize: 14, width: 22, textAlign: 'right' },
+  textName: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  textTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, marginTop: 2 },
+  textNote: { fontSize: 11, fontWeight: '800' },
+  textStep: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textCommanders: { flexDirection: 'row', justifyContent: 'center', gap: 12, paddingVertical: 10 },
+  textCommanderImage: { width: 150, height: 209, borderRadius: 9 },
+  textCommanderName: { color: colors.accent, fontWeight: '800', fontSize: 13, maxWidth: 160 },
   sheet: { flex: 1, backgroundColor: colors.surface },
   side: {
     marginTop: 16,

@@ -11,6 +11,7 @@ const DECK_VIEWS: { key: DeckView; label: string }[] = [
   { key: 'list', label: '☰ Lista' },
   { key: 'gallery', label: '▦ Galería' },
   { key: 'big', label: '▭ Grande' },
+  { key: 'text', label: '≡ Texto' },
 ];
 
 type PricePref = 'pricesDeck' | 'pricesDeckCards' | 'pricesShopping' | 'pricesCollection' | 'pricesCardInfo';
@@ -92,6 +93,18 @@ export function SettingsSheet() {
         <Switch
           value={prefs.hideNavBar}
           onValueChange={(hideNavBar) => setPrefs({ ...prefs, hideNavBar })}
+          trackColor={{ true: colors.accent, false: colors.border }}
+        />
+      </View>
+
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>Etiquetas</Text>
+          <Text style={styles.hint}>Las etiquetas de las cartas y los mazos en las listas (se pueden poner igualmente).</Text>
+        </View>
+        <Switch
+          value={prefs.showTags !== false}
+          onValueChange={(showTags) => setPrefs({ ...prefs, showTags })}
           trackColor={{ true: colors.accent, false: colors.border }}
         />
       </View>

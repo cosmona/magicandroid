@@ -596,7 +596,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                   </Text>
                   {(cardTags[card.oracleId] ?? []).length > 0 && (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-                      {(cardTags[card.oracleId] ?? []).map((u) => tagsByUid[u] && <TagChip key={u} tag={tagsByUid[u]} />)}
+                      {(cardTags[card.oracleId] ?? []).map((u) => tagsByUid[u] && <TagChip key={u} tag={tagsByUid[u]} small />)}
                     </View>
                   )}
                   {inDecks.has(card.oracleId) && <Text style={styles.inDeck}>En algún mazo</Text>}

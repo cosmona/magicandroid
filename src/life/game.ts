@@ -8,7 +8,17 @@ export interface Player {
   poison: number;
   /** Commander damage received from each player, by player index (own index unused). */
   commander: number[];
+  /** Photos shown when something happens to the player (PNG data URLs, background cut out). */
+  photos?: Partial<Record<PhotoKind, string>>;
 }
+
+/** When a photo shows: taking damage, dealing (commander) damage, gaining life. */
+export type PhotoKind = 'hurt' | 'attack' | 'heal';
+export const PHOTO_KINDS: { key: PhotoKind; label: string; hint: string }[] = [
+  { key: 'hurt', label: 'Recibe daño', hint: 'Al perder vidas, veneno o daño de comandante.' },
+  { key: 'attack', label: 'Hace daño', hint: 'Al hacer daño de comandante a otro jugador.' },
+  { key: 'heal', label: 'Sube vida', hint: 'Al ganar vidas.' },
+];
 
 export interface LifeGame {
   startingLife: number;
@@ -42,7 +52,7 @@ export function newGame(count: number, startingLife: number, previous?: LifeGame
       const fresh = newPlayer(i, count, startingLife);
       // Keep names and colors when restarting or changing the number of players.
       const old = previous?.players[i];
-      return old ? { ...fresh, name: old.name, color: old.color } : fresh;
+      return old ? { ...fresh, name: old.name, color: old.color, photos: old.photos } : fresh;
     }),
   };
 }
@@ -84,6 +94,14 @@ export const changeCommander = (game: LifeGame, index: number, from: number, del
 
 export const renamePlayer = (game: LifeGame, index: number, name: string) =>
   update(game, index, (p) => ({ ...p, name }));
+
+export const setPhoto = (game: LifeGame, index: number, kind: PhotoKind, url: string | null) =>
+  update(game, index, (p) => {
+    const photos = { ...(p.photos ?? {}) };
+    if (url) photos[kind] = url;
+    else delete photos[kind];
+    return { ...p, photos };
+  });
 
 export const recolorPlayer = (game: LifeGame, index: number, color: number) =>
   update(game, index, (p) => ({ ...p, color }));

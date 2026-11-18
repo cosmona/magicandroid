@@ -21,7 +21,7 @@ export const UNNAMED_DECK = 'Mazo sin nombre';
 const FILTERS_KEY = 'filters.v4';
 const PREFS_KEY = 'prefs';
 
-export type DeckView = 'list' | 'gallery' | 'big';
+export type DeckView = 'list' | 'gallery' | 'big' | 'text';
 
 /** User settings (Ajustes). New fields need a default here; saved prefs are merged over it. */
 export interface Prefs {
@@ -43,6 +43,8 @@ export interface Prefs {
   pricesShopping: boolean;
   pricesCollection: boolean;
   pricesCardInfo: boolean;
+  /** Tags on cards and decks (the tag pickers always show them). */
+  showTags?: boolean;
 }
 
 export const DEFAULT_PREFS: Prefs = {
