@@ -93,7 +93,9 @@ type Item =
   | { type: 'header'; key: string; group: CardGroup; collapsed: boolean }
   | { type: 'sub'; key: string; subKey: string; group: CardGroup; collapsed: boolean }
   | { type: 'card'; key: string; card: CollectionCard }
-  | { type: 'row'; key: string; cards: CollectionCard[] };
+  | { type: 'row'; key: string; cards: CollectionCard[] }
+  | { type: 'toolbar'; key: string }
+  | { type: 'extras'; key: string };
 const MIN_QUERY = 2;
 const DEBOUNCE_MS = 450;
 const MAX_RESULTS = 20;
@@ -539,6 +541,10 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     };
   };
 
+  // The sticky row of buttons and what goes under it (search results) come first in the list.
+  const listData = useMemo<Item[]>(() => [{ type: 'toolbar', key: '_toolbar' }, { type: 'extras', key: '_extras' }, ...items], [items]);
+
+  // The title and the search scroll away; the row of buttons stays at the top (sticky).
   const header = (
     <View>
       <View style={styles.titleRow}>
@@ -605,6 +611,10 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         </Pressable>
       </View>
 
+    </View>
+  );
+  const toolbarBlock = (
+    <View style={styles.stickyBar}>
       <View style={styles.toolbar}>
         <Pressable
           style={({ pressed }) => [
@@ -731,6 +741,10 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         </Pressable>
       </Modal>
 
+    </View>
+  );
+  const extras = (
+    <View>
       {searching && (
         <View style={styles.results}>
           <Text style={styles.sectionTitle}>Añadir de Scryfall</Text>
@@ -771,7 +785,8 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
       <FlatList
-        data={items}
+        data={listData}
+        stickyHeaderIndices={[1]}
         keyExtractor={(item) => item.key}
         ListHeaderComponent={header}
         keyboardShouldPersistTaps="handled"
@@ -789,6 +804,8 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           )
         }
         renderItem={({ item }) => {
+          if (item.type === 'toolbar') return toolbarBlock;
+          if (item.type === 'extras') return extras;
           if (item.type === 'sub') {
             return (
               <Pressable style={styles.subHeader} onPress={() => toggleGroup(item.subKey)}>
@@ -1071,6 +1088,7 @@ const VIEWS: { key: CollectionView; label: string; icon: 'view-list' | 'view-gri
 ];
 
 const styles = StyleSheet.create({
+  stickyBar: { backgroundColor: colors.bg, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   textRow: {
     flexDirection: 'row',
     alignItems: 'center',
