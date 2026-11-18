@@ -34,6 +34,7 @@ import { CollectionFilterPanel } from '@/components/collection/CollectionFilterP
 import { CardTagsSheet, TagChip, TagsManagerSheet, useCardTags, useTags } from '@/components/tags/Tags';
 import { ManaCost } from '@/components/ManaCost';
 import { CardSheet } from '@/components/CardSheet';
+import { DeckInCollectionBar, DeckPickerModal } from '@/components/collection/DeckInCollection';
 import {
   activeFilterCount,
   applyFilter,
@@ -66,6 +67,8 @@ import {
   type CollectionCard,
   type WantedCard,
   getDeckUsage,
+  getDeckCards,
+  type DeckCard,
 } from '@/db/database';
 import { RARITY_LABELS } from '@/icons';
 import { priceTotal, useCardDetails } from '@/hooks/useCardDetails';
@@ -96,7 +99,23 @@ const MAX_RESULTS = 20;
  */
 export function CollectionScreen({ search }: { search?: { q: string; t: string } } = {}) {
   const db = useSQLiteContext();
-  const { prefs, ensureActiveDeck, refresh } = useAppState();
+  const { prefs, ensureActiveDeck, refresh, decks, setActiveDeckId } = useAppState();
+  // A deck seen from the collection (null = all your cards); choosing one makes it the active deck.
+  const [viewDeckId, setViewDeckId] = useState<number | null>(null);
+  const [viewDeckCards, setViewDeckCards] = useState<DeckCard[]>([]);
+  const [pickingDeck, setPickingDeck] = useState(false);
+  const [viewVersion, setViewVersion] = useState(0);
+  const viewDeck = viewDeckId !== null ? (decks.find((d) => d.id === viewDeckId) ?? null) : null;
+  useEffect(() => {
+    if (viewDeckId === null) return;
+    let cancelled = false;
+    getDeckCards(db, viewDeckId)
+      .then((c) => !cancelled && setViewDeckCards(c))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [db, viewDeckId, viewVersion, decks]);
   const place = 'paper';
   const [cards, setCards] = useState<CollectionCard[]>([]);
   // Copies owned of each card, every printing together.
@@ -172,11 +191,34 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   // as rows with 0 copies.
   const wantedIds = useMemo(() => new Set(wanted.map((w) => w.scryfallId)), [wanted]);
   const listCards = useMemo(() => {
+    // A deck: its cards — the printings you own of each, or the deck's printing (0 copies) if you have none.
+    if (viewDeck) {
+      const out: CollectionCard[] = [];
+      for (const dc of viewDeckCards) {
+        const mine = cards.filter((c) => c.oracleId === dc.oracleId);
+        if (mine.length) out.push(...mine);
+        else
+          out.push({
+            scryfallId: dc.scryfallId,
+            oracleId: dc.oracleId,
+            name: dc.name,
+            printedName: dc.printedName,
+            typeLine: dc.typeLine,
+            manaCost: dc.manaCost,
+            imageUrl: dc.imageUrl,
+            rarity: dc.rarity,
+            setCode: '',
+            lang: '',
+            quantity: 0,
+          });
+      }
+      return out;
+    }
     const ownedIds = new Set(cards.map((c) => c.scryfallId));
     const pending: CollectionCard[] = wanted.filter((w) => !ownedIds.has(w.scryfallId)).map((w) => ({ ...w, quantity: 0 }));
     const all = [...cards, ...pending];
     return onlyWanted ? all.filter((c) => wantedIds.has(c.scryfallId)) : all;
-  }, [cards, wanted, wantedIds, onlyWanted]);
+  }, [cards, wanted, wantedIds, onlyWanted, viewDeck, viewDeckCards]);
 
   // Set names and dates, for the edition grouping/filter (cached for the app run).
   useEffect(() => {
@@ -394,12 +436,38 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const header = (
     <View>
       <View style={styles.titleRow}>
-        <Text style={styles.title}>📦 Mi colección</Text>
+        <Pressable onPress={() => setPickingDeck(true)} style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }} accessibilityLabel="Ver toda la colección o las cartas de un mazo">
+          <Text style={styles.title} numberOfLines={1}>
+            {viewDeck ? `🃏 ${viewDeck.name}` : '📦 Mi colección'}
+          </Text>
+          <MaterialCommunityIcons name="chevron-down" size={22} color={colors.accent} />
+        </Pressable>
         <Text style={styles.stats}>
           {stats.total} cartas · {stats.unique} distintas
           {showPrices && value.priced > 0 && <Text style={styles.value}> · ≈ {formatEur(value.eur)}</Text>}
         </Text>
       </View>
+
+      {viewDeck && (
+        <DeckInCollectionBar
+          deck={viewDeck}
+          cards={viewDeckCards}
+          owned={Object.fromEntries(ownedByOracle ? Object.entries(ownedByOracle) : [])}
+          onChanged={() => setViewVersion((v) => v + 1)}
+        />
+      )}
+      {pickingDeck && (
+        <DeckPickerModal
+          decks={decks}
+          current={viewDeckId}
+          onClose={() => setPickingDeck(false)}
+          onPick={(id) => {
+            setViewDeckId(id);
+            if (id !== null) setActiveDeckId(id);
+            setPickingDeck(false);
+          }}
+        />
+      )}
 
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
