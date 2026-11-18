@@ -182,6 +182,12 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
   </tr>
 </table>
 
+### Mano (beta)
+
+Con el móvil en un **soporte** mirando tu mano en abanico, la cámara **lee los títulos** de las cartas (reconocimiento de
+texto en el propio móvil) y apunta **lo que robas y lo que juegas**, comparando con las cartas del mazo activo. Se activa
+en **Ajustes → Mano (beta)** y la primera vez enseña una **guía con dibujos** de cómo colocar la cámara y las cartas.
+
 En toda la app: **código de colores** coherente, **ayuda** al mantener pulsado cualquier botón y **ajustes** de idioma,
 vistas, etiquetas, vibración y precios. **Sincronizar con Magic Swipe para PC** por la Wi-Fi: escanea el QR del PC, revisa en la pantalla del PC todo lo que es
 distinto (mazos, colección, «La quiero» y etiquetas) con la opción sugerida ya marcada, y al aplicar los dos quedan

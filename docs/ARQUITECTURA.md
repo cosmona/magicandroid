@@ -107,7 +107,13 @@ flowchart TD
 - Las **pestañas van arriba** (`tabBarPosition: 'top'`) con una barra propia, `AppTabBar`, que dibuja la cabecera
   «Magic Swipe» + ⚙ y un control segmentado con el `title` y el `tabBarIcon` de cada pantalla. Por eso las pantallas no
   reservan el margen superior; el inferior lo reservan `DeckBar` y la colección.
-- **Nueva herramienta**: un archivo en `src/app/(tabs)/` y un `<Tabs.Screen>` en su layout.
+- **Nueva herramienta**: un archivo en `src/app/(tabs)/` y un `<Tabs.Screen>` en su layout. Una pestaña se oculta con
+  `href: null` en sus opciones (`AppTabBar` no la dibuja): así va «Mano» mientras `prefs.handBeta` está apagado.
+- **Mano (beta)** (`components/hand/HandTrackerScreen`, lógica pura en `src/hand/handTracker.ts`): mientras la pestaña
+  está a la vista, `takePictureAsync` cada 500 ms y `expo-text-extractor` (ML Kit, en el móvil) lee las líneas;
+  `cardsInText` las compara con los nombres del mazo activo (impreso e inglés, normalizados) y `updateHand` da por robada
+  una carta vista 2 fotos seguidas y por salida una que falta 3 (`FRAMES_IN` / `FRAMES_OUT`). `HandGuide` es la guía
+  (dibujada con vistas, sin imágenes), que sale una vez (`prefs.handGuideSeen`).
 - **Vidas** (`components/life/LifeCounterScreen`, lógica pura en `src/life/game.ts`): `LifeGame` (vidas iniciales y
   jugadores con vidas, veneno y daño de comandante recibido de cada jugador) guardado como JSON en la tabla `settings`
   (clave `lifeCounter`). `tableRows` decide la disposición por número de jugadores; la fila de arriba se gira 180°.

@@ -21,7 +21,8 @@ te dice cuánto cuestan y te ayuda a comprar las que te faltan.
 9. [Sinergias y combos](#9-sinergias-y-combos)
 10. [Estadísticas y mano de prueba](#10-estadísticas-y-mano-de-prueba)
 11. [Contador de vidas](#11-contador-de-vidas)
-12. [Preguntas frecuentes](#12-preguntas-frecuentes)
+12. [Mano (beta)](#12-mano-beta)
+13. [Preguntas frecuentes](#13-preguntas-frecuentes)
 
 ---
 
@@ -364,6 +365,7 @@ Botón ⚙ de la cabecera:
 - **Etiquetas:** muestra u oculta las etiquetas de las cartas y los mazos en las listas (se pueden seguir poniendo).
 - **Vibración** al añadir y descartar.
 - **Pantalla completa:** oculta los botones de Android (desliza desde abajo para verlos).
+- **Mano (beta):** muestra la pestaña «Mano» (ver [Mano (beta)](#12-mano-beta)); avisa de que está en pruebas.
 - **Precios:** un interruptor para cada sitio donde salen precios, por si prefieres no verlos:
   - **Precio del mazo** (barra y cabecera del mazo).
   - **Cartas del mazo** (el precio de cada carta).
@@ -526,7 +528,21 @@ pantalla no se apaga.
 
 La partida se guarda sola: si cambias de pestaña o cierras la app, sigue donde la dejaste.
 
-## 12. Preguntas frecuentes
+## 12. Mano (beta)
+
+Pestaña en pruebas: con el móvil en un soporte apuntando a tu mano, la cámara lee los títulos de las cartas y apunta lo
+que robas y lo que juegas.
+
+- **Activarla:** Ajustes → **Mano (beta)**. Avisa de que está en pruebas y puede equivocarse; viene apagada y se puede
+  desactivar cuando quieras (la pestaña desaparece).
+- **Guía:** la primera vez explica, con dibujos, cómo colocar el móvil (en un soporte, a unos 30–40 cm, mirando desde
+  arriba) y cómo abrir la mano en abanico (que se vean los títulos). Se vuelve a ver con **?** sobre la cámara.
+- **Necesita un mazo activo:** solo reconoce las cartas de ese mazo (el comandante no cuenta).
+- **Empezar / Pausar** lee una foto cada medio segundo; **En la mano** lista lo que ve y **Lo que ha pasado**, cada
+  carta robada o que sale. Toca una carta para corregirla; **Reiniciar** vacía la mano; **Ver texto** muestra lo que lee.
+- **Consejos:** buena luz y sin reflejos, cartas del derecho y títulos sin tapar.
+
+## 13. Preguntas frecuentes
 
 **¿Dónde se guardan mis mazos?** En el móvil. Si desinstalas la app, se pierden.
 
