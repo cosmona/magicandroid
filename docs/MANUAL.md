@@ -493,6 +493,7 @@ pantalla no se apaga.
   (y uno más para lo demás): toca el del jugador que te hace el daño. Con 2 jugadores se sobreentiende que es el otro.
 - **Daño de comandante:** abajo de cada recuadro hay una píldora por cada rival, con su color: **−** y **＋** cambian el
   daño de comandante que has recibido de él. También resta vidas, y la píldora se marca en rojo al llegar a 21.
+  Con 4 o más jugadores, cada rival es un círculo con su color y el daño: **toca** para sumar 1 y **mantén pulsado** para restar.
 - **Veneno y ajustes del jugador:** el botón de debajo muestra tu veneno; al tocarlo puedes cambiar tu nombre y color,
   el **veneno**, el daño de comandante y tus **fotos**.
 - **Fotos** (con el efecto «Fotos» activado): en los ajustes de cada jugador hay tres: **Recibe daño**, **Hace daño** y **Sube vida**. Toca un círculo,

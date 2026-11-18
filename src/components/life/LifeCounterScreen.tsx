@@ -260,6 +260,8 @@ function PlayerPanel({
 
   const out = lossReason(player);
   const big = Math.max(32, Math.min(size.width * 0.42, size.height * 0.5, 140));
+  // Narrow panels (4+ players): compact commander damage and segments with less room below.
+  const compact = size.width < 260 && players.length > 2;
   const danger = fx.heartbeat && !out && player.life > 0 && player.life <= 5;
   const photo = fx.photos && event ? player.photos?.[event.kind] : undefined;
 
@@ -281,7 +283,7 @@ function PlayerPanel({
           const sign = side === 'plus' ? 1 : -1;
           return segments ? (
             // One button per player (in their color): who deals the damage, or gives the life.
-            <View key={side} style={[styles.segments, side === 'minus' ? { paddingLeft: 5 } : { paddingRight: 5 }]}>
+            <View key={side} style={[styles.segments, compact && { paddingBottom: 66 }, side === 'minus' ? { paddingLeft: 5 } : { paddingRight: 5 }]}>
               {segments.map((sg, k) => (
                 <Pressable
                   key={k}
@@ -341,7 +343,22 @@ function PlayerPanel({
       {/* Commander damage from each opponent (− / ＋ right here; it also takes life), then poison. */}
       <View style={styles.bottomBar} pointerEvents="box-none">
         <View style={styles.cmdRow} pointerEvents="box-none">
-          {show.commander && opponents.map((o) => (
+          {show.commander && compact && opponents.map((o) => (
+            // Narrow panel: one circle per opponent with the damage; tap = +1, hold = −1.
+            <Pressable
+              key={o.index}
+              style={({ pressed }) => [styles.cmdDot, { backgroundColor: o.color }, o.damage >= COMMANDER_LIMIT && styles.cmdLethal, pressed && { opacity: 0.7 }]}
+              onPress={() => onCommander(o.index, 1)}
+              onLongPress={() => o.damage > 0 && onCommander(o.index, -1)}
+              delayLongPress={400}
+              hitSlop={3}
+              accessibilityLabel={`Daño de comandante de ${o.name}: ${o.damage}. Toca para sumar, mantén para restar`}
+            >
+              <MaterialCommunityIcons name="shield-crown-outline" size={11} color={colors.text} />
+              <Text style={styles.cmdDotValue}>{o.damage}</Text>
+            </Pressable>
+          ))}
+          {show.commander && !compact && opponents.map((o) => (
             <View key={o.index} style={[styles.cmd, { backgroundColor: o.color }, o.damage >= COMMANDER_LIMIT && styles.cmdLethal]}>
               <Pressable
                 style={({ pressed }) => [styles.cmdStep, pressed && styles.cmdPressed, o.damage === 0 && { opacity: 0.35 }]}
@@ -854,7 +871,7 @@ function LifeMenu({
         <Text style={styles.toggleLabel}>{label}</Text>
         <Text style={styles.help}>{hint}</Text>
       </View>
-      <Switch value={value} onValueChange={onToggle} trackColor={{ true: colors.accent, false: colors.border }} />
+      <Switch value={value} onValueChange={onToggle} trackColor={{ true: colors.accent, false: colors.border }} thumbColor={colors.text} />
     </View>
   );
   const [count, setCount] = useState(game.players.length);
@@ -991,6 +1008,19 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.55)',
     overflow: 'hidden',
   },
+  cmdDot: {
+    minWidth: 40,
+    height: 28,
+    borderRadius: 14,
+    paddingHorizontal: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.6)',
+  },
+  cmdDotValue: { color: colors.text, fontWeight: '900', fontSize: 14 },
   cmdLethal: { borderColor: colors.discard, borderWidth: 2.5 },
   cmdStep: { width: 30, height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.2)' },
   cmdPressed: { backgroundColor: 'rgba(0,0,0,0.45)' },
