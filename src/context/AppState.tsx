@@ -33,6 +33,12 @@ export interface Prefs {
   deckView: DeckView;
   /** How the deck sheet groups the cards. */
   deckGroup: DeckGroupBy;
+  /** Second level of the deck's grouping ('none' = no subgroups). */
+  deckSubGroup?: DeckGroupBy;
+  /** What you have / miss of each card («Faltan N», «✓», «En X · 1 libre»…). */
+  showOwned?: boolean;
+  /** Colors of the rows (owned green, wanted pink…). */
+  colorCode?: boolean;
   /** Hide Android's navigation buttons (swipe up from the bottom edge to show them). */
   hideNavBar: boolean;
   /** Deck sheet's action buttons and deck picker hidden (more room for the cards). */

@@ -82,6 +82,7 @@ interface DragApi {
 
 type ListItem =
   | { type: 'header'; key: string; group: DeckGroup; collapsed: boolean }
+  | { type: 'sub'; key: string; subKey: string; label: string; count: number; collapsed: boolean }
   | { type: 'card'; key: string; card: DeckCard }
   | { type: 'row'; key: string; cards: DeckCard[] };
 
@@ -237,12 +238,13 @@ export function DeckSheet() {
 
   // ---- Groups: the list is flattened into headers + cards (or gallery rows of 3). ----
   const groupBy = prefs.deckGroup;
+  const subGroupBy: DeckGroupBy = groupBy === 'none' || prefs.deckSubGroup === groupBy ? 'none' : (prefs.deckSubGroup ?? 'none');
   // What the edition, collection, price and tag groupings need: the edition of each printing (from
   // Scryfall, once), copies owned, prices and tags.
   const [editions, setEditions] = useState<Record<string, { code: string; name: string; releasedAt: string }>>({});
   const deckIdsKey = activeCards.map((c) => c.scryfallId).sort().join(',');
   useEffect(() => {
-    if (groupBy !== 'set') return;
+    if (groupBy !== 'set' && subGroupBy !== 'set') return;
     const missingIds = deckIdsKey.split(',').filter((id) => id && !editions[id]);
     if (!missingIds.length) return;
     let cancelled = false;
@@ -259,7 +261,7 @@ export function DeckSheet() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deckIdsKey, groupBy]);
+  }, [deckIdsKey, groupBy, subGroupBy]);
   const deckTags = useCardTags(activeCards.map((c) => c.oracleId));
   const allTags = useTags();
   const groupCtx = useMemo<DeckGroupContext>(() => {
@@ -282,19 +284,27 @@ export function DeckSheet() {
       const isCollapsed = collapsed.has(group.key);
       if (headers) out.push({ type: 'header', key: `h:${group.key}`, group, collapsed: isCollapsed });
       if (isCollapsed) continue;
-      if (mode === 'gallery') {
-        for (let i = 0; i < group.cards.length; i += 3)
-          out.push({
-            type: 'row',
-            key: `r:${group.key}:${group.cards[i].oracleId}`,
-            cards: group.cards.slice(i, i + 3),
-          });
-      } else {
-        for (const card of group.cards) out.push({ type: 'card', key: card.oracleId, card });
-      }
+      const put = (cards: DeckCard[], prefix: string) => {
+        if (mode === 'gallery') {
+          for (let i = 0; i < cards.length; i += 3)
+            out.push({ type: 'row', key: `r:${prefix}:${cards[i].oracleId}`, cards: cards.slice(i, i + 3) });
+        } else {
+          for (const card of cards) out.push({ type: 'card', key: `${prefix}:${card.oracleId}`, card });
+        }
+      };
+      // Second level (subgroups), except for the commander.
+      const subs = subGroupBy === 'none' || group.key === 'commander' ? [] : groupDeck(group.cards, subGroupBy, false, groupCtx);
+      if (subs.length) {
+        for (const sg of subs) {
+          const subKey = `${group.key}/${sg.key}`;
+          const subCollapsed = collapsed.has(subKey);
+          out.push({ type: 'sub', key: `s:${subKey}`, subKey, label: sg.label, count: sg.count, collapsed: subCollapsed });
+          if (!subCollapsed) put(sg.cards, subKey);
+        }
+      } else put(group.cards, group.key);
     }
     return out;
-  }, [groups, groupBy, collapsed, mode]);
+  }, [groups, groupBy, subGroupBy, groupCtx, collapsed, mode]);
   const hasGroups = items.some((i) => i.type === 'header');
   const openAll = () => setCollapsed(new Set());
   const closeAll = () => setCollapsed(new Set([...groups.map((g) => g.key), SIDEBOARD_KEY, MAYBE_KEY]));
@@ -399,7 +409,7 @@ export function DeckSheet() {
           pickerOpen={picking}
           onTags={() => setTaggingDeck(true)}
           right={
-            activeDeck && missing !== null && activeCards.length > 0 ? (
+            activeDeck && missing !== null && activeCards.length > 0 && prefs.showOwned !== false ? (
               <HintButton
                 hint={
                   missing ? 'Cartas que te faltan de tu colección: ver y comprar' : 'Tienes todas en tu colección'
@@ -640,6 +650,20 @@ export function DeckSheet() {
         initialNumToRender={mode === 'big' ? 2 : 8}
         windowSize={mode === 'big' ? 3 : 7}
         renderItem={({ item: entry }) => {
+          if (entry.type === 'sub') {
+            return (
+              <Pressable
+                style={styles.subHeader}
+                onPress={() => toggleGroup(entry.subKey)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: !entry.collapsed }}
+              >
+                <MaterialCommunityIcons name={entry.collapsed ? 'chevron-right' : 'chevron-down'} size={16} color={colors.textMuted} />
+                <Text style={styles.subTitle}>{entry.label}</Text>
+                <Text style={styles.subCount}>{entry.count}</Text>
+              </Pressable>
+            );
+          }
           if (entry.type === 'header') {
             return (
               <Pressable
@@ -770,6 +794,29 @@ export function DeckSheet() {
                 <Text style={styles.groupOptionText}>{o.label}</Text>
               </Pressable>
             ))}
+            {groupBy !== 'none' && (
+              <>
+                <Text style={[styles.groupMenuTitle, { marginTop: 10 }]}>Subgrupo</Text>
+                {[{ key: 'none', label: 'Ninguno' }, ...DECK_GROUP_OPTIONS.filter((o) => o.key !== groupBy && o.key !== 'none')].map((o) => (
+                  <Pressable
+                    key={o.key}
+                    style={[styles.groupOption, subGroupBy === o.key && styles.groupOptionOn]}
+                    onPress={() => {
+                      setPrefs({ ...prefs, deckSubGroup: o.key as DeckGroupBy });
+                      setCollapsed(new Set());
+                      setGroupMenu(false);
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name={subGroupBy === o.key ? 'radiobox-marked' : 'radiobox-blank'}
+                      size={20}
+                      color={subGroupBy === o.key ? colors.accent : colors.textMuted}
+                    />
+                    <Text style={styles.groupOptionText}>{o.label}</Text>
+                  </Pressable>
+                ))}
+              </>
+            )}
             <Text style={styles.groupMenuHelp}>
               Toca el título de un grupo para plegarlo. Mantén pulsada una carta y arrástrala abajo para pasarla al
               banquillo (o del banquillo al mazo).
@@ -1005,7 +1052,8 @@ function OwnedLine({
   wanted?: boolean;
   onWant?: () => void;
 }) {
-  if (owned === undefined) return null;
+  const { prefs } = useAppState();
+  if (owned === undefined || prefs.showOwned === false) return null;
   const short = needed - owned;
   return (
     <View style={styles.ownedLine}>
@@ -1168,7 +1216,12 @@ function CardIssues({ issues }: { issues?: string[] }) {
 
 /** One card of the list view, with the same data the web table showed. */
 /** «Texto» view line: copies · name · ⚠ · tags · ✓ / falta N · − ＋ · mana cost (like the shared deck list). */
-function TextRow({
+function TextRow(props: Parameters<typeof TextRowInner>[0]) {
+  const { prefs } = useAppState();
+  return <TextRowInner {...props} showOwned={prefs.showOwned !== false} />;
+}
+
+function TextRowInner({
   card,
   issues,
   owned,
@@ -1176,7 +1229,9 @@ function TextRow({
   onPress,
   onAdd,
   onSub,
+  showOwned = true,
 }: {
+  showOwned?: boolean;
   card: DeckCard;
   issues?: string[];
   owned?: number;
@@ -1202,7 +1257,7 @@ function TextRow({
           </View>
         )}
       </Pressable>
-      {missing !== null && (
+      {missing !== null && showOwned && (
         <Text style={[styles.textNote, { color: missing ? colors.undo : colors.add }]}>{missing ? `falta ${missing}` : '✓'}</Text>
       )}
       <Pressable style={styles.textStep} onPress={onSub} hitSlop={4} accessibilityLabel="Quitar una copia">
@@ -1218,11 +1273,21 @@ function TextRow({
   );
 }
 
+/** Color of a row's border (Ajustes → Código de colores): green = you have all the copies, pink = you want it. */
+function useRowTint(owned: number | undefined, needed: number, wanted: boolean) {
+  const { prefs } = useAppState();
+  if (prefs.colorCode === false) return null;
+  if (owned !== undefined && owned >= needed) return { borderColor: colors.add };
+  if (wanted) return { borderColor: '#ff7a9c' };
+  return null;
+}
+
 function CardRow({ card, actions, issues, crown, owned, details, showPrice, drag, wanted }: CardProps) {
+  const tint = useRowTint(owned, card.quantity, !!wanted);
   const [types, subtypes] = card.typeLine.split(' — ');
   const stats = statsOf(details);
   return (
-    <View style={[styles.row, issues && styles.invalid, crown && !!card.isCommander && styles.commander]}>
+    <View style={[styles.row, tint, issues && styles.invalid, crown && !!card.isCommander && styles.commander]}>
       <View style={styles.rowTop}>
         <Draggable oracleId={card.oracleId} from="main" drag={drag}>
           <Pressable onPress={() => actions.preview(card)}>
@@ -1271,8 +1336,9 @@ function CardRow({ card, actions, issues, crown, owned, details, showPrice, drag
 
 /** "Grande" view: the card at full width (like the swipe stack) with its controls below. */
 function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag, wanted }: CardProps) {
+  const tint = useRowTint(owned, card.quantity, !!wanted);
   return (
-    <View style={[styles.big, issues && styles.invalid, crown && !!card.isCommander && styles.commander]}>
+    <View style={[styles.big, tint, issues && styles.invalid, crown && !!card.isCommander && styles.commander]}>
       <Draggable oracleId={card.oracleId} from="main" drag={drag}>
         <Pressable onPress={() => actions.preview(card)}>
           {card.imageUrl && (
@@ -1529,6 +1595,19 @@ function CardControls({ card, actions, crown }: { card: DeckCard; actions: CardA
 }
 
 const styles = StyleSheet.create({
+  subHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 22,
+    paddingTop: 8,
+    paddingBottom: 3,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+  },
+  subTitle: { flex: 1, color: colors.textMuted, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+  subCount: { color: colors.textMuted, fontSize: 12, fontWeight: '800' },
   textRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -82,6 +82,7 @@ const GALLERY_COLUMNS = 3;
 /** Flat list items: group headers + cards (list view) or rows of 3 cards (gallery). */
 type Item =
   | { type: 'header'; key: string; group: CardGroup; collapsed: boolean }
+  | { type: 'sub'; key: string; subKey: string; group: CardGroup; collapsed: boolean }
   | { type: 'card'; key: string; card: CollectionCard }
   | { type: 'row'; key: string; cards: CollectionCard[] };
 const MIN_QUERY = 2;
@@ -126,6 +127,8 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const [filter, setFilter] = useState<CollectionFilter>(EMPTY_FILTER);
   const [filtering, setFiltering] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
+  // Second level of the grouping ('none' = no subgroups).
+  const [subGroupBy, setSubGroupBy] = useState<GroupBy>('none');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [inDecks, setInDecks] = useState<Set<string>>(new Set());
   // Which decks use each card, and how many copies (by oracle id).
@@ -212,6 +215,8 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const showPrices = prefs.pricesCollection;
   // Grouping/filtering by price only while prices are shown.
   const effectiveGroup: GroupBy = !showPrices && groupBy === 'price' ? 'none' : groupBy;
+  const effectiveSub: GroupBy =
+    effectiveGroup === 'none' || subGroupBy === effectiveGroup || (!showPrices && subGroupBy === 'price') ? 'none' : subGroupBy;
   const effectiveFilter = useMemo(
     () => (showPrices ? filter : { ...filter, priceMin: null, priceMax: null }),
     [filter, showPrices],
@@ -252,17 +257,28 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
       const isCollapsed = groupBy !== 'none' && collapsed.has(group.key);
       if (groupBy !== 'none') out.push({ type: 'header', key: `h:${group.key}`, group, collapsed: isCollapsed });
       if (isCollapsed) continue;
-      if (view === 'list') {
-        for (const card of group.cards) out.push({ type: 'card', key: card.scryfallId, card });
-      } else {
-        for (let i = 0; i < group.cards.length; i += GALLERY_COLUMNS) {
-          const row = group.cards.slice(i, i + GALLERY_COLUMNS);
-          out.push({ type: 'row', key: `r:${group.key}:${row[0].scryfallId}`, cards: row });
+      const put = (list: CollectionCard[], prefix: string) => {
+        if (view === 'list') {
+          for (const card of list) out.push({ type: 'card', key: `${prefix}:${card.scryfallId}`, card });
+        } else {
+          for (let i = 0; i < list.length; i += GALLERY_COLUMNS) {
+            const row = list.slice(i, i + GALLERY_COLUMNS);
+            out.push({ type: 'row', key: `r:${prefix}:${row[0].scryfallId}`, cards: row });
+          }
         }
-      }
+      };
+      const subs = effectiveSub === 'none' ? [] : groupCards(group.cards, effectiveSub, organizeCtx);
+      if (subs.length) {
+        for (const sg of subs) {
+          const subKey = `${group.key}/${sg.key}`;
+          const subCollapsed = collapsed.has(subKey);
+          out.push({ type: 'sub', key: `s:${subKey}`, subKey, group: sg, collapsed: subCollapsed });
+          if (!subCollapsed) put(sg.cards, subKey);
+        }
+      } else put(group.cards, group.key);
     }
     return out;
-  }, [groups, groupBy, collapsed, view]);
+  }, [groups, groupBy, collapsed, view, effectiveSub, organizeCtx]);
 
   const toggleGroup = (key: string) =>
     setCollapsed((prev) => {
@@ -465,6 +481,26 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
             </Pressable>
           ))}
         </ScrollView>
+        {effectiveGroup !== 'none' && (
+          // Second level: each group split again (Tipo › Color…).
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.groupChips, { paddingTop: 0 }]}>
+            <Text style={styles.subLabel}>Subgrupo</Text>
+            {GROUPINGS.filter((g) => g !== effectiveGroup && (showPrices || g !== 'price')).map((g) => (
+              <Pressable
+                key={g}
+                style={[styles.groupChip, effectiveSub === g && styles.groupChipOn]}
+                onPress={() => {
+                  setSubGroupBy(g);
+                  setCollapsed(new Set());
+                }}
+              >
+                <Text style={[styles.groupChipText, effectiveSub === g && { color: colors.bg }]}>
+                  {g === 'none' ? 'Ninguno' : GROUP_LABELS[g]}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
       </View>
 
       {searching && (
@@ -540,6 +576,18 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           )
         }
         renderItem={({ item }) => {
+          if (item.type === 'sub') {
+            return (
+              <Pressable style={styles.subHeader} onPress={() => toggleGroup(item.subKey)}>
+                <MaterialCommunityIcons name={item.collapsed ? 'chevron-right' : 'chevron-down'} size={18} color={colors.textMuted} />
+                {item.group.symbols && <ManaCost cost={item.group.symbols} size={14} />}
+                <Text style={styles.subTitle} numberOfLines={1}>
+                  {item.group.title}
+                </Text>
+                <Text style={styles.subTitle}>{item.group.copies}</Text>
+              </Pressable>
+            );
+          }
           if (item.type === 'header') {
             const { group } = item;
             return (
@@ -584,8 +632,10 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           }
           const card = item.card;
           const price = showPrices ? details[card.scryfallId]?.eur : undefined;
+          // Código de colores: wanted and not owned = pink border.
+          const tint = prefs.colorCode !== false && card.quantity === 0 && wantedIds.has(card.scryfallId) ? { borderColor: WANT_COLOR } : null;
           return (
-            <View style={styles.row}>
+            <View style={[styles.row, tint]}>
               <View style={styles.rowTop}>
                 <Pressable onPress={() => setPreview(card)}>
                   {card.imageUrl && (
@@ -614,7 +664,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                       {(cardTags[card.oracleId] ?? []).map((u) => tagsByUid[u] && <TagChip key={u} tag={tagsByUid[u]} small />)}
                     </View>
                   )}
-                  {inDecks.has(card.oracleId) && (() => {
+                  {prefs.showOwned !== false && inDecks.has(card.oracleId) && (() => {
                     // «En: Krenko (2), Elfos (1) · 1 libre»: which decks use it and how many copies are left over.
                     const u = usage[card.oracleId] ?? [];
                     const used = u.reduce((n, x) => n + x.quantity, 0);
@@ -776,6 +826,18 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
 }
 
 const styles = StyleSheet.create({
+  subLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '800', alignSelf: 'center' },
+  subHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  subTitle: { color: colors.textMuted, fontSize: 12, fontWeight: '800', textTransform: 'uppercase', flexShrink: 1 },
   gotIt: {
     paddingHorizontal: 12,
     height: 36,

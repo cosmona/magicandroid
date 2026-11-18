@@ -109,10 +109,45 @@ export function SettingsSheet() {
         />
       </View>
 
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>Lo que tienes y te falta</Text>
+          <Text style={styles.hint}>«Faltan N» del mazo, «En tu colección: 3», «✓ / falta N» y «En Krenko (2) · 1 libre».</Text>
+        </View>
+        <Switch
+          value={prefs.showOwned !== false}
+          onValueChange={(showOwned) => setPrefs({ ...prefs, showOwned })}
+          trackColor={{ true: colors.accent, false: colors.border }}
+        />
+      </View>
+
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>Código de colores</Text>
+          <Text style={styles.hint}>Borde verde en las cartas del mazo que tienes y rosa en las que quieres y aún no tienes.</Text>
+        </View>
+        <Switch
+          value={prefs.colorCode !== false}
+          onValueChange={(colorCode) => setPrefs({ ...prefs, colorCode })}
+          trackColor={{ true: colors.accent, false: colors.border }}
+        />
+      </View>
+
       <Section
         title="Precios"
         hint="Precios orientativos de Cardmarket (Scryfall los actualiza una vez al día). Elige dónde verlos."
       >
+        <View style={styles.switchRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.switchLabel}>Todos</Text>
+            <Text style={styles.hint}>Activa o desactiva todos los precios a la vez.</Text>
+          </View>
+          <Switch
+            value={PRICE_PLACES.some((p) => prefs[p.key])}
+            onValueChange={(on) => setPrefs({ ...prefs, ...Object.fromEntries(PRICE_PLACES.map((p) => [p.key, on])) })}
+            trackColor={{ true: colors.accent, false: colors.border }}
+          />
+        </View>
         {PRICE_PLACES.map((p) => (
           <View key={p.key} style={styles.switchRow}>
             <View style={{ flex: 1 }}>
