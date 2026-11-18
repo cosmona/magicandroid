@@ -4,6 +4,7 @@ import { DEFAULT_FILTERS, type Filters } from '@/api/scryfall';
 import type { DeckGroupBy } from '@/deck/group';
 import {
   createDeck,
+  getDeck,
   getDeckCards,
   getSideboard,
   getMaybe,
@@ -144,7 +145,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     creatingDeck.current ??= (async () => {
       const id = await createDeck(db, UNNAMED_DECK, null);
       setActiveDeckId(id);
-      return { id, name: UNNAMED_DECK, format: null, cardCount: 0, coverImage: null };
+      return (await getDeck(db, id)) ?? { id, uid: '', name: UNNAMED_DECK, format: null, cardCount: 0, coverImage: null };
     })().finally(() => {
       // Once the state has the new deck, `activeDeck` takes over.
       setTimeout(() => (creatingDeck.current = null), 1000);

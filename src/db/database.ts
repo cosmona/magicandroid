@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import type { Card } from '@/api/scryfall';
 
 export const DATABASE_NAME = 'magicswipe.db';
-const DATABASE_VERSION = 12;
+const DATABASE_VERSION = 13;
 
 /** Runs on every app start (SQLiteProvider onInit). Schema changes = bump version + add a step. */
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
@@ -367,6 +367,29 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     `);
     version = 12;
   }
+  if (version === 12) {
+    // Tags on decks too («Torneo», «Proxies»…): the same tags as the cards', by the deck's global id.
+    const NOW = "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS deck_tags (
+        tag_uid TEXT NOT NULL,
+        deck_uid TEXT NOT NULL,
+        added_at INTEGER NOT NULL,
+        PRIMARY KEY (tag_uid, deck_uid)
+      );
+      CREATE TRIGGER deck_tags_ai AFTER INSERT ON deck_tags BEGIN
+        DELETE FROM sync_tombstones WHERE kind = 'deckTag' AND key = NEW.tag_uid || '|' || NEW.deck_uid;
+      END;
+      CREATE TRIGGER deck_tags_ad AFTER DELETE ON deck_tags BEGIN
+        INSERT OR REPLACE INTO sync_tombstones (kind, key, deleted_at)
+          VALUES ('deckTag', OLD.tag_uid || '|' || OLD.deck_uid, ${NOW});
+      END;
+      CREATE TRIGGER decks_ad_tags AFTER DELETE ON decks WHEN OLD.uid IS NOT NULL BEGIN
+        DELETE FROM deck_tags WHERE deck_uid = OLD.uid;
+      END;
+    `);
+    version = 13;
+  }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
 
@@ -374,6 +397,8 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
 
 export interface Deck {
   id: number;
+  /** Global id (the same on every device). */
+  uid: string;
   name: string;
   format: string | null;
   cardCount: number;
@@ -381,7 +406,7 @@ export interface Deck {
 }
 
 const DECK_SELECT = `
-  SELECT d.id, d.name, d.format,
+  SELECT d.id, d.uid, d.name, d.format,
     COALESCE((SELECT SUM(quantity) FROM deck_cards WHERE deck_id = d.id), 0) AS cardCount,
     COALESCE(d.cover_image,
       (SELECT image_url FROM deck_cards WHERE deck_id = d.id ORDER BY added_at LIMIT 1)) AS coverImage
@@ -1072,10 +1097,11 @@ export async function createTag(db: SQLiteDatabase, name: string, color: string,
 export const updateTag = (db: SQLiteDatabase, tag: Tag) =>
   db.runAsync('UPDATE tags SET name = ?, color = ?, icon = ? WHERE uid = ?', tag.name, tag.color, tag.icon, tag.uid);
 
-/** Deletes the tag and takes it off every card. */
+/** Deletes the tag and takes it off every card and deck. */
 export async function deleteTag(db: SQLiteDatabase, uid: string) {
   await db.withTransactionAsync(async () => {
     await db.runAsync('DELETE FROM card_tags WHERE tag_uid = ?', uid);
+    await db.runAsync('DELETE FROM deck_tags WHERE tag_uid = ?', uid);
     await db.runAsync('DELETE FROM tags WHERE uid = ?', uid);
   });
 }
@@ -1094,6 +1120,25 @@ export async function getCardTags(db: SQLiteDatabase, oracleIds: string[]): Prom
     for (const r of rows) out[r.oracleId].push(r.uid);
   }
   return out;
+}
+
+/** Tag uids of every deck that has some (by deck uid). */
+export async function getDeckTags(db: SQLiteDatabase): Promise<Record<string, string[]>> {
+  const rows = await db.getAllAsync<{ deckUid: string; uid: string }>(
+    'SELECT deck_uid AS deckUid, tag_uid AS uid FROM deck_tags ORDER BY added_at',
+  );
+  const out: Record<string, string[]> = {};
+  for (const r of rows) (out[r.deckUid] ??= []).push(r.uid);
+  return out;
+}
+
+/** Puts the tag on the deck or takes it off. */
+export async function setDeckTag(db: SQLiteDatabase, tagUid: string, deckUid: string, on: boolean) {
+  if (on) {
+    await db.runAsync('INSERT OR IGNORE INTO deck_tags (tag_uid, deck_uid, added_at) VALUES (?, ?, ?)', tagUid, deckUid, Date.now());
+  } else {
+    await db.runAsync('DELETE FROM deck_tags WHERE tag_uid = ? AND deck_uid = ?', tagUid, deckUid);
+  }
 }
 
 /** Puts the tag on the card (every printing of it) or takes it off. */

@@ -43,6 +43,8 @@ export interface SyncData {
   /** Raw `tags` rows (key: uid) and `card_tags` rows (key: tag_uid + oracle_id), DB v11. */
   tags: Row[];
   cardTags: Row[];
+  /** Tags on decks (`deck_tags`: tag_uid + deck_uid), DB v13; missing from older apps. */
+  deckTags?: Row[];
   /** Deletions (`sync_tombstones`: kind + key + deleted_at), to tell «deleted there» from «new here». */
   tombstones: Row[];
 }
@@ -65,6 +67,9 @@ export interface SyncPatch {
   cardTags: Row[];
   /** `tag_uid|oracle_id`. */
   deleteCardTags: string[];
+  /** Tags on decks, and `tag_uid|deck_uid` to take off (missing in patches from older apps). */
+  deckTags?: Row[];
+  deleteDeckTags?: string[];
 }
 
 /** Answer of the PC to the phone's `poll` while the user reviews the differences. */
@@ -118,6 +123,7 @@ export async function exportSyncData(db: SQLiteDatabase, device: string): Promis
     tags: await db.getAllAsync<Row>('SELECT * FROM tags'),
     cardTags: await db.getAllAsync<Row>('SELECT * FROM card_tags'),
     tombstones: await db.getAllAsync<Row>('SELECT * FROM sync_tombstones'),
+    deckTags: await db.getAllAsync<Row>('SELECT * FROM deck_tags'),
   };
 }
 
@@ -166,7 +172,7 @@ export async function copySyncData(db: SQLiteDatabase, data: SyncData): Promise<
   return summary;
 }
 
-type Rows = Pick<SyncData, 'decks' | 'collection' | 'wanted' | 'tags' | 'cardTags'>;
+type Rows = Pick<SyncData, 'decks' | 'collection' | 'wanted' | 'tags' | 'cardTags' | 'deckTags'>;
 
 /** Writes the rows (decks by uid replaced whole; other rows replace the one with the same key). No transaction. */
 async function writeRows(db: SQLiteDatabase, data: Rows): Promise<CopySummary> {
@@ -213,6 +219,10 @@ async function writeRows(db: SQLiteDatabase, data: Rows): Promise<CopySummary> {
       summary.tags++;
     }
     for (const row of data.cardTags) await insertRow(db, 'card_tags', row, cardTagCols);
+    if (data.deckTags?.length) {
+      const deckTagCols = await columnsOf(db, 'deck_tags');
+      for (const row of data.deckTags) await insertRow(db, 'deck_tags', row, deckTagCols);
+    }
   }
   return summary;
 }
@@ -224,6 +234,10 @@ export async function applyPatch(db: SQLiteDatabase, patch: SyncPatch): Promise<
       const [tag, oracle] = key.split('|');
       await db.runAsync('DELETE FROM card_tags WHERE tag_uid = ? AND oracle_id = ?', tag, oracle);
     }
+    for (const key of patch.deleteDeckTags ?? []) {
+      const [tag, deck] = key.split('|');
+      await db.runAsync('DELETE FROM deck_tags WHERE tag_uid = ? AND deck_uid = ?', tag, deck);
+    }
     for (const uid of patch.deleteDecks) await db.runAsync('DELETE FROM decks WHERE uid = ?', uid);
     for (const key of patch.deleteCollection) {
       const [id, place] = key.split('|');
@@ -232,6 +246,7 @@ export async function applyPatch(db: SQLiteDatabase, patch: SyncPatch): Promise<
     for (const id of patch.deleteWanted) await db.runAsync('DELETE FROM wanted_cards WHERE scryfall_id = ?', id);
     for (const uid of patch.deleteTags) {
       await db.runAsync('DELETE FROM card_tags WHERE tag_uid = ?', uid);
+      await db.runAsync('DELETE FROM deck_tags WHERE tag_uid = ?', uid);
       await db.runAsync('DELETE FROM tags WHERE uid = ?', uid);
     }
     await writeRows(db, patch);
@@ -266,7 +281,7 @@ export async function restoreBackup(db: SQLiteDatabase, id: number): Promise<voi
   if (!row) throw new Error('Esa copia ya no existe.');
   const data = JSON.parse(row.data) as SyncData;
   await db.withTransactionAsync(async () => {
-    for (const table of ['card_tags', 'tags', 'wanted_cards', 'collection_cards', 'decks']) await db.runAsync(`DELETE FROM ${table}`);
+    for (const table of ['deck_tags', 'card_tags', 'tags', 'wanted_cards', 'collection_cards', 'decks']) await db.runAsync(`DELETE FROM ${table}`);
     await db.runAsync('DELETE FROM sync_tombstones');
     await writeRows(db, data);
     for (const t of data.tombstones ?? []) {

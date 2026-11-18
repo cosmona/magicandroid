@@ -8,7 +8,7 @@ type Row = Record<string, string | number | null>;
 export type SyncSide = 'pc' | 'phone';
 /** What stays: the PC's version, the phone's, or (decks) both joined. */
 export type SyncPick = SyncSide | 'merge';
-export type DiffKind = 'deck' | 'card' | 'want' | 'tag' | 'cardTag';
+export type DiffKind = 'deck' | 'card' | 'want' | 'tag' | 'cardTag' | 'deckTag';
 export type DiffState =
   | 'changed' // both have it, different
   | 'onlyPc' // new on the PC
@@ -34,6 +34,7 @@ export interface DiffItem {
 
 const PLACE = (r: Row) => `${r.scryfall_id}|${r.place}`;
 const CARD_TAG = (r: Row) => `${r.tag_uid}|${r.oracle_id}`;
+const DECK_TAG = (r: Row) => `${r.tag_uid}|${r.deck_uid}`;
 const num = (v: unknown) => (typeof v === 'number' ? v : Number(v) || 0);
 
 /** Name of a card row: «Rayo (M10, ES)». */
@@ -120,7 +121,16 @@ function withAliases(phone: SyncData, aliases: Record<string, string>): SyncData
       cardTags.push(row);
     }
   }
-  return { ...phone, tags: phone.tags.map((t) => (aliases[String(t.uid)] ? { ...t, uid: aliases[String(t.uid)] } : t)), cardTags };
+  const deckSeen = new Set<string>();
+  const deckTags: Row[] = [];
+  for (const r of phone.deckTags ?? []) {
+    const row = { ...r, tag_uid: aliases[String(r.tag_uid)] ?? r.tag_uid };
+    if (!deckSeen.has(DECK_TAG(row))) {
+      deckSeen.add(DECK_TAG(row));
+      deckTags.push(row);
+    }
+  }
+  return { ...phone, tags: phone.tags.map((t) => (aliases[String(t.uid)] ? { ...t, uid: aliases[String(t.uid)] } : t)), cardTags, deckTags };
 }
 
 /**
@@ -135,15 +145,19 @@ export function aliasPatch(pc: SyncData, phone: SyncData): SyncPatch {
   patch.deleteTags = Object.keys(aliases);
   patch.tags = pc.tags.filter((t) => targets.has(String(t.uid)));
   const rows = new Map<string, Row>();
-  for (const r of [...pc.cardTags, ...withAliases(phone, aliases).cardTags]) if (targets.has(String(r.tag_uid))) rows.set(CARD_TAG(r), r);
+  const joined = withAliases(phone, aliases);
+  for (const r of [...pc.cardTags, ...joined.cardTags]) if (targets.has(String(r.tag_uid))) rows.set(CARD_TAG(r), r);
   patch.cardTags = [...rows.values()];
+  const deckRows = new Map<string, Row>();
+  for (const r of [...(pc.deckTags ?? []), ...(joined.deckTags ?? [])]) if (targets.has(String(r.tag_uid))) deckRows.set(DECK_TAG(r), r);
+  patch.deckTags = [...deckRows.values()];
   return patch;
 }
 
 /** Both patches in one (deletions and writes of `b` after those of `a`: what `b` writes wins). */
 export function mergePatches(a: SyncPatch, b: SyncPatch): SyncPatch {
   const out = emptyPatch();
-  for (const k of Object.keys(out) as (keyof SyncPatch)[]) (out[k] as unknown[]) = [...(a[k] as unknown[]), ...(b[k] as unknown[])];
+  for (const k of Object.keys(out) as (keyof SyncPatch)[]) (out[k] as unknown[]) = [...((a[k] as unknown[]) ?? []), ...((b[k] as unknown[]) ?? [])];
   return out;
 }
 
@@ -260,6 +274,21 @@ export function diffSyncData(pc: SyncData, rawPhone: SyncData): DiffItem[] {
     () => [],
   );
 
+  // Tags on decks (tag + deck); only when both apps know them (an older phone sends none).
+  if (rawPhone.deckTags && pc.deckTags) {
+    const deckName = new Map([...phone.decks, ...pc.decks].map((d) => [String(d.deck.uid), String(d.deck.name)]));
+    compare<Row>(
+      'deckTag',
+      'deckTag',
+      new Map(pc.deckTags.map((r) => [DECK_TAG(r), r])),
+      new Map((phone.deckTags ?? []).map((r) => [DECK_TAG(r), r])),
+      (r) => `${tagName.get(String(r.tag_uid)) ?? 'Etiqueta'} · mazo «${deckName.get(String(r.deck_uid)) ?? '?'}»`,
+      (r) => num(r.added_at),
+      () => [],
+      () => [],
+    );
+  }
+
   return items;
 }
 
@@ -285,6 +314,8 @@ export const emptyPatch = (): SyncPatch => ({
   deleteTags: [],
   cardTags: [],
   deleteCardTags: [],
+  deckTags: [],
+  deleteDeckTags: [],
 });
 
 /** What the PC and the phone must change so both end up with what was picked for each difference. */
@@ -303,11 +334,11 @@ export function buildPatches(items: DiffItem[], picks: Record<string, SyncPick>)
       const current = item[side];
       if (final === current) continue; // already what stays
       if (final === null) {
-        const list = { deck: patch.deleteDecks, card: patch.deleteCollection, want: patch.deleteWanted, tag: patch.deleteTags, cardTag: patch.deleteCardTags }[item.kind];
+        const list = { deck: patch.deleteDecks, card: patch.deleteCollection, want: patch.deleteWanted, tag: patch.deleteTags, cardTag: patch.deleteCardTags, deckTag: (patch.deleteDeckTags ??= []) }[item.kind];
         list.push(item.key);
       } else if (item.kind === 'deck') patch.decks.push(final as SyncDeck);
       else {
-        const list = { card: patch.collection, want: patch.wanted, tag: patch.tags, cardTag: patch.cardTags }[item.kind];
+        const list = { card: patch.collection, want: patch.wanted, tag: patch.tags, cardTag: patch.cardTags, deckTag: (patch.deckTags ??= []) }[item.kind];
         list.push(final as Row);
       }
     }
@@ -316,6 +347,10 @@ export function buildPatches(items: DiffItem[], picks: Record<string, SyncPick>)
   for (const patch of [toPc, toPhone]) {
     const gone = new Set(patch.deleteTags);
     patch.cardTags = patch.cardTags.filter((r) => !gone.has(String(r.tag_uid)));
+    patch.deckTags = (patch.deckTags ?? []).filter((r) => !gone.has(String(r.tag_uid)));
+    // A deck that goes away doesn't keep tags either.
+    const goneDecks = new Set(patch.deleteDecks);
+    patch.deckTags = patch.deckTags.filter((r) => !goneDecks.has(String(r.deck_uid)));
   }
   return { toPc, toPhone };
 }
@@ -329,7 +364,11 @@ export function describePatch(p: SyncPatch): string {
   n(p.collection.length, 'carta de la colección actualizada', 'cartas de la colección actualizadas');
   n(p.deleteCollection.length, 'carta quitada de la colección', 'cartas quitadas de la colección');
   n(p.wanted.length + p.deleteWanted.length, 'cambio en «La quiero»', 'cambios en «La quiero»');
-  n(p.tags.length + p.deleteTags.length + p.cardTags.length + p.deleteCardTags.length, 'cambio de etiquetas', 'cambios de etiquetas');
+  n(
+    p.tags.length + p.deleteTags.length + p.cardTags.length + p.deleteCardTags.length + (p.deckTags?.length ?? 0) + (p.deleteDeckTags?.length ?? 0),
+    'cambio de etiquetas',
+    'cambios de etiquetas',
+  );
   return parts.length ? parts.join(', ') : 'nada';
 }
 
@@ -368,4 +407,5 @@ export const KIND_LABELS: Record<DiffKind, string> = {
   want: '«La quiero»',
   tag: 'Etiquetas',
   cardTag: 'Etiquetas en cartas',
+  deckTag: 'Etiquetas en mazos',
 };
