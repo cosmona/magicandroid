@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type LayoutChangeEvent } from 'react-native';
+import { Animated, Easing, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, type LayoutChangeEvent } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Image } from 'expo-image';
@@ -26,9 +26,17 @@ import {
   parseGame,
   PLAYER_COLORS,
   POISON_LIMIT,
+  EFFECT_OPTIONS,
+  lifeSettings,
   PHOTO_KINDS,
   recolorPlayer,
+  setEffect,
   setPhoto,
+  setShow,
+  SHOW_OPTIONS,
+  winnerOf,
+  type LifeEffects,
+  type LifeSettings,
   type PhotoKind,
   renamePlayer,
   SETTINGS_KEY,
@@ -54,14 +62,15 @@ export function LifeCounterScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [detail, setDetail] = useState<number | null>(null);
   const [first, setFirst] = useState<number | null>(null);
-  // The photo each player shows right now (taking damage, dealing it, gaining life), for a moment.
-  const [reaction, setReaction] = useState<Record<number, { kind: PhotoKind; at: number }>>({});
+  const settings = lifeSettings(game);
+  // What just happened to each panel (photo, flash, shake, floating number), for a moment.
+  const [events, setEvents] = useState<Record<number, PanelEvent>>({});
   const reactions = useRef(0);
-  const react = (i: number, kind: PhotoKind) => {
+  const react = (i: number, kind: PhotoKind, delta?: number) => {
     reactions.current += 1;
     const at = reactions.current;
-    setReaction((r) => ({ ...r, [i]: { kind, at } }));
-    setTimeout(() => setReaction((r) => (r[i]?.at === at ? Object.fromEntries(Object.entries(r).filter(([k]) => Number(k) !== i)) : r)), 1900);
+    setEvents((r) => ({ ...r, [i]: { kind, at, delta } }));
+    setTimeout(() => setEvents((r) => (r[i]?.at === at ? Object.fromEntries(Object.entries(r).filter(([k]) => Number(k) !== i)) : r)), 1900);
   };
 
   // Load the saved game once; save every change after that.
@@ -93,6 +102,19 @@ export function LifeCounterScreen() {
 
   const rows = tableRows(game.players.length);
   const rotatedIndexes = new Set(rows[0]);
+  const winner = winnerOf(game);
+  const count = game.players.length;
+
+  /** A change of life of player `i`; `from` = who caused it (with 2 players, the other one). */
+  const lifeChange = (i: number, delta: number, from?: number) => {
+    buzz();
+    setGame((g) => changeLife(g, i, delta));
+    react(i, delta > 0 ? 'heal' : 'hurt', delta);
+    if (delta < 0) {
+      const attacker = from !== undefined && from !== i ? from : count === 2 ? 1 - i : undefined;
+      if (attacker !== undefined) react(attacker, 'attack');
+    }
+  };
 
   return (
     <View style={[styles.screen, { paddingBottom: insets.bottom + 6 }]}>
@@ -101,25 +123,22 @@ export function LifeCounterScreen() {
           {row.map((i) => (
             <PlayerPanel
               key={i}
+              index={i}
               player={game.players[i]}
+              players={game.players}
+              settings={settings}
               rotated={r === 0}
               first={first === i}
-              onLife={(delta) => {
-                buzz();
-                setGame((g) => changeLife(g, i, delta));
-                react(i, delta > 0 ? 'heal' : 'hurt');
-              }}
+              winner={winner === i}
+              onLife={(delta, from) => lifeChange(i, delta, from)}
               onOpen={() => setDetail(i)}
-              reaction={reaction[i]}
-              opponents={game.players
-                .map((p, f) => ({ index: f, name: p.name, color: PLAYER_COLORS[p.color], damage: game.players[i].commander[f] ?? 0 }))
-                .filter((o) => o.index !== i)}
+              event={events[i]}
               onCommander={(from, d) => {
                 buzz();
                 setGame((g) => changeCommander(g, i, from, d));
                 // Commander damage: this player takes it, the other one deals it.
                 if (d > 0) {
-                  react(i, 'hurt');
+                  react(i, 'hurt', -d);
                   react(from, 'attack');
                 }
               }}
@@ -144,13 +163,16 @@ export function LifeCounterScreen() {
           rotated={rotatedIndexes.has(detail)}
           onChange={setGame}
           onClose={() => setDetail(null)}
-          onReact={react}
+          onReact={(p, k) => react(p, k, k === 'hurt' ? -1 : undefined)}
+          photos={settings.effects.photos}
         />
       )}
 
       <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} heightRatio={0.8}>
         <LifeMenu
           game={game}
+          settings={settings}
+          onChange={setGame}
           onNewGame={(count, life) => {
             setGame((g) => newGame(count, life, g));
             setFirst(null);
@@ -167,27 +189,57 @@ export function LifeCounterScreen() {
 
 // ---------------------------------------------------------------- Player panel
 
+/** Something that just happened to a panel (for its photo, flash, shake and floating number). */
+interface PanelEvent {
+  at: number;
+  kind: PhotoKind;
+  /** The change, for the floating number (none for the attacker's photo). */
+  delta?: number;
+}
+
 function PlayerPanel({
+  index,
   player,
+  players,
+  settings,
   rotated,
   first,
+  winner,
   onLife,
   onOpen,
-  reaction,
-  opponents,
+  event,
   onCommander,
 }: {
+  index: number;
   player: Player;
+  players: Player[];
+  settings: LifeSettings;
   rotated: boolean;
   first: boolean;
-  onLife: (delta: number) => void;
+  /** The last one standing (confetti). */
+  winner: boolean;
+  /** A change of life; `from` = the player who caused it (the side's colored buttons). */
+  onLife: (delta: number, from?: number) => void;
   onOpen: () => void;
-  /** A photo to show now (taking damage, dealing it, gaining life). */
-  reaction?: { kind: PhotoKind; at: number };
-  /** The other players, with the commander damage this one has taken from each. */
-  opponents: { index: number; name: string; color: string; damage: number }[];
+  /** What just happened (photo, flash, shake, floating number). */
+  event?: PanelEvent;
   onCommander: (from: number, delta: number) => void;
 }) {
+  const { show, effects: fx } = settings;
+  const opponents = players
+    .map((p, f) => ({ index: f, name: p.name, color: PLAYER_COLORS[p.color], damage: player.commander[f] ?? 0 }))
+    .filter((o) => o.index !== index);
+  // With 3+ players each side is split in one button per opponent (who deals the damage) and one for the rest.
+  const segments =
+    show.sources && players.length > 2
+      ? [...opponents.map((o) => ({ from: o.index as number | undefined, color: o.color, label: o.name })), { from: undefined, color: 'rgba(0,0,0,0.25)', label: '' }]
+      : null;
+  const [shake] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (!fx.shake || event?.kind !== 'hurt') return;
+    shake.setValue(0);
+    Animated.sequence([-1, 1, -0.7, 0.6, -0.3, 0].map((v) => Animated.timing(shake, { toValue: v, duration: 55, useNativeDriver: true }))).start();
+  }, [event, fx.shake, shake]);
   const [size, setSize] = useState({ width: 0, height: 0 });
   // Running change shown above the number ("−3"), cleared after a pause.
   const [delta, setDelta] = useState(0);
@@ -199,8 +251,8 @@ function PlayerPanel({
     [],
   );
 
-  const change = (d: number) => {
-    onLife(d);
+  const change = (d: number, from?: number) => {
+    onLife(d, from);
     setDelta((x) => x + d);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setDelta(0), 1800);
@@ -208,53 +260,88 @@ function PlayerPanel({
 
   const out = lossReason(player);
   const big = Math.max(32, Math.min(size.width * 0.42, size.height * 0.5, 140));
+  const danger = fx.heartbeat && !out && player.life > 0 && player.life <= 5;
+  const photo = fx.photos && event ? player.photos?.[event.kind] : undefined;
 
   return (
     <View
-      style={[styles.panel, { backgroundColor: PLAYER_COLORS[player.color] }, rotated && styles.rotated]}
+      style={[styles.panel, { backgroundColor: PLAYER_COLORS[player.color] }, rotated && styles.rotated, danger && styles.danger]}
       onLayout={(e: LayoutChangeEvent) => setSize(e.nativeEvent.layout)}
     >
-      {reaction && player.photos?.[reaction.kind] && (
-        <ReactionPhoto key={reaction.at} uri={player.photos[reaction.kind]!} kind={reaction.kind} size={Math.min(size.height * 0.62, size.width * 0.45, 220)} />
-      )}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          { transform: [{ translateX: shake.interpolate({ inputRange: [-1, 1], outputRange: [-10, 10] }) }] },
+        ]}
+      >
+      {fx.flash && event && event.kind !== 'attack' && <Flash key={`f${event.at}`} kind={event.kind} />}
+      {photo && <ReactionPhoto key={event!.at} uri={photo} kind={event!.kind} size={Math.min(size.height * 0.62, size.width * 0.45, 220)} />}
       <View style={styles.halves}>
-        <Pressable
-          style={({ pressed }) => [styles.half, pressed && styles.halfPressed]}
-          onPress={() => change(-1)}
-          onLongPress={() => change(-10)}
-          delayLongPress={400}
-          accessibilityLabel={`Restar vida a ${player.name}`}
-        >
-          <MaterialCommunityIcons name="minus" size={28} color="rgba(255,255,255,0.45)" />
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.half, styles.halfRight, pressed && styles.halfPressed]}
-          onPress={() => change(1)}
-          onLongPress={() => change(10)}
-          delayLongPress={400}
-          accessibilityLabel={`Sumar vida a ${player.name}`}
-        >
-          <MaterialCommunityIcons name="plus" size={28} color="rgba(255,255,255,0.45)" />
-        </Pressable>
+        {(['minus', 'plus'] as const).map((side) => {
+          const sign = side === 'plus' ? 1 : -1;
+          return segments ? (
+            // One button per player (in their color): who deals the damage, or gives the life.
+            <View key={side} style={[styles.segments, side === 'minus' ? { paddingLeft: 5 } : { paddingRight: 5 }]}>
+              {segments.map((sg, k) => (
+                <Pressable
+                  key={k}
+                  style={({ pressed }) => [styles.segment, side === 'plus' && styles.halfRight, { backgroundColor: sg.color, opacity: pressed ? 0.85 : 0.45 }]}
+                  onPress={() => change(sign, sg.from)}
+                  onLongPress={() => change(10 * sign, sg.from)}
+                  delayLongPress={400}
+                  accessibilityLabel={`${sign < 0 ? 'Restar' : 'Sumar'} vida a ${player.name}${sg.label ? ` (${sg.label})` : ''}`}
+                >
+                  <View style={[styles.segmentInner, side === 'plus' && { flexDirection: 'row-reverse' }]}>
+                    {show.steps && <MaterialCommunityIcons name={side} size={18} color="rgba(255,255,255,0.75)" />}
+                    {!!sg.label && size.width > 160 && (
+                      <Text style={styles.segmentLabel} numberOfLines={1}>
+                        {sg.label}
+                      </Text>
+                    )}
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Pressable
+              key={side}
+              style={({ pressed }) => [styles.half, side === 'plus' && styles.halfRight, pressed && styles.halfPressed]}
+              onPress={() => change(sign)}
+              onLongPress={() => change(10 * sign)}
+              delayLongPress={400}
+              accessibilityLabel={`${sign < 0 ? 'Restar' : 'Sumar'} vida a ${player.name}`}
+            >
+              {show.steps && <MaterialCommunityIcons name={side} size={28} color="rgba(255,255,255,0.45)" />}
+            </Pressable>
+          );
+        })}
       </View>
 
       {/* Number and labels don't take touches: the halves underneath do. */}
       <View style={styles.center} pointerEvents="none">
-        <Text style={styles.name} numberOfLines={1}>
-          {first ? '👑 ' : ''}
-          {player.name}
-        </Text>
-        <Text style={styles.delta}>{delta ? (delta > 0 ? `+${delta}` : `${delta}`) : ' '}</Text>
-        <Text style={[styles.life, { fontSize: big, lineHeight: big * 1.1 }]} adjustsFontSizeToFit numberOfLines={1}>
-          {player.life}
-        </Text>
+        {show.name && (
+          <Text style={styles.name} numberOfLines={1}>
+            {first ? '👑 ' : ''}
+            {player.name}
+          </Text>
+        )}
+        {show.delta && <Text style={styles.delta}>{delta ? (delta > 0 ? `+${delta}` : `${delta}`) : ' '}</Text>}
+        <Beat on={danger}>
+          <Text style={[styles.life, { fontSize: big, lineHeight: big * 1.1 }]} adjustsFontSizeToFit numberOfLines={1}>
+            {player.life}
+          </Text>
+        </Beat>
         {out && <Text style={styles.out}>☠ {out}</Text>}
       </View>
+      {fx.floating && !!event?.delta && <FloatingNumber key={`n${event.at}`} delta={event.delta} seed={event.at} />}
+      {out && fx.skull && <Skull size={Math.min(size.height * 0.7, size.width * 0.6, 200)} />}
+      {winner && fx.confetti && <Confetti width={size.width} height={size.height} />}
+      </Animated.View>
 
       {/* Commander damage from each opponent (− / ＋ right here; it also takes life), then poison. */}
       <View style={styles.bottomBar} pointerEvents="box-none">
         <View style={styles.cmdRow} pointerEvents="box-none">
-          {opponents.map((o) => (
+          {show.commander && opponents.map((o) => (
             <View key={o.index} style={[styles.cmd, { backgroundColor: o.color }, o.damage >= COMMANDER_LIMIT && styles.cmdLethal]}>
               <Pressable
                 style={({ pressed }) => [styles.cmdStep, pressed && styles.cmdPressed, o.damage === 0 && { opacity: 0.35 }]}
@@ -289,11 +376,140 @@ function PlayerPanel({
           hitSlop={6}
           accessibilityLabel={`Veneno, nombre, color y fotos de ${player.name}`}
         >
-          <MaterialCommunityIcons name="bottle-tonic-skull-outline" size={16} color={colors.text} />
-          <Text style={styles.counterText}>{player.poison}</Text>
+          {show.poison && (
+            <>
+              <MaterialCommunityIcons name="bottle-tonic-skull-outline" size={16} color={colors.text} />
+              <Text style={styles.counterText}>{player.poison}</Text>
+            </>
+          )}
           <MaterialCommunityIcons name="cog-outline" size={15} color={colors.text} />
         </Pressable>
       </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------- Effects
+
+/** The panel lights up red (damage) or green (life) and fades. */
+function Flash({ kind }: { kind: PhotoKind }) {
+  const [a] = useState(() => new Animated.Value(1));
+  useEffect(() => {
+    Animated.timing(a, { toValue: 0, duration: 550, useNativeDriver: true }).start();
+  }, [a]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, { zIndex: 1, opacity: a, backgroundColor: kind === 'heal' ? 'rgba(46,204,113,0.45)' : 'rgba(255,40,40,0.5)' }]}
+    />
+  );
+}
+
+/** «−1» / «+3» floating up from the panel. */
+function FloatingNumber({ delta, seed }: { delta: number; seed: number }) {
+  const [a] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.timing(a, { toValue: 1, duration: 1100, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, [a]);
+  return (
+    <Animated.Text
+      pointerEvents="none"
+      style={[
+        styles.float,
+        { left: `${25 + ((seed * 37) % 45)}%`, color: delta > 0 ? '#b6ffcf' : '#ffb3b3' },
+        {
+          opacity: a.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 1, 0] }),
+          transform: [
+            { translateY: a.interpolate({ inputRange: [0, 1], outputRange: [10, -110] }) },
+            { scale: a.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0.7, 1.2, 1] }) },
+          ],
+        },
+      ]}
+    >
+      {delta > 0 ? `+${delta}` : delta}
+    </Animated.Text>
+  );
+}
+
+/** The life number beating like a heart (5 life or less). */
+function Beat({ on, children }: { on: boolean; children: React.ReactNode }) {
+  const [a] = useState(() => new Animated.Value(1));
+  useEffect(() => {
+    if (!on) {
+      a.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(a, { toValue: 1.12, duration: 120, useNativeDriver: true }),
+        Animated.timing(a, { toValue: 0.98, duration: 120, useNativeDriver: true }),
+        Animated.timing(a, { toValue: 1.08, duration: 120, useNativeDriver: true }),
+        Animated.timing(a, { toValue: 1, duration: 140, useNativeDriver: true }),
+        Animated.delay(500),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [on, a]);
+  return <Animated.View style={{ transform: [{ scale: a }] }}>{children}</Animated.View>;
+}
+
+/** A big skull when the player is out. */
+function Skull({ size }: { size: number }) {
+  const [a] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.spring(a, { toValue: 1, friction: 5, tension: 60, useNativeDriver: true }).start();
+  }, [a]);
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.skullWrap]}>
+      <Animated.Text
+        style={{
+          fontSize: size,
+          opacity: a.interpolate({ inputRange: [0, 1], outputRange: [0, 0.85] }),
+          transform: [
+            { scale: a.interpolate({ inputRange: [0, 1], outputRange: [2.4, 1] }) },
+            { rotate: a.interpolate({ inputRange: [0, 1], outputRange: ['-20deg', '0deg'] }) },
+          ],
+        }}
+      >
+        ☠
+      </Animated.Text>
+    </View>
+  );
+}
+
+const CONFETTI_COLORS = ['#f1c40f', '#e74c3c', '#2ecc71', '#3498db', '#ff7a9c', '#ffffff', '#9b59b6'];
+/** Confetti falling over the winner's panel, with a trophy. */
+function Confetti({ width, height }: { width: number; height: number }) {
+  const [pieces] = useState(() =>
+    Array.from({ length: 34 }, (_, i) => ({ x: (i * 53) % 100, delay: ((i * 37) % 30) * 90, duration: 2000 + ((i * 17) % 20) * 90, color: CONFETTI_COLORS[i % 7], v: new Animated.Value(0) })),
+  );
+  useEffect(() => {
+    const anims = pieces.map((p) =>
+      Animated.loop(Animated.sequence([Animated.delay(p.delay), Animated.timing(p.v, { toValue: 1, duration: p.duration, easing: Easing.linear, useNativeDriver: true })])),
+    );
+    anims.forEach((x) => x.start());
+    return () => anims.forEach((x) => x.stop());
+  }, [pieces]);
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden', zIndex: 2 }]}>
+      <Text style={styles.trophy}>🏆</Text>
+      {pieces.map((p, i) => (
+        <Animated.View
+          key={i}
+          style={[
+            styles.confetti,
+            {
+              left: (p.x / 100) * width,
+              backgroundColor: p.color,
+              transform: [
+                { translateY: p.v.interpolate({ inputRange: [0, 1], outputRange: [-20, height + 20] }) },
+                { rotate: p.v.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '540deg'] }) },
+              ],
+            },
+          ]}
+        />
+      ))}
     </View>
   );
 }
@@ -307,6 +523,7 @@ function PlayerDetail({
   onChange,
   onClose,
   onReact,
+  photos,
 }: {
   game: LifeGame;
   index: number;
@@ -314,6 +531,8 @@ function PlayerDetail({
   onChange: (update: (g: LifeGame) => LifeGame) => void;
   onClose: () => void;
   onReact: (player: number, kind: PhotoKind) => void;
+  /** The «Fotos» effect is on: show the photos to take. */
+  photos: boolean;
 }) {
   const player = game.players[index];
   const [shooting, setShooting] = useState<PhotoKind | null>(null);
@@ -378,9 +597,10 @@ function PlayerDetail({
               ),
             )}
 
-            <Text style={styles.sectionTitle}>Fotos</Text>
-            <Text style={styles.help}>Salen en su panel cuando pasa cada cosa. Se hacen con la cámara delantera.</Text>
-            <View style={styles.photoSlots}>
+            {!photos && <Text style={styles.help}>Activa el efecto «Fotos» en el menú ⚙ → Efectos para que cada jugador se haga sus fotos.</Text>}
+            {photos && <Text style={styles.sectionTitle}>Fotos</Text>}
+            {photos && <Text style={styles.help}>Salen en su panel cuando pasa cada cosa. Se hacen con la cámara delantera.</Text>}
+            {photos && <View style={styles.photoSlots}>
               {PHOTO_KINDS.map((k) => {
                 const uri = player.photos?.[k.key];
                 return (
@@ -412,7 +632,7 @@ function PlayerDetail({
                   </View>
                 );
               })}
-            </View>
+            </View>}
 
             <Pressable style={styles.closeButton} onPress={onClose}>
               <Text style={styles.closeText}>Listo</Text>
@@ -617,13 +837,26 @@ type Roll = { label: string; value: string } | null;
 
 function LifeMenu({
   game,
+  settings,
+  onChange,
   onNewGame,
   onFirst,
 }: {
   game: LifeGame;
+  settings: LifeSettings;
+  onChange: (update: (g: LifeGame) => LifeGame) => void;
   onNewGame: (count: number, life: number) => void;
   onFirst: (index: number) => void;
 }) {
+  const toggle = (key: string, label: string, hint: string, value: boolean, onToggle: (on: boolean) => void) => (
+    <View key={key} style={styles.toggleRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.toggleLabel}>{label}</Text>
+        <Text style={styles.help}>{hint}</Text>
+      </View>
+      <Switch value={value} onValueChange={onToggle} trackColor={{ true: colors.accent, false: colors.border }} />
+    </View>
+  );
   const [count, setCount] = useState(game.players.length);
   const [life, setLife] = useState(game.startingLife);
   const [roll, setRoll] = useState<Roll>(null);
@@ -674,6 +907,16 @@ function LifeMenu({
           <Text style={styles.help}>{roll.label}</Text>
           <Text style={styles.rollValue}>{roll.value}</Text>
         </View>
+      )}
+
+      <Text style={styles.sectionTitle}>Pantalla</Text>
+      <Text style={styles.help}>Qué se ve en el recuadro de cada jugador.</Text>
+      {SHOW_OPTIONS.map((o) => toggle(o.key, o.label, o.hint, settings.show[o.key], (on) => onChange((g) => setShow(g, o.key, on))))}
+
+      <Text style={styles.sectionTitle}>Efectos</Text>
+      <Text style={styles.help}>Para darle vidilla a la partida.</Text>
+      {EFFECT_OPTIONS.filter((o) => o.key !== 'sound').map((o) =>
+        toggle(o.key, o.label, o.hint, settings.effects[o.key as keyof LifeEffects], (on) => onChange((g) => setEffect(g, o.key, on))),
       )}
     </ScrollView>
   );
@@ -771,6 +1014,17 @@ const styles = StyleSheet.create({
   boothTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
   boothFrame: { width: 280, height: 280, borderRadius: 140, overflow: 'hidden', borderWidth: 4, alignItems: 'center', justifyContent: 'center' },
   boothCount: { color: '#fff', fontSize: 110, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 18 },
+  danger: { borderWidth: 3, borderColor: 'rgba(255,70,70,0.9)' },
+  segments: { flex: 1, gap: 3, paddingTop: 5, paddingBottom: 70 },
+  segment: { flex: 1, borderRadius: 10, justifyContent: 'center', paddingHorizontal: 8 },
+  segmentInner: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  segmentLabel: { color: '#fff', fontSize: 11, fontWeight: '800', maxWidth: 80, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 3 },
+  float: { position: 'absolute', top: '38%', fontSize: 38, fontWeight: '900', zIndex: 2, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 10 },
+  skullWrap: { alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  confetti: { position: 'absolute', top: 0, width: 8, height: 13, borderRadius: 2 },
+  trophy: { position: 'absolute', top: 8, alignSelf: 'center', fontSize: 40 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  toggleLabel: { color: colors.text, fontWeight: '800', fontSize: 14 },
   menuButton: {
     position: 'absolute',
     top: '50%',

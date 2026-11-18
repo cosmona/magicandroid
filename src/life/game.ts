@@ -23,7 +23,97 @@ export const PHOTO_KINDS: { key: PhotoKind; label: string; hint: string }[] = [
 export interface LifeGame {
   startingLife: number;
   players: Player[];
+  /** What the panels show and which effects are on (kept from game to game). */
+  settings?: Partial<LifeSettings>;
 }
+
+/** What each panel shows (Partida → Pantalla). */
+export interface LifeShow {
+  /** Player's name. */
+  name: boolean;
+  /** Running change above the number («−3»). */
+  delta: boolean;
+  /** − / ＋ marks on the sides. */
+  steps: boolean;
+  /** With 3+ players, the − / ＋ sides split in one button per player (who deals the damage). */
+  sources: boolean;
+  /** Commander damage of each opponent with − / ＋. */
+  commander: boolean;
+  /** Poison counter on the bottom button. */
+  poison: boolean;
+}
+
+/** Effects (Partida → Efectos). */
+export interface LifeEffects {
+  /** Each player's photos when taking damage, dealing it or gaining life. */
+  photos: boolean;
+  /** The panel flashes red (damage) or green (life). */
+  flash: boolean;
+  /** The panel shakes when taking damage. */
+  shake: boolean;
+  /** Numbers that float up from the panel («−1», «+3»). */
+  floating: boolean;
+  /** At 5 life or less the number beats like a heart, with a red glow. */
+  heartbeat: boolean;
+  /** A big skull when a player is out. */
+  skull: boolean;
+  /** Confetti over the winner when only one is left. */
+  confetti: boolean;
+  /** Hit / heal sounds. */
+  sound: boolean;
+}
+
+export interface LifeSettings {
+  show: LifeShow;
+  effects: LifeEffects;
+}
+
+export const DEFAULT_LIFE_SETTINGS: LifeSettings = {
+  show: { name: true, delta: true, steps: true, sources: true, commander: true, poison: true },
+  effects: { photos: false, flash: true, shake: false, floating: true, heartbeat: true, skull: true, confetti: true, sound: false },
+};
+
+export const SHOW_OPTIONS: { key: keyof LifeShow; label: string; hint: string }[] = [
+  { key: 'name', label: 'Nombre', hint: 'El nombre del jugador encima de las vidas.' },
+  { key: 'delta', label: 'Cambio acumulado', hint: '«−3» encima del número mientras cambias las vidas.' },
+  { key: 'steps', label: 'Marcas − / ＋', hint: 'Los signos a los lados del recuadro.' },
+  { key: 'sources', label: 'Quién hace el daño', hint: 'Con 3 o más jugadores, los lados − / ＋ se parten en un botón por jugador, con su color.' },
+  { key: 'commander', label: 'Daño de comandante', hint: 'Una píldora por rival con − / ＋.' },
+  { key: 'poison', label: 'Veneno', hint: 'El contador de veneno en el botón de abajo.' },
+];
+
+export const EFFECT_OPTIONS: { key: keyof LifeEffects; label: string; hint: string; icon: string }[] = [
+  { key: 'photos', label: 'Fotos', hint: 'Cada jugador se hace tres fotos (recibe daño, hace daño, sube vida) que salen en su recuadro.', icon: 'mdiCameraOutline' },
+  { key: 'flash', label: 'Destellos', hint: 'El recuadro se ilumina en rojo al perder vidas y en verde al ganarlas.', icon: 'mdiFlash' },
+  { key: 'shake', label: 'Temblor', hint: 'El recuadro tiembla al recibir daño.', icon: 'mdiVibrate' },
+  { key: 'floating', label: 'Números al vuelo', hint: '«−1», «+3»… salen flotando del recuadro.', icon: 'mdiNumeric' },
+  { key: 'heartbeat', label: 'Latido', hint: 'Con 5 vidas o menos el número late como un corazón y el borde brilla en rojo.', icon: 'mdiHeartPulse' },
+  { key: 'skull', label: 'Calavera', hint: 'Una calavera enorme cuando un jugador queda eliminado.', icon: 'mdiSkullOutline' },
+  { key: 'confetti', label: 'Confeti', hint: 'Lluvia de confeti sobre el ganador cuando solo queda uno.', icon: 'mdiPartyPopper' },
+  { key: 'sound', label: 'Sonidos', hint: 'Un golpe al recibir daño y un tintineo al ganar vidas.', icon: 'mdiVolumeHigh' },
+];
+
+/** The game's settings, with the defaults for anything not set. */
+export function lifeSettings(game: LifeGame): LifeSettings {
+  return {
+    show: { ...DEFAULT_LIFE_SETTINGS.show, ...game.settings?.show },
+    effects: {
+      ...DEFAULT_LIFE_SETTINGS.effects,
+      // Games saved with photos before effects existed keep showing them.
+      photos: game.settings?.effects?.photos ?? game.players.some((p) => p.photos && Object.keys(p.photos).length > 0),
+      ...game.settings?.effects,
+    },
+  };
+}
+
+export const setShow = (game: LifeGame, key: keyof LifeShow, on: boolean): LifeGame => {
+  const s = lifeSettings(game);
+  return { ...game, settings: { ...s, show: { ...s.show, [key]: on } } };
+};
+export const setEffect = (game: LifeGame, key: keyof LifeEffects, on: boolean): LifeGame => {
+  const s = lifeSettings(game);
+  return { ...game, settings: { ...s, effects: { ...s.effects, [key]: on } } };
+};
 
 export const SETTINGS_KEY = 'lifeCounter';
 export const MIN_PLAYERS = 2;
@@ -48,6 +138,7 @@ export function newPlayer(index: number, count: number, life: number): Player {
 export function newGame(count: number, startingLife: number, previous?: LifeGame): LifeGame {
   return {
     startingLife,
+    settings: previous?.settings,
     players: Array.from({ length: count }, (_, i) => {
       const fresh = newPlayer(i, count, startingLife);
       // Keep names and colors when restarting or changing the number of players.
@@ -105,6 +196,12 @@ export const setPhoto = (game: LifeGame, index: number, kind: PhotoKind, url: st
 
 export const recolorPlayer = (game: LifeGame, index: number, color: number) =>
   update(game, index, (p) => ({ ...p, color }));
+
+/** The winner when everyone else is out (null while two or more are still playing). */
+export function winnerOf(game: LifeGame): number | null {
+  const alive = game.players.map((p, i) => (lossReason(p) ? -1 : i)).filter((i) => i >= 0);
+  return alive.length === 1 && game.players.length > 1 ? alive[0] : null;
+}
 
 /** Why the player is out, or null. */
 export function lossReason(p: Player): string | null {

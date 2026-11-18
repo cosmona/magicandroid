@@ -489,11 +489,13 @@ pantalla no se apaga.
 
 - **Vidas:** toca la mitad **izquierda** de tu recuadro para restar 1 y la **derecha** para sumar 1. Mantén pulsado
   para restar o sumar 10. Encima del número aparece el cambio acumulado (por ejemplo «−5») durante un momento.
+- **Quién hace el daño:** con 3 o más jugadores, cada lado se parte en un botón por rival, con su color y su nombre
+  (y uno más para lo demás): toca el del jugador que te hace el daño. Con 2 jugadores se sobreentiende que es el otro.
 - **Daño de comandante:** abajo de cada recuadro hay una píldora por cada rival, con su color: **−** y **＋** cambian el
   daño de comandante que has recibido de él. También resta vidas, y la píldora se marca en rojo al llegar a 21.
 - **Veneno y ajustes del jugador:** el botón de debajo muestra tu veneno; al tocarlo puedes cambiar tu nombre y color,
   el **veneno**, el daño de comandante y tus **fotos**.
-- **Fotos:** en los ajustes de cada jugador hay tres: **Recibe daño**, **Hace daño** y **Sube vida**. Toca un círculo,
+- **Fotos** (con el efecto «Fotos» activado): en los ajustes de cada jugador hay tres: **Recibe daño**, **Hace daño** y **Sube vida**. Toca un círculo,
   pulsa **Hacer foto** (cuenta atrás de 3 segundos con la cámara delantera) y **Guardar**. La foto aparece un momento en
   tu recuadro cuando pierdes vidas o recibes veneno o daño de comandante (con una sacudida), cuando haces daño de
   comandante a otro jugador y cuando ganas vidas. Se ve dentro de un círculo: centra la cara. Se conservan al empezar
@@ -505,6 +507,10 @@ pantalla no se apaga.
     mantienen los nombres y colores.
   - **¿Quién empieza?:** sortea un jugador y le pone una 👑.
   - **Dado de 6, dado de 20 y moneda.**
+  - **Pantalla:** muestra u oculta el nombre, el cambio acumulado, las marcas − / ＋, los botones de quién hace el
+    daño, el daño de comandante y el veneno.
+  - **Efectos:** Fotos, Destellos (rojo al perder vidas, verde al ganarlas), Temblor, Números al vuelo, Latido (con
+    5 vidas o menos), Calavera al quedar eliminado y Confeti para el ganador.
 
 La partida se guarda sola: si cambias de pestaña o cierras la app, sigue donde la dejaste.
 
