@@ -489,8 +489,13 @@ pantalla no se apaga.
 
 - **Vidas:** toca la mitad **izquierda** de tu recuadro para restar 1 y la **derecha** para sumar 1. Mantén pulsado
   para restar o sumar 10. Encima del número aparece el cambio acumulado (por ejemplo «−5») durante un momento.
-- **Quién hace el daño:** con 3 o más jugadores, cada lado se parte en un botón por rival, con su color y su nombre
-  (y uno más para lo demás): toca el del jugador que te hace el daño. Con 2 jugadores se sobreentiende que es el otro.
+- **Quién hace el daño:** con 3 o más jugadores, el lado **−** se parte en un botón por rival, con su color y su nombre
+  (y «Otro» para lo demás): toca el del jugador que te hace el daño. Con 2 jugadores se sobreentiende que es el otro.
+  El lado **＋** es un solo botón.
+- **Estadísticas de la partida:** cuando solo queda un jugador sale «Fin de la partida»: el ganador, cuánto ha durado,
+  el daño total, premios (más daño hecho, golpe más fuerte, el más castigado, más vida ganada, daño de comandante),
+  los números de cada jugador (vidas, daño hecho y recibido, comandante, vida ganada, mínimo, golpe mayor, veneno,
+  cuándo y por quién fue eliminado) y quién hizo daño a quién. También están en el menú ⚙, en cualquier momento.
 - **Daño de comandante:** abajo de cada recuadro hay una píldora por cada rival, con su color: **−** y **＋** cambian el
   daño de comandante que has recibido de él. También resta vidas, y la píldora se marca en rojo al llegar a 21.
   Con 4 o más jugadores, cada rival es un círculo con su color y el daño: **toca** para sumar 1 y **mantén pulsado** para restar.

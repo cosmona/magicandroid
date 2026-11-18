@@ -171,7 +171,8 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
       <ul>
         <li>Contador para <b>2 a 6 jugadores</b>, pensado para dejar el móvil en el centro de la mesa.</li>
         <li><b>Daño de comandante</b> de cada rival con − / ＋ en el propio recuadro, <b>veneno</b> y aviso de jugador eliminado.</li>
-        <li><b>Quién hace el daño</b>: con 3 o más jugadores, cada lado del recuadro se parte en un botón por rival con su color.</li>
+        <li><b>Quién hace el daño</b>: con 3 o más jugadores, el lado − del recuadro se parte en un botón por rival con su color.</li>
+        <li><b>Estadísticas al terminar</b>: ganador, duración, premios (más daño, golpe más fuerte…) y quién hizo daño a quién.</li>
         <li><b>Pantalla a tu gusto</b> (qué se ve en cada recuadro) y <b>efectos</b>: fotos de cada jugador (recibe daño, hace daño, sube vida), destellos, temblor, números al vuelo, latido con pocas vidas, calavera y confeti para el ganador.</li>
         <li><b>¿Quién empieza?</b>, dados de 6 y de 20 y moneda.</li>
         <li>La pantalla no se apaga durante la partida y el marcador se guarda solo.</li>

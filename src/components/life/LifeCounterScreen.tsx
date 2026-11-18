@@ -45,8 +45,11 @@ import {
   type Player,
 } from '@/life/game';
 import { colors } from '@/theme';
+import { GameStatsModal } from '@/components/life/GameStats';
 
 const KEEP_AWAKE_TAG = 'life-counter';
+/** The time of a change (for the game's statistics). */
+const now = () => Date.now();
 
 /**
  * "Vidas" tab: a life counter for 2-6 players around the phone. Tap the left / right half of a
@@ -104,16 +107,26 @@ export function LifeCounterScreen() {
   const rotatedIndexes = new Set(rows[0]);
   const winner = winnerOf(game);
   const count = game.players.length;
+  // The game's statistics: by themselves when only one is left (once per game), and from the menu.
+  const [statsOpen, setStatsOpen] = useState(false);
+  const statsShownFor = useRef<string | null>(null);
+  const gameKey = `${game.startedAt ?? ''}`;
+  useEffect(() => {
+    if (winner === null || !loaded) return;
+    const key = `${gameKey}:${winner}`;
+    if (statsShownFor.current === key) return;
+    statsShownFor.current = key;
+    const t = setTimeout(() => setStatsOpen(true), 1800);
+    return () => clearTimeout(t);
+  }, [winner, gameKey, loaded]);
 
   /** A change of life of player `i`; `from` = who caused it (with 2 players, the other one). */
   const lifeChange = (i: number, delta: number, from?: number) => {
     buzz();
-    setGame((g) => changeLife(g, i, delta));
+    const attacker = delta < 0 ? (from !== undefined && from !== i ? from : count === 2 ? 1 - i : undefined) : undefined;
+    setGame((g) => changeLife(g, i, delta, attacker, now()));
     react(i, delta > 0 ? 'heal' : 'hurt', delta);
-    if (delta < 0) {
-      const attacker = from !== undefined && from !== i ? from : count === 2 ? 1 - i : undefined;
-      if (attacker !== undefined) react(attacker, 'attack');
-    }
+    if (attacker !== undefined) react(attacker, 'attack');
   };
 
   return (
@@ -135,7 +148,7 @@ export function LifeCounterScreen() {
               event={events[i]}
               onCommander={(from, d) => {
                 buzz();
-                setGame((g) => changeCommander(g, i, from, d));
+                setGame((g) => changeCommander(g, i, from, d, now()));
                 // Commander damage: this player takes it, the other one deals it.
                 if (d > 0) {
                   react(i, 'hurt', -d);
@@ -168,13 +181,29 @@ export function LifeCounterScreen() {
         />
       )}
 
+      {statsOpen && (
+        <GameStatsModal
+          game={game}
+          onClose={() => setStatsOpen(false)}
+          onNewGame={() => {
+            setGame((g) => newGame(g.players.length, g.startingLife, g, now()));
+            setFirst(null);
+            setStatsOpen(false);
+          }}
+        />
+      )}
+
       <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} heightRatio={0.8}>
         <LifeMenu
           game={game}
           settings={settings}
           onChange={setGame}
+          onStats={() => {
+            setMenuOpen(false);
+            setStatsOpen(true);
+          }}
           onNewGame={(count, life) => {
-            setGame((g) => newGame(count, life, g));
+            setGame((g) => newGame(count, life, g, now()));
             setFirst(null);
           }}
           onFirst={(i) => {
@@ -232,7 +261,7 @@ function PlayerPanel({
   // With 3+ players each side is split in one button per opponent (who deals the damage) and one for the rest.
   const segments =
     show.sources && players.length > 2
-      ? [...opponents.map((o) => ({ from: o.index as number | undefined, color: o.color, label: o.name })), { from: undefined, color: 'rgba(0,0,0,0.25)', label: '' }]
+      ? [...opponents.map((o) => ({ from: o.index as number | undefined, color: o.color, label: o.name })), { from: undefined, color: 'rgba(0,0,0,0.25)', label: 'Otro' }]
       : null;
   const [shake] = useState(() => new Animated.Value(0));
   useEffect(() => {
@@ -281,19 +310,19 @@ function PlayerPanel({
       <View style={styles.halves}>
         {(['minus', 'plus'] as const).map((side) => {
           const sign = side === 'plus' ? 1 : -1;
-          return segments ? (
+          return segments && side === 'minus' ? (
             // One button per player (in their color): who deals the damage, or gives the life.
             <View key={side} style={[styles.segments, compact && { paddingBottom: 66 }, side === 'minus' ? { paddingLeft: 5 } : { paddingRight: 5 }]}>
               {segments.map((sg, k) => (
                 <Pressable
                   key={k}
-                  style={({ pressed }) => [styles.segment, side === 'plus' && styles.halfRight, { backgroundColor: sg.color, opacity: pressed ? 0.85 : 0.45 }]}
+                  style={({ pressed }) => [styles.segment, { backgroundColor: sg.color, opacity: pressed ? 0.85 : 0.45 }]}
                   onPress={() => change(sign, sg.from)}
                   onLongPress={() => change(10 * sign, sg.from)}
                   delayLongPress={400}
-                  accessibilityLabel={`${sign < 0 ? 'Restar' : 'Sumar'} vida a ${player.name}${sg.label ? ` (${sg.label})` : ''}`}
+                  accessibilityLabel={`Restar vida a ${player.name}${sg.label ? ` (${sg.label})` : ''}`}
                 >
-                  <View style={[styles.segmentInner, side === 'plus' && { flexDirection: 'row-reverse' }]}>
+                  <View style={[styles.segmentInner]}>
                     {show.steps && <MaterialCommunityIcons name={side} size={18} color="rgba(255,255,255,0.75)" />}
                     {!!sg.label && size.width > 160 && (
                       <Text style={styles.segmentLabel} numberOfLines={1}>
@@ -585,7 +614,7 @@ function PlayerDetail({
               value={player.poison}
               danger={player.poison >= POISON_LIMIT}
               onChange={(d) => {
-                onChange((g) => changePoison(g, index, d));
+                onChange((g) => changePoison(g, index, d, now()));
                 if (d > 0) onReact(index, 'hurt');
               }}
             />
@@ -604,7 +633,7 @@ function PlayerDetail({
                   value={player.commander[f] ?? 0}
                   danger={(player.commander[f] ?? 0) >= COMMANDER_LIMIT}
                   onChange={(d) => {
-                    onChange((g) => changeCommander(g, index, f, d));
+                    onChange((g) => changeCommander(g, index, f, d, now()));
                     if (d > 0) {
                       onReact(index, 'hurt');
                       onReact(f, 'attack');
@@ -858,7 +887,9 @@ function LifeMenu({
   onChange,
   onNewGame,
   onFirst,
+  onStats,
 }: {
+  onStats: () => void;
   game: LifeGame;
   settings: LifeSettings;
   onChange: (update: (g: LifeGame) => LifeGame) => void;
@@ -898,7 +929,11 @@ function LifeMenu({
         <MaterialCommunityIcons name="restart" size={20} color={colors.bg} />
         <Text style={[styles.closeText, { color: colors.bg }]}>Empezar partida</Text>
       </Pressable>
-      <Text style={styles.help}>Se mantienen los nombres y colores de los jugadores.</Text>
+      <Text style={styles.help}>Se mantienen los nombres, colores, fotos y ajustes.</Text>
+      <Pressable style={styles.closeButton} onPress={onStats}>
+        <MaterialCommunityIcons name="chart-bar" size={18} color={colors.info} />
+        <Text style={styles.closeText}>Estadísticas de la partida</Text>
+      </Pressable>
 
       <Text style={styles.sectionTitle}>Sorteos</Text>
       <View style={styles.chips}>

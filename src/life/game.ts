@@ -25,6 +25,19 @@ export interface LifeGame {
   players: Player[];
   /** What the panels show and which effects are on (kept from game to game). */
   settings?: Partial<LifeSettings>;
+  /** When the game started (ms), for its statistics. */
+  startedAt?: number;
+  /** Everything that happened, in order (for the statistics at the end). */
+  log?: LifeEvent[];
+}
+
+/** One change during the game: life (−/+), commander damage or poison of `player`, caused by `from`. */
+export interface LifeEvent {
+  at: number;
+  player: number;
+  kind: 'life' | 'commander' | 'poison';
+  delta: number;
+  from?: number;
 }
 
 /** What each panel shows (Partida → Pantalla). */
@@ -135,10 +148,12 @@ export function newPlayer(index: number, count: number, life: number): Player {
   };
 }
 
-export function newGame(count: number, startingLife: number, previous?: LifeGame): LifeGame {
+export function newGame(count: number, startingLife: number, previous?: LifeGame, at?: number): LifeGame {
   return {
     startingLife,
     settings: previous?.settings,
+    startedAt: at,
+    log: [],
     players: Array.from({ length: count }, (_, i) => {
       const fresh = newPlayer(i, count, startingLife);
       // Keep names and colors when restarting or changing the number of players.
@@ -167,21 +182,134 @@ const update = (game: LifeGame, index: number, change: (p: Player) => Player): L
   players: game.players.map((p, i) => (i === index ? change(p) : p)),
 });
 
-export const changeLife = (game: LifeGame, index: number, delta: number) =>
-  update(game, index, (p) => ({ ...p, life: p.life + delta }));
+/** Adds an event to the game's log (`at` = now, given by the caller). */
+const logged = (game: LifeGame, e: LifeEvent | null): LifeGame =>
+  e ? { ...game, startedAt: game.startedAt ?? e.at, log: [...(game.log ?? []), e] } : game;
 
-export const changePoison = (game: LifeGame, index: number, delta: number) =>
-  update(game, index, (p) => ({ ...p, poison: Math.max(0, p.poison + delta) }));
+/** Life ± `delta`; `from` = who caused it (damage). */
+export const changeLife = (game: LifeGame, index: number, delta: number, from?: number, at = 0) =>
+  logged(
+    update(game, index, (p) => ({ ...p, life: p.life + delta })),
+    at ? { at, player: index, kind: 'life', delta, from } : null,
+  );
+
+export const changePoison = (game: LifeGame, index: number, delta: number, at = 0) =>
+  logged(
+    update(game, index, (p) => ({ ...p, poison: Math.max(0, p.poison + delta) })),
+    at && game.players[index].poison + delta >= 0 ? { at, player: index, kind: 'poison', delta } : null,
+  );
 
 /** Commander damage also takes life (as the rules say). */
-export const changeCommander = (game: LifeGame, index: number, from: number, delta: number) =>
-  update(game, index, (p) => {
-    const current = p.commander[from] ?? 0;
-    const next = Math.max(0, current + delta);
-    const commander = [...p.commander];
-    commander[from] = next;
-    return { ...p, commander, life: p.life - (next - current) };
-  });
+export const changeCommander = (game: LifeGame, index: number, from: number, delta: number, at = 0) => {
+  const current = game.players[index].commander[from] ?? 0;
+  const real = Math.max(0, current + delta) - current;
+  return logged(
+    update(game, index, (p) => {
+      const commander = [...p.commander];
+      commander[from] = current + real;
+      return { ...p, commander, life: p.life - real };
+    }),
+    at && real ? { at, player: index, kind: 'commander', delta: real, from } : null,
+  );
+};
+
+/** One player's numbers in a game. */
+export interface PlayerStats {
+  /** Life lost (damage and commander damage). */
+  damageTaken: number;
+  /** Damage dealt to others (when it was known who dealt it). */
+  damageDealt: number;
+  commanderDealt: number;
+  lifeGained: number;
+  poison: number;
+  lowest: number;
+  highest: number;
+  /** The biggest single hit received (taps a moment apart count as one). */
+  biggestHit: number;
+  /** Order of elimination (1 = first out), and who dealt the last damage. */
+  outOrder?: number;
+  outAt?: number;
+  outBy?: number;
+}
+
+export interface GameStats {
+  /** Milliseconds from the start to the last change. */
+  duration: number;
+  players: PlayerStats[];
+  /** dealt[from][to]: damage `from` dealt to `to`. */
+  dealt: number[][];
+  winner: number | null;
+  events: number;
+}
+
+/** The game's statistics, from its log (replayed from the starting life). */
+export function gameStats(game: LifeGame): GameStats {
+  const n = game.players.length;
+  const log = game.log ?? [];
+  const life = game.players.map(() => game.startingLife);
+  const poison = game.players.map(() => 0);
+  const commander = game.players.map(() => game.players.map(() => 0));
+  const players: PlayerStats[] = game.players.map(() => ({
+    damageTaken: 0,
+    damageDealt: 0,
+    commanderDealt: 0,
+    lifeGained: 0,
+    poison: 0,
+    lowest: game.startingLife,
+    highest: game.startingLife,
+    biggestHit: 0,
+  }));
+  const dealt = game.players.map(() => game.players.map(() => 0));
+  const lastHit: { at: number; amount: number; from?: number }[] = game.players.map(() => ({ at: 0, amount: 0 }));
+  let outCount = 0;
+  for (const e of log) {
+    const s = players[e.player];
+    const loss = e.kind === 'life' ? -e.delta : e.kind === 'commander' ? e.delta : 0;
+    if (e.kind === 'life') life[e.player] += e.delta;
+    if (e.kind === 'commander') {
+      life[e.player] -= e.delta;
+      commander[e.player][e.from ?? 0] += e.delta;
+    }
+    if (e.kind === 'poison') {
+      poison[e.player] = Math.max(0, poison[e.player] + e.delta);
+      if (e.delta > 0) s.poison += e.delta;
+    }
+    if (loss > 0) {
+      s.damageTaken += loss;
+      if (e.from !== undefined && e.from !== e.player) {
+        players[e.from].damageDealt += loss;
+        dealt[e.from][e.player] += loss;
+        if (e.kind === 'commander') players[e.from].commanderDealt += loss;
+      }
+      // Taps less than 2.5 s apart (and from the same player) are one hit.
+      const h = lastHit[e.player];
+      const amount = e.at - h.at < 2500 && h.from === e.from ? h.amount + loss : loss;
+      lastHit[e.player] = { at: e.at, amount, from: e.from };
+      s.biggestHit = Math.max(s.biggestHit, amount);
+    } else if (loss < 0) {
+      s.lifeGained += -loss;
+    }
+    s.lowest = Math.min(s.lowest, life[e.player]);
+    s.highest = Math.max(s.highest, life[e.player]);
+    const out = life[e.player] <= 0 || poison[e.player] >= POISON_LIMIT || commander[e.player].some((d) => d >= COMMANDER_LIMIT);
+    if (out && s.outOrder === undefined) {
+      outCount += 1;
+      s.outOrder = outCount;
+      s.outAt = e.at;
+      s.outBy = e.from ?? lastHit[e.player].from;
+    } else if (!out && s.outOrder !== undefined) {
+      // Brought back (a correction): not out any more.
+      s.outOrder = undefined;
+      s.outAt = undefined;
+      s.outBy = undefined;
+      outCount -= 1;
+    }
+  }
+  const first = game.startedAt ?? log[0]?.at ?? 0;
+  const last = log.length ? log[log.length - 1].at : first;
+  void n;
+  return { duration: Math.max(0, last - first), players, dealt, winner: winnerOf(game), events: log.length };
+}
 
 export const renamePlayer = (game: LifeGame, index: number, name: string) =>
   update(game, index, (p) => ({ ...p, name }));
