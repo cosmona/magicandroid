@@ -119,7 +119,9 @@ siguientes. **Toca** una para saltar a ella; **mantén pulsado** para verla en g
 
 La fila **Filtros** (debajo de las pestañas) muestra un resumen de lo que estás filtrando; tócala para cambiarlo:
 
-- **Nombre** (en español o inglés, sin importar tildes) y **texto de reglas** (en inglés).
+- **Nombre** (en español o inglés, sin importar tildes) y **texto de reglas** (en español o inglés: cada palabra por
+  separado y en cualquier orden; entre comillas, la frase exacta; lo escrito en español se traduce y debajo se ve qué se busca).
+- **📦 Solo en mi colección:** las cartas salen solo de tu colección, con los mismos filtros, sin preguntar a Scryfall.
 - **Colores**, con tres modos: *jugables en* (para un comandante), *exactamente* o *incluye*; e **incolora**.
 - **Tipos** (varios a la vez), **legendaria**, **subtipo**, **coste de maná** mínimo y máximo.
 - **Rareza**, **habilidades** (en español), **formato**, **edición** y **orden** de los resultados.

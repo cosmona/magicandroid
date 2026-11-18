@@ -25,6 +25,7 @@ import {
   typeIcon,
 } from '@/icons';
 import { colors, DECK_ONLY_FORMATS, FORMATS } from '@/theme';
+import { rulesQuery } from '@/api/rulesGlossary';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic'];
 
@@ -101,13 +102,22 @@ export function FilterPanel({ applied, onApply }: Props) {
           />
         </Section>
 
-        <Section title="Texto de reglas" hint="En inglés: «flying», «draw a card», «destroy target»…">
+        <Section
+          title="Texto de reglas"
+          hint="En español o en inglés. Cada palabra por separado, en cualquier orden («cost less» encuentra «costs {1} less»); entre comillas, la frase exacta."
+        >
           <Input
             value={draft.text}
             onChangeText={(text) => set({ text })}
             placeholder="Texto de la carta"
             onSubmit={() => onApply(draft)}
           />
+          {rulesQuery(draft.text).translated && (
+            // Spanish is searched in the English rules text: what is really searched.
+            <Text style={{ color: colors.info, fontSize: 13 }}>
+              Se busca en inglés: {rulesQuery(draft.text).terms.map((t) => (t.includes(' ') ? `«${t}»` : t)).join(' · ')}
+            </Text>
+          )}
         </Section>
 
         <Section title="Colores" hint={COLOR_MODES.find((m) => m.key === draft.colorMode)!.hint}>
@@ -206,6 +216,11 @@ export function FilterPanel({ applied, onApply }: Props) {
               label="Solo cartas de MTG Arena"
               selected={draft.arena}
               onPress={() => set({ arena: !draft.arena })}
+            />
+            <Chip
+              label="📦 Solo en mi colección"
+              selected={!!draft.onlyCollection}
+              onPress={() => set({ onlyCollection: !draft.onlyCollection })}
             />
           </View>
         </Section>

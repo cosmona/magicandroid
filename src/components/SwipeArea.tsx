@@ -3,7 +3,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View, type LayoutChange
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useSQLiteContext } from 'expo-sqlite';
-import { displayName } from '@/api/scryfall';
+import { displayName, getCardsByIds } from '@/api/scryfall';
+import { matchesFilters, sortCards } from '@/collection/localSearch';
 import { BottomSheet } from '@/components/BottomSheet';
 import { ArtPickerModal } from '@/components/ArtPicker';
 import { Button } from '@/components/Button';
@@ -14,7 +15,7 @@ import { LanguagePickerModal } from '@/components/LanguagePicker';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
-import { addCardToDeck, addCardToMaybe } from '@/db/database';
+import { addCardToDeck, addCardToMaybe, getCollection } from '@/db/database';
 import { useCardQueue } from '@/hooks/useCardQueue';
 import { colors } from '@/theme';
 
@@ -22,7 +23,14 @@ import { colors } from '@/theme';
 export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const db = useSQLiteContext();
   const { ready, filters, ensureActiveDeck, refresh, prefs } = useAppState();
-  const queue = useCardQueue(filters, ready, prefs.language);
+  // «Solo en mi colección»: your cards (Scryfall data of each printing, cached) with the filters applied on the phone.
+  const queue = useCardQueue(filters, ready, prefs.language, async (f) => {
+    const rows = await getCollection(db, 'paper');
+    const all = await getCardsByIds([...new Set(rows.filter((r) => r.quantity > 0).map((r) => r.scryfallId))]);
+    const seen = new Set<string>();
+    const unique = all.filter((c) => (seen.has(c.oracleId) ? false : (seen.add(c.oracleId), true)));
+    return sortCards(unique.filter((c) => matchesFilters(c, f)), f);
+  });
   const buzz = (kind: 'add' | 'discard') => {
     if (!prefs.haptics) return;
     Haptics.impactAsync(kind === 'add' ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);

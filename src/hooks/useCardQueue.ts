@@ -27,7 +27,14 @@ const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e)
  * With a `language` other than 'en', upcoming cards are swapped for their printing in
  * that language (when one exists) before the user reaches them.
  */
-export function useCardQueue(filters: Filters, enabled: boolean, language = 'en') {
+/** «Solo en mi colección»: the cards come from here (all at once), not from Scryfall. */
+export type LocalSearch = (filters: Filters) => Promise<Card[]>;
+
+export function useCardQueue(filters: Filters, enabled: boolean, language = 'en', localSearch?: LocalSearch) {
+  const localRef = useRef(localSearch);
+  useEffect(() => {
+    localRef.current = localSearch;
+  });
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<Result | null>(null);
   const [index, setIndex] = useState(0);
@@ -53,7 +60,8 @@ export function useCardQueue(filters: Filters, enabled: boolean, language = 'en'
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    searchCards(filters)
+    const local = filters.onlyCollection ? localRef.current : undefined;
+    (local ? local(filters).then((cards) => ({ cards, nextPage: null, total: cards.length })) : searchCards(filters))
       .then((page) => {
         if (!cancelled) setResult({ filters, attempt, ...page, error: null });
       })

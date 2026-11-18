@@ -2,6 +2,7 @@
 // Scryfall requires a User-Agent + Accept header and asks clients to keep
 // requests ~100 ms apart, so every request goes through `scryfallFetch`.
 
+import { rulesQuery } from '@/api/rulesGlossary';
 import { ARENA_FORMATS, DECK_ONLY_FORMATS } from '@/theme';
 
 const BASE_URL = 'https://api.scryfall.com';
@@ -44,6 +45,8 @@ export interface Filters {
   set: string | null;
   /** Only cards that exist in MTG Arena (`game:arena` instead of `game:paper`). */
   arena: boolean;
+  /** Only the cards in your collection (searched on the phone, not on Scryfall). */
+  onlyCollection?: boolean;
   order: SortOrder;
   dir: SortDir;
 }
@@ -64,6 +67,7 @@ export const DEFAULT_FILTERS: Filters = {
   format: null,
   set: null,
   arena: false,
+  onlyCollection: false,
   order: 'edhrec',
   dir: 'auto',
 };
@@ -117,6 +121,19 @@ async function scryfallFetch(url: string, init?: { method: 'POST'; body: string 
 
 const clean = (s: string) => s.replace(/"/g, '').trim();
 
+/**
+ * The rules-text search split in terms: each word on its own (all of them, in any order:
+ * «cost less» finds «costs {1} less»), and "quoted words" as an exact phrase.
+ */
+export function textTerms(text: string): string[] {
+  const out: string[] = [];
+  for (const m of text.matchAll(/"([^"]*)"|(\S+)/g)) {
+    const t = (m[1] ?? m[2] ?? '').trim();
+    if (t) out.push(t);
+  }
+  return out;
+}
+
 /** Lowercase without accents ("Relámpago" → "relampago"). */
 export const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
@@ -154,7 +171,8 @@ export function buildQuery(f: Filters, anyLanguage = false): string {
     .split(/[^\p{L}\p{N}'-]+/u)
     .filter(Boolean);
   for (const word of nameWords) parts.push(`name:${word}`);
-  if (clean(f.text)) parts.push(`o:"${clean(f.text)}"`);
+  // Word by word ("quoted" = exact phrase); Spanish is translated to the English rules wording.
+  for (const t of rulesQuery(f.text).terms) parts.push(`o:"${clean(t)}"`);
   parts.push(colorTerm(f));
   if (f.types.length) parts.push(anyOf(f.types.map((t) => `t:${t.toLowerCase()}`)));
   if (f.legendary) parts.push('t:legendary');
