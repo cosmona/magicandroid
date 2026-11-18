@@ -98,7 +98,7 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
     <td valign="top">
       <h4>Tus mazos</h4>
       <ul>
-        <li>Vistas <b>lista</b>, <b>galería</b> y <b>grande</b>, <b>agrupadas</b> por tipo, coste, color o rareza.</li>
+        <li>Vistas <b>lista</b>, <b>galería</b>, <b>grande</b> y <b>texto</b>, <b>etiquetas</b> en los mazos, <b>agrupadas</b> por tipo, coste, color o rareza.</li>
         <li><b>Validación</b> en tiempo real según el formato: tamaño, copias, legalidad, comandante e identidad de color.</li>
         <li><b>Banquillo</b> en cada mazo, con un botón o arrastrando las cartas.</li>
         <li>Arte, idioma y portada de cada carta; comandante; deshacer al quitar, vaciar o borrar.</li>
@@ -168,7 +168,8 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
     <td valign="top">
       <ul>
         <li>Contador para <b>2 a 6 jugadores</b>, pensado para dejar el móvil en el centro de la mesa.</li>
-        <li><b>Veneno</b> y <b>daño de comandante</b> por rival, con aviso de jugador eliminado.</li>
+        <li><b>Daño de comandante</b> de cada rival con − / ＋ en el propio recuadro, <b>veneno</b> y aviso de jugador eliminado.</li>
+        <li><b>Fotos</b> de cada jugador que salen al recibir daño, hacer daño o ganar vidas.</li>
         <li><b>¿Quién empieza?</b>, dados de 6 y de 20 y moneda.</li>
         <li>La pantalla no se apaga durante la partida y el marcador se guarda solo.</li>
       </ul>

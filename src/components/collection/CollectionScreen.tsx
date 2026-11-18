@@ -67,6 +67,7 @@ import {
   type Row,
   type CollectionCard,
   type WantedCard,
+  getDeckUsage,
 } from '@/db/database';
 import { RARITY_LABELS } from '@/icons';
 import { priceTotal, useCardDetails } from '@/hooks/useCardDetails';
@@ -99,6 +100,12 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const { prefs, ensureActiveDeck, refresh } = useAppState();
   const place = 'paper';
   const [cards, setCards] = useState<CollectionCard[]>([]);
+  // Copies owned of each card, every printing together.
+  const ownedByOracle = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const c of cards) m[c.oracleId] = (m[c.oracleId] ?? 0) + c.quantity;
+    return m;
+  }, [cards]);
   const [query, setQuery] = useState('');
   // Opened from elsewhere to look for a card ("Ver en mi colección"): put it in the search box.
   const [searchKey, setSearchKey] = useState('');
@@ -123,6 +130,14 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [inDecks, setInDecks] = useState<Set<string>>(new Set());
+  // Which decks use each card, and how many copies (by oracle id).
+  const [usage, setUsage] = useState<Record<string, { deckName: string; quantity: number }[]>>({});
+  const loadUsage = useCallback(async () => {
+    const rows = await getDeckUsage(db);
+    const out: Record<string, { deckName: string; quantity: number }[]> = {};
+    for (const r of rows) (out[r.oracleId] ??= []).push({ deckName: r.deckName, quantity: r.quantity });
+    setUsage(out);
+  }, [db]);
   const [sets, setSets] = useState<Record<string, MtgSet>>({});
 
   const [wanted, setWantedList] = useState<WantedCard[]>([]);
@@ -138,7 +153,8 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     setCards(await getCollection(db, place));
     setWantedList(await getWanted(db));
     setInDecks(await getDeckOracleIds(db));
-  }, [db, place]);
+    await loadUsage();
+  }, [db, place, loadUsage]);
 
   // «La quiero» changed somewhere else (a card, the deck, a sync): reload the list.
   useEffect(() => {
@@ -354,6 +370,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
       const quantity = await addCardToDeck(db, deck.id, full);
       await refresh(deck.id);
       setInDecks(await getDeckOracleIds(db));
+      await loadUsage();
       showToast(`＋ ${displayName(card)} en «${deck.name}» (${quantity})`);
     } catch {
       showToast('No se pudo añadir: comprueba la conexión');
@@ -594,12 +611,27 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                   <Text style={styles.meta} numberOfLines={1}>
                     {card.typeLine}
                   </Text>
-                  {(cardTags[card.oracleId] ?? []).length > 0 && (
+                  {prefs.showTags !== false && (cardTags[card.oracleId] ?? []).length > 0 && (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
                       {(cardTags[card.oracleId] ?? []).map((u) => tagsByUid[u] && <TagChip key={u} tag={tagsByUid[u]} small />)}
                     </View>
                   )}
-                  {inDecks.has(card.oracleId) && <Text style={styles.inDeck}>En algún mazo</Text>}
+                  {inDecks.has(card.oracleId) && (() => {
+                    // «En: Krenko (2), Elfos (1) · 1 libre»: which decks use it and how many copies are left over.
+                    const u = usage[card.oracleId] ?? [];
+                    const used = u.reduce((n, x) => n + x.quantity, 0);
+                    const total = ownedByOracle[card.oracleId] ?? card.quantity;
+                    const free = total - used;
+                    return (
+                      <Text style={styles.inDeck} numberOfLines={2}>
+                        En {u.map((x) => `${x.deckName} (${x.quantity})`).join(', ') || 'algún mazo'}
+                        <Text style={{ color: free > 0 ? colors.textMuted : colors.undo }}>
+                          {' · '}
+                          {free > 0 ? `${free} libre${free > 1 ? 's' : ''}` : free === 0 ? 'ninguna libre' : `faltan ${-free}`}
+                        </Text>
+                      </Text>
+                    );
+                  })()}
                   {wantedIds.has(card.scryfallId) && (
                     <Text style={[styles.inDeck, { color: WANT_COLOR }]}>
                       ♥ {card.quantity === 0 ? 'La quieres (no la tienes)' : 'La quieres'}

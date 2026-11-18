@@ -150,7 +150,11 @@ hacia abajo (desde cualquier punto de la parte de arriba, incluidos los botones)
 - **≈ precio** del mazo en Cardmarket.
 - **Arriba a la derecha:** «Faltan N de tu colección» (amarillo; tócalo para ver cuáles y comprarlas) o «Completo»
   (verde): compara el mazo con tu colección.
-- **Vistas:** los tres iconos de la derecha cambian entre **lista**, **galería** y **grande**.
+- **Etiquetas del mazo:** debajo del nombre, las etiquetas del mazo y un botón 🏷 para ponerle o quitarle (son las
+  mismas que las de las cartas). En la barra del mazo cerrada y en tus mazos se ven solo sus iconos.
+- **Vistas:** los iconos de la derecha cambian entre **lista**, **galería**, **grande** y **texto**. La vista **texto**
+  es la lista como en la imagen para compartir: copias, nombre, ⚠ si tiene un problema, etiquetas, «✓» o «falta N» de
+  tu colección, − / ＋ y coste; con comandante, su carta sale en grande arriba.
   En la galería las miniaturas no tienen botones: toca una carta para verla en grande con todos sus botones debajo.
 - **Agrupar** (icono de lista agrupada, junto a las vistas): por **tipo** (lo habitual), **coste**, **color**, **rareza** o
   sin agrupar. Cada grupo tiene su título con el número de cartas; tócalo para plegarlo. El comandante va siempre
@@ -356,7 +360,8 @@ Si la carta está en algún mazo verás «En algún mazo» en verde. La vista **
 Botón ⚙ de la cabecera:
 
 - **Idioma de las cartas:** las cartas se muestran en ese idioma cuando existen.
-- **Vista del mazo por defecto:** lista, galería o grande.
+- **Vista del mazo por defecto:** lista, galería, grande o texto.
+- **Etiquetas:** muestra u oculta las etiquetas de las cartas y los mazos en las listas (se pueden seguir poniendo).
 - **Vibración** al añadir y descartar.
 - **Pantalla completa:** oculta los botones de Android (desliza desde abajo para verlos).
 - **Precios:** un interruptor para cada sitio donde salen precios, por si prefieres no verlos:
@@ -484,9 +489,15 @@ pantalla no se apaga.
 
 - **Vidas:** toca la mitad **izquierda** de tu recuadro para restar 1 y la **derecha** para sumar 1. Mantén pulsado
   para restar o sumar 10. Encima del número aparece el cambio acumulado (por ejemplo «−5») durante un momento.
-- **Veneno y daño de comandante:** el botón de abajo de cada recuadro muestra tu veneno y el mayor daño de comandante
-  que has recibido. Al tocarlo puedes cambiar tu nombre y color, el **veneno** y el **daño de comandante** recibido de
-  cada rival. El daño de comandante también resta vidas.
+- **Daño de comandante:** abajo de cada recuadro hay una píldora por cada rival, con su color: **−** y **＋** cambian el
+  daño de comandante que has recibido de él. También resta vidas, y la píldora se marca en rojo al llegar a 21.
+- **Veneno y ajustes del jugador:** el botón de debajo muestra tu veneno; al tocarlo puedes cambiar tu nombre y color,
+  el **veneno**, el daño de comandante y tus **fotos**.
+- **Fotos:** en los ajustes de cada jugador hay tres: **Recibe daño**, **Hace daño** y **Sube vida**. Toca un círculo,
+  pulsa **Hacer foto** (cuenta atrás de 3 segundos con la cámara delantera) y **Guardar**. La foto aparece un momento en
+  tu recuadro cuando pierdes vidas o recibes veneno o daño de comandante (con una sacudida), cuando haces daño de
+  comandante a otro jugador y cuando ganas vidas. Se ve dentro de un círculo: centra la cara. Se conservan al empezar
+  otra partida.
 - **Eliminado:** el recuadro marca ☠ cuando un jugador se queda sin vidas, llega a 10 de veneno o recibe 21 de daño
   del mismo comandante.
 - **Menú (⚙ amarillo del centro):**
