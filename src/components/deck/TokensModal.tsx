@@ -6,6 +6,7 @@ import { displayName, getCardsByIds, smallImageUrl, type CardDetails } from '@/a
 import type { DeckCard } from '@/db/database';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { colors } from '@/theme';
+import { PrintSheet } from '@/components/deck/PrintSheet';
 
 interface DeckToken {
   id: string;
@@ -31,7 +32,8 @@ export function deckTokens(cards: DeckCard[], details: Record<string, CardDetail
   return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function TokensModal({ tokens, onClose }: { tokens: DeckToken[]; onClose: () => void }) {
+export function TokensModal({ tokens, onClose, deckName }: { tokens: DeckToken[]; onClose: () => void; deckName?: string }) {
+  const [printing, setPrinting] = useState(false);
   const ids = useMemo(() => tokens.map((t) => t.id), [tokens]);
   const [images, setImages] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<string | null>(null);
@@ -58,6 +60,9 @@ export function TokensModal({ tokens, onClose }: { tokens: DeckToken[]; onClose:
           <View style={styles.header}>
             <MaterialCommunityIcons name="cards-outline" size={22} color={colors.accent} />
             <Text style={styles.title}>Fichas del mazo ({tokens.length})</Text>
+            <Pressable onPress={() => setPrinting(true)} hitSlop={10} accessibilityLabel="Imprimir fichas (PDF)">
+              <MaterialCommunityIcons name="printer-outline" size={22} color={colors.accent} />
+            </Pressable>
             <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Cerrar">
               <MaterialCommunityIcons name="close" size={22} color={colors.textMuted} />
             </Pressable>
@@ -91,6 +96,14 @@ export function TokensModal({ tokens, onClose }: { tokens: DeckToken[]; onClose:
         </Pressable>
       </Pressable>
 
+      {printing && (
+        <PrintSheet
+          title={`Fichas${deckName ? ` · ${deckName}` : ''}`}
+          tokens
+          cards={tokens.map((t) => ({ name: t.name, image: images[t.id] ?? null, copies: 1 }))}
+          onClose={() => setPrinting(false)}
+        />
+      )}
       <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
         <Pressable style={styles.previewBackdrop} onPress={() => setPreview(null)}>
           {preview && <Image source={{ uri: preview }} style={styles.previewImage} contentFit="contain" />}

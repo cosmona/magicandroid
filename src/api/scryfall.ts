@@ -683,7 +683,8 @@ async function loadDetails(ids: string[]): Promise<Record<string, CardDetails>> 
       toughness: c.toughness ?? face.toughness,
       loyalty: c.loyalty ?? face.loyalty,
       defense: c.defense ?? face.defense,
-      tokens: (c.all_parts ?? [])
+      // Non-English printings come without `all_parts`: the English one has them.
+      tokens: (c.all_parts ?? en?.all_parts ?? [])
         .filter((p) => p.component === 'token' && p.id !== c.id)
         .map((p) => ({ id: p.id, name: p.name, typeLine: p.type_line })),
     };

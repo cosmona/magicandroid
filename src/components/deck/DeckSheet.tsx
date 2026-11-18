@@ -23,6 +23,8 @@ import { ShareDeckModal } from '@/components/deck/ShareDeckModal';
 import { DeckSynergyScreen } from '@/components/deck/DeckSynergyScreen';
 import { MissingCardsModal, type MissingCard } from '@/components/deck/MissingCardsModal';
 import { deckTokens, TokensModal } from '@/components/deck/TokensModal';
+import { PrintSheet } from '@/components/deck/PrintSheet';
+import { isBasicLand } from '@/print/cardSheet';
 import { ManaCost } from '@/components/ManaCost';
 import { CardSheet } from '@/components/CardSheet';
 import { useCardDetails } from '@/hooks/useCardDetails';
@@ -149,6 +151,7 @@ export function DeckSheet() {
   const details = useCardDetails(activeCards.map((c) => c.scryfallId));
   const tokens = deckTokens(activeCards, details);
   const [showTokens, setShowTokens] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [showSynergy, setShowSynergy] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -553,6 +556,7 @@ export function DeckSheet() {
               onPress={() => setShowTokens(true)}
             />
           )}
+          {activeCards.length > 0 && <Action icon="printer-outline" hint="Imprimir (PDF)" onPress={() => setPrinting(true)} />}
           <Action icon="broom" hint="Vaciar" danger onPress={clear} disabled={!activeCards.length} />
           <Action icon="trash-can-outline" hint="Borrar" danger onPress={remove} />
         </View>
@@ -598,7 +602,7 @@ export function DeckSheet() {
           // Always there for decks that can have one (so it can be found), and whenever it has cards.
           activeDeck ? (
             <View>
-              {activeCards.length > 0 && (!validation.usesCommander || activeSideboard.length > 0) && (
+              {activeCards.length > 0 && !validation.usesCommander && (
                 <ZoneSection
                   zone="side"
                   title="Banquillo"
@@ -616,6 +620,18 @@ export function DeckSheet() {
                   open={!collapsed.has(SIDEBOARD_KEY)}
                   onToggle={() => toggleGroup(SIDEBOARD_KEY)}
                 />
+              )}
+              {tokens.length > 0 && (
+                // The deck's tokens, next to Banquillo and Posibles (view or print them).
+                <Pressable style={styles.tokensRow} onPress={() => setShowTokens(true)}>
+                  <MaterialCommunityIcons name="cards-outline" size={20} color={colors.info} />
+                  <Text style={styles.tokensTitle}>Fichas</Text>
+                  <Text style={styles.tokensCount}>{tokens.length}</Text>
+                  <Text style={styles.tokensHint} numberOfLines={1}>
+                    {tokens.map((t) => t.name).join(', ')}
+                  </Text>
+                  <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
+                </Pressable>
               )}
               <ZoneSection
                 zone="maybe"
@@ -873,7 +889,16 @@ export function DeckSheet() {
           onClose={() => setShowSynergy(false)}
         />
       )}
-      {showTokens && <TokensModal tokens={tokens} onClose={() => setShowTokens(false)} />}
+      {showTokens && <TokensModal tokens={tokens} deckName={activeDeck?.name} onClose={() => setShowTokens(false)} />}
+      {printing && activeDeck && (
+        <PrintSheet
+          title={activeDeck.name}
+          cards={groups.flatMap((g) => g.cards).map((c) => ({ name: displayName(c), image: c.imageUrl, copies: c.quantity, basic: isBasicLand(c.typeLine) }))}
+          side={validation.usesCommander ? [] : activeSideboard.map((c) => ({ name: displayName(c), image: c.imageUrl, copies: c.quantity, basic: isBasicLand(c.typeLine) }))}
+          maybe={activeMaybe.map((c) => ({ name: displayName(c), image: c.imageUrl, copies: c.quantity, basic: isBasicLand(c.typeLine) }))}
+          onClose={() => setPrinting(false)}
+        />
+      )}
 
       {editing && (
         <DeckFormModal
@@ -1595,6 +1620,22 @@ function CardControls({ card, actions, crown }: { card: DeckCard; actions: CardA
 }
 
 const styles = StyleSheet.create({
+  tokensRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 12,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.info,
+    backgroundColor: colors.surface,
+  },
+  tokensTitle: { color: colors.info, fontWeight: '900', fontSize: 15 },
+  tokensCount: { color: colors.text, fontWeight: '900' },
+  tokensHint: { flex: 1, color: colors.textMuted, fontSize: 12 },
   subHeader: {
     flexDirection: 'row',
     alignItems: 'center',
