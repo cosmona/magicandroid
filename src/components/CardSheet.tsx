@@ -1,0 +1,545 @@
+import { useEffect, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { displayName, getCardInLanguage, getCardsByIds, type Card } from '@/api/scryfall';
+import { ArtPickerModal } from '@/components/ArtPicker';
+import { CardShareSheet } from '@/components/CardShareSheet';
+import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
+import { OwnPill, WantPill } from '@/components/collection/OwnButton';
+import { LanguagePill } from '@/components/LanguagePicker';
+import { ManaCost } from '@/components/ManaCost';
+import { CARD_RATIO } from '@/components/SwipeCard';
+import { CardTagsSheet, TagChip, useCardTags, useTags } from '@/components/tags/Tags';
+import { useAppState } from '@/context/AppState';
+import {
+  addCardToDeck,
+  addCardToMaybe,
+  changeMaybeQuantity,
+  changeQuantity,
+  getDeckUsage,
+  removeCardFromDeck,
+} from '@/db/database';
+import { useCardDetails } from '@/hooks/useCardDetails';
+import { RARITY_LABELS } from '@/icons';
+import { colors, formatEur, formatLabel } from '@/theme';
+
+const LEGAL_LABEL: Record<string, string> = { legal: 'Legal', not_legal: 'No legal', banned: 'Prohibida', restricted: 'Restringida' };
+const LEGAL_COLOR: Record<string, string> = { legal: colors.add, not_legal: colors.textMuted, banned: colors.discard, restricted: colors.undo };
+
+/**
+ * The enlarged card, full screen (like the PC's card sheet): header with its tags, the big image (tap
+ * to see it alone; ⟲ turns double-faced cards), language / other arts / Cardmarket / share, the name
+ * and printing, «La tengo» / «La quiero», the active deck and «Posibles» with − / ＋, which of your
+ * decks have it, its text, data and legality in the deck's format, and «Ficha completa» (all of
+ * Scryfall, synergies and combos). `card` is the printing or its Scryfall id; `onPrinting` keeps a
+ * language / art change (the deck's or collection's card), otherwise it only changes what's shown.
+ */
+export function CardSheet({
+  card: initial,
+  onClose,
+  onPrinting,
+  exact = false,
+  subtitle,
+  extra,
+  nav,
+}: {
+  card: Card | string;
+  onClose: () => void;
+  onPrinting?: (card: Card) => void;
+  /** Show this printing as it is (else in the preferred language when the id is given). */
+  exact?: boolean;
+  /** Where it was opened from (shown in the header). */
+  subtitle?: string;
+  /** More things for this card (the deck's buttons and validation). */
+  extra?: ReactNode;
+  /** ‹ › through the list it was opened from. */
+  nav?: { index: number; total: number; onMove: (step: number) => void };
+}) {
+  const db = useSQLiteContext();
+  const insets = useSafeAreaInsets();
+  const { prefs, activeDeck, activeCards, activeMaybe, ensureActiveDeck, refresh } = useAppState();
+  const initialId = typeof initial === 'string' ? initial : initial.id;
+  // The card loaded for an id, and a printing picked here (language / art), each for the card it belongs to.
+  const key = `${initialId}|${prefs.language}|${exact}`;
+  const [loaded, setLoaded] = useState<{ key: string; card: Card } | null>(null);
+  const [picked, setPicked] = useState<{ key: string; card: Card } | null>(null);
+  const [failedKey, setFailedKey] = useState<string | null>(null);
+  const base = typeof initial !== 'string' ? initial : loaded?.key === key ? loaded.card : null;
+  const card = picked?.key === initialId ? picked.card : base;
+  const failed = failedKey === key;
+  const [back, setBack] = useState(false);
+  const [zoom, setZoom] = useState(false);
+  const [modal, setModal] = useState<'art' | 'share' | 'info' | 'tags' | null>(null);
+  const [usage, setUsage] = useState<{ deckName: string; quantity: number }[]>([]);
+  const [note, setNote] = useState<string | null>(null);
+
+  // Load the card when only its id is known (in the preferred language unless `exact`).
+  useEffect(() => {
+    if (typeof initial !== 'string') return;
+    let cancelled = false;
+    (async () => {
+      const [base] = await getCardsByIds([initial]);
+      if (!base) throw new Error('not found');
+      const shown =
+        exact || prefs.language === 'en' || base.lang === prefs.language
+          ? base
+          : ((await getCardInLanguage(base, prefs.language).catch(() => null)) ?? base);
+      if (!cancelled) setLoaded({ key, card: shown });
+    })().catch(() => !cancelled && setFailedKey(key));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  const oracleId = card?.oracleId;
+  useEffect(() => {
+    if (!oracleId) return;
+    let cancelled = false;
+    getDeckUsage(db)
+      .then((rows) => !cancelled && setUsage(rows.filter((r) => r.oracleId === oracleId)))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [db, oracleId, activeCards]);
+
+  const details = useCardDetails(card ? [card.id] : [])[card?.id ?? ''];
+  const allTags = useTags();
+  const tags = (useCardTags(oracleId ? [oracleId] : [])[oracleId ?? ''] ?? [])
+    .map((u) => allTags.find((t) => t.uid === u))
+    .filter((t) => !!t);
+
+  const flash = (text: string) => {
+    setNote(text);
+    setTimeout(() => setNote((n) => (n === text ? null : n)), 2200);
+  };
+  const main = card ? (activeCards.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0) : 0;
+  const maybe = card ? (activeMaybe.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0) : 0;
+  const addMain = async () => {
+    if (!card) return;
+    const deck = await ensureActiveDeck();
+    const q = await addCardToDeck(db, deck.id, card);
+    await refresh(deck.id);
+    flash(`＋1 en «${deck.name}» (${q})`);
+  };
+  const subMain = async () => {
+    if (!card || !activeDeck || main === 0) return;
+    if (main <= 1) await removeCardFromDeck(db, activeDeck.id, card.oracleId);
+    else await changeQuantity(db, activeDeck.id, card.oracleId, -1);
+    await refresh(activeDeck.id);
+    flash(`−1 de «${activeDeck.name}» (${main - 1})`);
+  };
+  const addMaybe = async () => {
+    if (!card) return;
+    const deck = await ensureActiveDeck();
+    await addCardToMaybe(db, deck.id, card);
+    await refresh(deck.id);
+    flash('Apartada en Posibles');
+  };
+  const subMaybe = async () => {
+    if (!card || !activeDeck || maybe === 0) return;
+    await changeMaybeQuantity(db, activeDeck.id, card.oracleId, -1);
+    await refresh(activeDeck.id);
+  };
+  const pick = (c: Card) => {
+    setPicked({ key: initialId, card: c });
+    setBack(false);
+    onPrinting?.(c);
+  };
+
+  const stat = details?.power != null
+    ? { label: 'Fuerza / Res.', value: `${details.power}/${details.toughness}` }
+    : details?.loyalty != null
+      ? { label: 'Lealtad', value: details.loyalty }
+      : details?.defense != null
+        ? { label: 'Defensa', value: details.defense }
+        : null;
+  const image = card ? (back && card.backImageUrl) || card.imageUrl : null;
+  const format = activeDeck?.format;
+
+  return (
+    <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <View style={[styles.screen, { paddingTop: insets.top }]}>
+        {/* Header: close, where it comes from, ‹ n / total ›. */}
+        <View style={styles.head}>
+          <Pressable onPress={onClose} hitSlop={10} style={styles.headBtn} accessibilityLabel="Cerrar">
+            <MaterialCommunityIcons name="close" size={24} color={colors.text} />
+          </Pressable>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.headTitle} numberOfLines={1}>
+              {card ? displayName(card) : 'Carta'}
+            </Text>
+            {!!subtitle && (
+              <Text style={styles.headSub} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            )}
+          </View>
+          {nav && nav.total > 1 && (
+            <View style={styles.navRow}>
+              <Pressable
+                onPress={() => nav.onMove(-1)}
+                disabled={nav.index === 0}
+                hitSlop={8}
+                style={[styles.headBtn, nav.index === 0 && { opacity: 0.3 }]}
+                accessibilityLabel="Carta anterior"
+              >
+                <MaterialCommunityIcons name="chevron-left" size={26} color={colors.text} />
+              </Pressable>
+              <Text style={styles.headSub}>
+                {nav.index + 1} / {nav.total}
+              </Text>
+              <Pressable
+                onPress={() => nav.onMove(1)}
+                disabled={nav.index >= nav.total - 1}
+                hitSlop={8}
+                style={[styles.headBtn, nav.index >= nav.total - 1 && { opacity: 0.3 }]}
+                accessibilityLabel="Carta siguiente"
+              >
+                <MaterialCommunityIcons name="chevron-right" size={26} color={colors.text} />
+              </Pressable>
+            </View>
+          )}
+        </View>
+
+        {failed ? (
+          <Text style={[styles.muted, { padding: 24, textAlign: 'center' }]}>No se pudo cargar la carta: comprueba la conexión.</Text>
+        ) : !card ? (
+          <ActivityIndicator color={colors.accent} size="large" style={{ marginTop: 60 }} />
+        ) : (
+          <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
+            {/* Tags of the card (when it's yours or wanted it can have them) and the button to change them. */}
+            <View style={styles.wrap}>
+              {prefs.showTags !== false && tags.map((t) => <TagChip key={t.uid} tag={t} small />)}
+              <Pressable style={styles.smallBtn} onPress={() => setModal('tags')} hitSlop={6} accessibilityLabel="Etiquetas de la carta">
+                <MaterialCommunityIcons name="tag-outline" size={13} color={colors.textMuted} />
+                <Text style={styles.smallBtnText}>{tags.length ? 'Cambiar' : 'Etiquetas'}</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.imageWrap}>
+              <Pressable onPress={() => setZoom(true)} accessibilityLabel="Ver la carta en grande">
+                {image && (
+                  <Image
+                    source={{ uri: image.replace('/normal/', '/large/') }}
+                    placeholder={{ uri: image }}
+                    placeholderContentFit="contain"
+                    style={styles.image}
+                    contentFit="contain"
+                    transition={120}
+                  />
+                )}
+              </Pressable>
+              {card.backImageUrl && (
+                <Pressable style={styles.flip} onPress={() => setBack((b) => !b)} accessibilityLabel="Ver la otra cara">
+                  <MaterialCommunityIcons name="rotate-3d-variant" size={22} color={colors.text} />
+                </Pressable>
+              )}
+            </View>
+
+            {/* Language, other arts, shops, share. */}
+            <View style={[styles.wrap, { justifyContent: 'center' }]}>
+              <LanguagePill card={card} lang={card.lang} onPick={pick} />
+              <Pill icon="image-multiple-outline" label="Otras artes" onPress={() => setModal('art')} />
+              {details?.cardmarketUrl && (
+                <Pill icon="cart-outline" label="Cardmarket" color={colors.undo} onPress={() => Linking.openURL(details.cardmarketUrl!)} />
+              )}
+              <Pill icon="share-variant" label="Compartir" onPress={() => setModal('share')} />
+            </View>
+
+            {/* Name, cost, type and printing. */}
+            <View style={{ gap: 3 }}>
+              <View style={styles.nameRow}>
+                <Text style={styles.name}>{displayName(card)}</Text>
+                <ManaCost cost={card.manaCost || null} size={18} />
+              </View>
+              {card.printedName && card.printedName !== card.name && <Text style={styles.muted}>{card.name}</Text>}
+              <Text style={styles.type}>{card.typeLine}</Text>
+              <Text style={styles.muted}>
+                {card.setName ?? card.set.toUpperCase()} · {card.set.toUpperCase()}
+                {card.collectorNumber ? ` #${card.collectorNumber}` : ''}
+                {card.releasedAt ? ` · ${card.releasedAt.slice(0, 4)}` : ''} · {RARITY_LABELS[card.rarity] ?? card.rarity}
+              </Text>
+            </View>
+
+            {/* Collection. */}
+            <View style={styles.wrap}>
+              <OwnPill card={card} />
+              <WantPill card={card} />
+            </View>
+
+            {/* The active deck and «Posibles». */}
+            <View style={{ gap: 8 }}>
+              <StepButton
+                label={activeDeck ? `Al mazo «${activeDeck.name}»` : 'Añadir al mazo'}
+                icon="cards-playing-outline"
+                color={colors.accent}
+                count={main}
+                onAdd={addMain}
+                onSub={subMain}
+              />
+              <StepButton label="A Posibles" icon="help-circle-outline" color={colors.info} count={maybe} onAdd={addMaybe} onSub={subMaybe} />
+              {note && <Text style={styles.note}>{note}</Text>}
+            </View>
+
+            {extra}
+
+            {/* Which of your decks have it. */}
+            {usage.length > 0 && (
+              <View style={styles.block}>
+                <Text style={styles.blockTitle}>En tus mazos</Text>
+                <View style={styles.wrap}>
+                  {usage.map((u) => (
+                    <View key={u.deckName} style={styles.deckChip}>
+                      <MaterialCommunityIcons name="cards-playing-outline" size={13} color={colors.accent} />
+                      <Text style={styles.deckChipText} numberOfLines={1}>
+                        {u.deckName}
+                      </Text>
+                      <Text style={styles.deckChipCount}>{u.quantity}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <View style={styles.block}>
+              <Text style={styles.blockTitle}>Texto</Text>
+              <View style={styles.textBox}>
+                <Text style={styles.text} selectable>
+                  {card.oracleText || 'Sin texto de reglas.'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.wrap}>
+              {stat && <Tile label={stat.label} value={stat.value} />}
+              <Tile label="Valor de maná" value={String(card.cmc)} />
+              {prefs.pricesCardInfo && <Tile label="Precio" value={details?.eur != null ? formatEur(details.eur) : '—'} color={colors.accent} />}
+              {format && (
+                <Tile
+                  label={formatLabel(format)}
+                  value={LEGAL_LABEL[card.legalities[format] ?? 'not_legal'] ?? '—'}
+                  color={LEGAL_COLOR[card.legalities[format] ?? 'not_legal']}
+                />
+              )}
+            </View>
+
+            <Pressable style={styles.infoBtn} onPress={() => setModal('info')} accessibilityLabel="Ficha completa">
+              <MaterialCommunityIcons name="information-outline" size={20} color={colors.info} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.infoText]}>Ficha completa</Text>
+                <Text style={styles.muted}>Todos los datos, legalidad, sinergias y combos</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
+            </Pressable>
+          </ScrollView>
+        )}
+
+        {/* The image alone, as big as the screen. */}
+        {zoom && image && (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setZoom(false)} statusBarTranslucent>
+            <Pressable style={styles.zoom} onPress={() => setZoom(false)}>
+              <Image source={{ uri: image.replace('/normal/', '/large/') }} style={styles.zoomImage} contentFit="contain" />
+            </Pressable>
+          </Modal>
+        )}
+        {card && modal === 'art' && (
+          <ArtPickerModal
+            card={card}
+            onClose={() => setModal(null)}
+            onPick={(c) => {
+              setModal(null);
+              pick(c);
+            }}
+          />
+        )}
+        {card && modal === 'share' && (
+          <CardShareSheet card={{ scryfallId: card.id, name: displayName(card), imageUrl: card.imageUrl }} onClose={() => setModal(null)} />
+        )}
+        {card && modal === 'info' && <CardInfoScreen id={card.id} onClose={() => setModal(null)} />}
+        <CardTagsSheet oracleId={card && modal === 'tags' ? card.oracleId : null} name={card ? displayName(card) : undefined} onClose={() => setModal(null)} />
+      </View>
+    </Modal>
+  );
+}
+
+type Glyph = keyof typeof MaterialCommunityIcons.glyphMap;
+
+function Pill({ icon, label, color, onPress }: { icon: Glyph; label: string; color?: string; onPress: () => void }) {
+  return (
+    <Pressable style={({ pressed }) => [styles.pill, pressed && { opacity: 0.6 }]} onPress={onPress} accessibilityLabel={label}>
+      <MaterialCommunityIcons name={icon} size={16} color={color ?? colors.text} />
+      <Text style={[styles.pillText, color ? { color } : null]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** «− | ＋ Label N»: one copy less / more. */
+function StepButton({
+  label,
+  icon,
+  color,
+  count,
+  onAdd,
+  onSub,
+}: {
+  label: string;
+  icon: Glyph;
+  color: string;
+  count: number;
+  onAdd: () => void;
+  onSub: () => void;
+}) {
+  return (
+    <View style={[styles.step, { borderColor: color }]}>
+      <Pressable
+        style={({ pressed }) => [styles.stepMinus, { borderColor: color }, pressed && { backgroundColor: color + '33' }, count === 0 && { opacity: 0.35 }]}
+        onPress={onSub}
+        disabled={count === 0}
+        accessibilityLabel={`Quitar una copia: ${label}`}
+      >
+        <MaterialCommunityIcons name="minus" size={20} color={color} />
+      </Pressable>
+      <Pressable
+        style={({ pressed }) => [styles.stepPlus, pressed && { backgroundColor: color + '33' }]}
+        onPress={onAdd}
+        accessibilityLabel={`Añadir una copia: ${label}`}
+      >
+        <MaterialCommunityIcons name="plus" size={18} color={color} />
+        <MaterialCommunityIcons name={icon} size={18} color={color} />
+        <Text style={[styles.stepText, { color }]} numberOfLines={1}>
+          {label}
+        </Text>
+        {count > 0 && (
+          <View style={[styles.stepCount, { backgroundColor: color }]}>
+            <Text style={styles.stepCountText}>{count}</Text>
+          </View>
+        )}
+      </Pressable>
+    </View>
+  );
+}
+
+function Tile({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <View style={styles.tile}>
+      <Text style={styles.tileLabel} numberOfLines={1}>
+        {label}
+      </Text>
+      <Text style={[styles.tileValue, color ? { color } : null]}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  headBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  headTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  headSub: { color: colors.textMuted, fontSize: 12 },
+  navRow: { flexDirection: 'row', alignItems: 'center' },
+  body: { padding: 16, gap: 16 },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
+  smallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    height: 20,
+    paddingHorizontal: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  smallBtnText: { color: colors.textMuted, fontSize: 11, fontWeight: '700' },
+  imageWrap: { alignSelf: 'center', width: '82%', maxWidth: 380 },
+  image: { width: '100%', aspectRatio: 1 / CARD_RATIO, borderRadius: 16 },
+  flip: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 34,
+    paddingHorizontal: 12,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  pillText: { color: colors.text, fontWeight: '700', fontSize: 13 },
+  nameRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  name: { color: colors.text, fontSize: 22, fontWeight: '900' },
+  type: { color: colors.textMuted, fontSize: 14, fontWeight: '700' },
+  muted: { color: colors.textMuted, fontSize: 12.5 },
+  step: { flexDirection: 'row', height: 46, borderRadius: 12, borderWidth: 1.5, overflow: 'hidden' },
+  stepMinus: { width: 52, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1.5 },
+  stepPlus: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 10 },
+  stepText: { fontWeight: '900', fontSize: 15, flexShrink: 1 },
+  stepCount: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  stepCountText: { color: colors.bg, fontWeight: '900', fontSize: 12 },
+  note: { color: colors.add, fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  block: { gap: 6 },
+  blockTitle: { color: colors.accent, fontSize: 12, fontWeight: '900', textTransform: 'uppercase' },
+  deckChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 28,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    maxWidth: '100%',
+  },
+  deckChipText: { color: colors.text, fontWeight: '700', fontSize: 13, flexShrink: 1 },
+  deckChipCount: { color: colors.accent, fontWeight: '900', fontSize: 13 },
+  textBox: { padding: 12, borderRadius: 12, backgroundColor: colors.surfaceAlt },
+  text: { color: colors.text, fontSize: 15, lineHeight: 21 },
+  tile: {
+    minWidth: 92,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  tileLabel: { color: colors.textMuted, fontSize: 11 },
+  tileValue: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  infoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.info,
+    backgroundColor: colors.surface,
+  },
+  infoText: { color: colors.info, fontWeight: '900', fontSize: 15 },
+  zoom: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', alignItems: 'center', justifyContent: 'center', padding: 12 },
+  zoomImage: { width: '100%', aspectRatio: 1 / CARD_RATIO },
+});

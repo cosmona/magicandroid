@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,6 +33,7 @@ import { CardScanner } from '@/components/collection/CardScanner';
 import { CollectionFilterPanel } from '@/components/collection/CollectionFilterPanel';
 import { CardTagsSheet, TagChip, TagsManagerSheet, useCardTags, useTags } from '@/components/tags/Tags';
 import { ManaCost } from '@/components/ManaCost';
+import { CardSheet } from '@/components/CardSheet';
 import {
   activeFilterCount,
   applyFilter,
@@ -46,8 +46,6 @@ import {
 } from '@/collection/organize';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
 import { PrintingPicker } from '@/components/PrintingPicker';
-import { LanguagePill } from '@/components/LanguagePicker';
-import { InDeckBadge } from '@/components/deck/InDeckBadge';
 import { CardShareSheet, type ShareableCard } from '@/components/CardShareSheet';
 import { ImportListModal } from '@/components/ImportListModal';
 import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/components/CardControls';
@@ -752,32 +750,27 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         </View>
       )}
 
-      <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setPreview(null)}>
-          {preview?.imageUrl && (
-            <Image
-              source={{ uri: preview.imageUrl }}
-              placeholder={{ uri: smallImageUrl(preview.imageUrl) }}
-              placeholderContentFit="contain"
-              style={styles.modalImage}
-              contentFit="contain"
-            />
-          )}
-          {preview && <InDeckBadge oracleId={preview.oracleId} />}
-          {preview && (
-            <LanguagePill
-              card={preview.scryfallId}
-              lang={preview.lang}
-              onPick={async (c) => {
-                if (c.id === preview.scryfallId) return;
-                setPreview(null);
-                await changeCollectionPrinting(db, preview.scryfallId, c, place);
-                load();
-              }}
-            />
-          )}
-        </Pressable>
-      </Modal>
+      {preview && (
+        <CardSheet
+          card={preview.scryfallId}
+          exact
+          subtitle="Tu colección"
+          onClose={() => setPreview(null)}
+          onPrinting={async (c) => {
+            if (c.id === preview.scryfallId) return;
+            await changeCollectionPrinting(db, preview.scryfallId, c, place);
+            setPreview({ ...preview, scryfallId: c.id, lang: c.lang, imageUrl: c.imageUrl });
+            load();
+          }}
+          nav={(() => {
+            const order = groups.flatMap((g) => g.cards);
+            const index = order.findIndex((c) => c.scryfallId === preview.scryfallId);
+            return index < 0
+              ? undefined
+              : { index, total: order.length, onMove: (step: number) => order[index + step] && setPreview(order[index + step]) };
+          })()}
+        />
+      )}
     </SafeAreaView>
   );
 }

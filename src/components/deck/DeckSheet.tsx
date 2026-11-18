@@ -17,9 +17,6 @@ import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/com
 import { CardShareSheet, type ShareableCard } from '@/components/CardShareSheet';
 import { HintButton } from '@/components/Hint';
 import { PrintingPicker } from '@/components/PrintingPicker';
-import { LanguagePill } from '@/components/LanguagePicker';
-import { OwnPill } from '@/components/collection/OwnButton';
-import { InDeckBadge } from '@/components/deck/InDeckBadge';
 import { DeckSummary } from '@/components/deck/DeckSummary';
 import { DeckStatsScreen } from '@/components/deck/DeckStatsScreen';
 import { ShareDeckModal } from '@/components/deck/ShareDeckModal';
@@ -27,6 +24,7 @@ import { DeckSynergyScreen } from '@/components/deck/DeckSynergyScreen';
 import { MissingCardsModal, type MissingCard } from '@/components/deck/MissingCardsModal';
 import { deckTokens, TokensModal } from '@/components/deck/TokensModal';
 import { ManaCost } from '@/components/ManaCost';
+import { CardSheet } from '@/components/CardSheet';
 import { useCardDetails } from '@/hooks/useCardDetails';
 import { setWanted, useWantedPrintings } from '@/hooks/useWanted';
 import { UNNAMED_DECK, useAppState, type DeckView } from '@/context/AppState';
@@ -55,13 +53,12 @@ import {
   updateCardData,
   updateDeck,
   type DeckCard,
-} from '@/db/database';
+ Tag } from '@/db/database';
 import { RARITY_LABELS } from '@/icons';
 import { colors, formatEur, formatLabel, TONE_COLORS, type Tone } from '@/theme';
 import { validateDeck, type DeckValidation } from '@/validation';
 import { DECK_GROUP_OPTIONS, groupDeck, type DeckGroup, type DeckGroupBy, type DeckGroupContext } from '@/deck/group';
 import { DeckTagsSheet, TagChip, useCardTags, useTags } from '@/components/tags/Tags';
-import type { Tag } from '@/db/database';
 
 /** Color of «La quiero» (hearts). */
 const WANT_COLOR = '#ff7a9c';
@@ -841,65 +838,66 @@ export function DeckSheet() {
         />
       )}
 
-      <Modal visible={!!preview} transparent animationType="fade" onRequestClose={() => setPreviewId(null)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setPreviewId(null)}>
-          {preview?.imageUrl && (
-            <Image
-              source={{ uri: preview.imageUrl }}
-              placeholder={{ uri: smallImageUrl(preview.imageUrl) }}
-              placeholderContentFit="contain"
-              style={styles.modalImage}
-              contentFit="contain"
-            />
-          )}
-          {preview && <InDeckBadge oracleId={preview.oracleId} />}
-          {preview && (
-            <OwnPill
-              card={preview.scryfallId}
-              oracleId={preview.oracleId}
-              onAdded={() => setOwnedVersion((v) => v + 1)}
-            />
-          )}
-          {preview && deckId && (
-            <LanguagePill
-              card={preview.scryfallId}
-              onPick={(c) => {
-                if (c.id !== preview.scryfallId) run(setDeckCardPrinting(db, deckId, preview.imageUrl, c));
-              }}
-            />
-          )}
-          {preview && validation.checked && (
-            <View style={[styles.previewStatus, previewIssues ? styles.bannerBad : styles.bannerOk]}>
-              {previewIssues ? (
-                previewIssues.map((issue) => (
-                  <Text key={issue} style={styles.bannerText}>
-                    ⚠ {issue}
-                  </Text>
-                ))
-              ) : (
-                <Text style={styles.bannerText}>✓ Sin problemas en {formatLabel(activeDeck?.format ?? null)}</Text>
+      {preview && (
+        <CardSheet
+          card={preview.scryfallId}
+          exact
+          subtitle={`Mazo · ${activeDeck?.name ?? ''}`}
+          onClose={() => setPreviewId(null)}
+          onPrinting={(c) => {
+            if (deckId && c.id !== preview.scryfallId) run(setDeckCardPrinting(db, deckId, preview.imageUrl, c));
+          }}
+          nav={(() => {
+            const order = groups.flatMap((g) => g.cards);
+            const index = order.findIndex((c) => c.oracleId === preview.oracleId);
+            return index < 0
+              ? undefined
+              : { index, total: order.length, onMove: (step: number) => order[index + step] && setPreviewId(order[index + step].oracleId) };
+          })()}
+          extra={
+            <View style={{ gap: 8 }}>
+              {validation.checked && (
+                <View style={[styles.previewStatus, previewIssues ? styles.bannerBad : styles.bannerOk, { alignSelf: 'stretch' }]}>
+                  {previewIssues ? (
+                    previewIssues.map((issue) => (
+                      <Text key={issue} style={styles.bannerText}>
+                        ⚠ {issue}
+                      </Text>
+                    ))
+                  ) : (
+                    <Text style={styles.bannerText}>✓ Sin problemas en {formatLabel(activeDeck?.format ?? null)}</Text>
+                  )}
+                </View>
               )}
+              {/* What only a deck card has: commander, cover, sideboard, remove. */}
+              <CardControlsRow>
+                {validation.usesCommander && (
+                  <CardIconButton
+                    icon={preview.isCommander ? 'crown' : 'crown-outline'}
+                    hint={preview.isCommander ? 'Quitar de comandante' : 'Hacer comandante'}
+                    filled={!!preview.isCommander}
+                    onPress={() => actions.commander(preview)}
+                  />
+                )}
+                <CardIconButton icon="image-outline" tone="primary" hint="Usar como portada del mazo" onPress={() => actions.printing(preview)} />
+                {!validation.usesCommander && (
+                  <CardIconButton icon="tray-arrow-down" hint="Pasar una copia al banquillo" onPress={() => actions.toSide(preview)} />
+                )}
+                <CardIconButton icon="help-circle-outline" hint="Pasar una copia a Posibles" onPress={() => actions.toMaybe(preview)} />
+                <CardIconButton
+                  icon="trash-can-outline"
+                  hint="Quitar del mazo"
+                  danger
+                  onPress={() => {
+                    setPreviewId(null);
+                    actions.confirmRemove(preview);
+                  }}
+                />
+              </CardControlsRow>
             </View>
-          )}
-          {/* The same buttons as in the list: the gallery tiles are too small for them. Buttons that
-              open another screen close this one first. */}
-          {preview && (
-            <Pressable style={styles.previewControls} onPress={() => {}}>
-              <CardControls
-                card={preview}
-                crown={validation.usesCommander}
-                actions={{
-                  ...actions,
-                  info: (c) => (setPreviewId(null), actions.info(c)),
-                  share: (c) => (setPreviewId(null), actions.share(c)),
-                  printing: (c) => (setPreviewId(null), actions.printing(c)),
-                  confirmRemove: (c) => (setPreviewId(null), actions.confirmRemove(c)),
-                }}
-              />
-            </Pressable>
-          )}
-        </Pressable>
-      </Modal>
+          }
+        />
+      )}
     </View>
   );
 }
