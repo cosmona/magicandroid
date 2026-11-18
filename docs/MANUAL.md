@@ -106,6 +106,8 @@ A la derecha de la carta, a mano del pulgar:
 - **Sinergias:** comandantes que más la usan, cartas con las que se juega y combos (EDHREC y Commander Spellbook); toca
   una para verla en grande.
 - **Girar** (solo en cartas de dos caras): enseña la otra cara.
+- **Idioma** (con el código del idioma actual): cambia la carta a otro idioma en el que exista.
+- **Arte:** elige entre sus ilustraciones alternativas (primero las de tu idioma, luego las inglesas).
 
 ### La fila de datos
 
@@ -114,10 +116,8 @@ A la derecha de la carta, a mano del pulgar:
 Debajo de la carta, en una línea (se desliza si no cabe):
 
 - **Historial** con la posición en los resultados (`1/723`).
-- **En el mazo** y **en Posibles** cuando ya la llevas.
+- **En el mazo** y **en Posibles** cuando ya la llevas; toca **«en Posibles ⊖»** para quitar una de Posibles.
 - **⚠ No legal / Prohibida** en el formato del mazo activo.
-- **Precio** (si está activado en Ajustes → Precios).
-- **Idioma** (cambia la carta a otro idioma en el que exista) y **Arte** (sus ilustraciones alternativas).
 
 ### Los botones de abajo
 

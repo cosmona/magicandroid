@@ -9,7 +9,6 @@ import { BottomSheet } from '@/components/BottomSheet';
 import { CardSheet } from '@/components/CardSheet';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
 import { RailButton, SynergySheet, WantRailButton } from '@/components/swipe/SwipeRail';
-import { useCardDetails } from '@/hooks/useCardDetails';
 import { ArtPickerModal } from '@/components/ArtPicker';
 import { Button } from '@/components/Button';
 import { HistorySheet, type Decision } from '@/components/HistorySheet';
@@ -19,9 +18,9 @@ import { LanguagePickerModal } from '@/components/LanguagePicker';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
-import { addCardToDeck, addCardToMaybe, getCollection } from '@/db/database';
+import { addCardToDeck, addCardToMaybe, changeMaybeQuantity, getCollection } from '@/db/database';
 import { useCardQueue } from '@/hooks/useCardQueue';
-import { colors, formatEur } from '@/theme';
+import { colors } from '@/theme';
 
 /** Width kept on the right of the card for the rail of buttons. */
 const RAIL_ROOM = 50;
@@ -116,7 +115,6 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   // The card in the active deck, its price and whether the deck's format allows it.
   const inDeck = card ? (activeCards.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0) : 0;
   const inMaybe = card ? (activeMaybe.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0) : 0;
-  const price = useCardDetails(card && prefs.pricesDeckCards ? [card.id] : [])[card?.id ?? '']?.eur ?? null;
   const legality = card && activeDeck?.format ? card.legalities?.[activeDeck.format] : undefined;
   const notLegal =
     legality && legality !== 'legal' && legality !== 'restricted'
@@ -170,7 +168,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
           <View style={styles.rail}>
             <WantRailButton card={card} />
             <View style={styles.railItem}>
-              <OwnRoundButton card={card} size={46} />
+              <OwnRoundButton card={card} size={42} />
               <Text style={styles.railLabel}>La tengo</Text>
             </View>
             <RailButton icon="information-outline" hint="Ficha completa (todo lo de Scryfall)" label="Ficha" onPress={() => setOpen('info')} />
@@ -178,6 +176,8 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
             {card.backImageUrl && (
               <RailButton icon="rotate-3d-variant" hint="Ver la otra cara" label="Girar" active={showBack} onPress={() => setShowBack((b) => !b)} />
             )}
+            <RailButton icon="translate" hint="Idioma de la carta" label={card.lang.toUpperCase()} small onPress={() => setPicker('language')} />
+            <RailButton icon="palette-outline" hint="Otras artes de la carta" label="Arte" small onPress={() => setPicker('art')} />
           </View>
         )}
       </View>
@@ -197,10 +197,23 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
             </View>
           )}
           {inMaybe > 0 && (
-            <View style={[styles.chip, { borderColor: colors.info }]}>
+            // Tap: one copy less in «Posibles».
+            <HintButton
+              hint="Quitar una de Posibles"
+              onPress={async () => {
+                if (!activeDeck) return;
+                await changeMaybeQuantity(db, activeDeck.id, card.oracleId, -1);
+                buzz('discard');
+                onToast(`− ${displayName(card)} de Posibles`);
+                refresh(activeDeck.id);
+              }}
+              style={[styles.chip, { borderColor: colors.info }]}
+              hitSlop={4}
+            >
               <MaterialCommunityIcons name="help-circle-outline" size={15} color={colors.info} />
               <Text style={[styles.chipText, { color: colors.info }]}>{inMaybe} en Posibles</Text>
-            </View>
+              <MaterialCommunityIcons name="minus-circle" size={17} color={colors.info} />
+            </HintButton>
           )}
           {notLegal && (
             <View style={[styles.chip, { borderColor: colors.discard }]}>
@@ -208,19 +221,6 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
               <Text style={[styles.chipText, { color: colors.discard }]}>{notLegal}</Text>
             </View>
           )}
-          {price != null && (
-            <View style={styles.chip}>
-              <Text style={[styles.chipText, { color: colors.undo }]}>{formatEur(price)}</Text>
-            </View>
-          )}
-          <HintButton hint="Idioma de la carta" onPress={() => setPicker('language')} style={styles.chip} hitSlop={4}>
-            <MaterialCommunityIcons name="translate" size={15} color={colors.text} />
-            <Text style={styles.chipText}>{card.lang.toUpperCase()}</Text>
-          </HintButton>
-          <HintButton hint="Otras artes de la carta" onPress={() => setPicker('art')} style={styles.chip} hitSlop={4}>
-            <MaterialCommunityIcons name="palette-outline" size={15} color={colors.text} />
-            <Text style={styles.chipText}>Arte</Text>
-          </HintButton>
         </ScrollView>
       )}
       {card && (
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   decidedText: { fontWeight: '800', fontSize: 13 },
   upcoming: { borderRadius: 16, transform: [{ scale: 0.94 }], opacity: 0.6 },
   actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 14, paddingVertical: 8 },
-  rail: { position: 'absolute', right: 8, top: 0, bottom: 0, justifyContent: 'center', gap: 12 },
+  rail: { position: 'absolute', right: 6, top: 0, bottom: 0, justifyContent: 'center', gap: 8 },
   railItem: { alignItems: 'center', gap: 2 },
   railLabel: { color: colors.text, fontSize: 10, fontWeight: '800', textShadowColor: '#000', textShadowRadius: 4 },
   strip: { gap: 6, paddingHorizontal: 12, paddingTop: 8, alignItems: 'center' },

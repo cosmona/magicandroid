@@ -21,6 +21,7 @@ export function RailButton({
   label,
   color = colors.text,
   active = false,
+  small = false,
   onPress,
 }: {
   icon: Glyph;
@@ -28,6 +29,8 @@ export function RailButton({
   label?: string;
   color?: string;
   active?: boolean;
+  /** Smaller (secondary: language, art). */
+  small?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -36,9 +39,9 @@ export function RailButton({
         hint={hint}
         onPress={onPress}
         hitSlop={4}
-        style={({ pressed }) => [styles.railButton, active && { borderColor: color }, pressed && { opacity: 0.6 }]}
+        style={({ pressed }) => [styles.railButton, small && styles.railSmall, active && { borderColor: color }, pressed && { opacity: 0.6 }]}
       >
-        <MaterialCommunityIcons name={icon} size={22} color={color} />
+        <MaterialCommunityIcons name={icon} size={small ? 18 : 22} color={color} />
       </HintButton>
       {label ? <Text style={styles.railLabel}>{label}</Text> : null}
     </View>
@@ -105,15 +108,16 @@ export function SynergySheet({ card, onClose }: { card: Card | null; onClose: ()
 const styles = StyleSheet.create({
   railItem: { alignItems: 'center', gap: 2 },
   railButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(20,16,28,0.82)',
     borderWidth: 2,
     borderColor: colors.border,
   },
+  railSmall: { width: 34, height: 34, borderRadius: 17 },
   railLabel: {
     color: colors.text,
     fontSize: 10,
