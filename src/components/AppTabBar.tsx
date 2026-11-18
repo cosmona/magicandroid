@@ -36,6 +36,8 @@ export function AppTabBar({ state, descriptors, emitter, navigateToTab }: TabBar
       <View style={styles.tabs} accessibilityRole="tablist">
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
+          // Hidden tabs (a beta turned off in Ajustes).
+          if ((options as { href?: unknown }).href === null) return null;
           const focused = state.index === index;
           const color = focused ? colors.bg : colors.textMuted;
           const onPress = () => {

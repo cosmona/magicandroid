@@ -6,6 +6,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect } from 'expo-router';
 import { displayName } from '@/api/scryfall';
 import { useAppState } from '@/context/AppState';
+import { HandGuide } from '@/components/hand/HandGuide';
 import { cardsInText, correctHand, emptyHand, updateHand, type HandCandidate, type HandState } from '@/hand/handTracker';
 import { colors } from '@/theme';
 
@@ -39,7 +40,15 @@ export function HandTrackerScreen() {
       return () => setFocused(false);
     }, []),
   );
-  const { activeDeck, activeCards } = useAppState();
+  const { activeDeck, activeCards, prefs, setPrefs } = useAppState();
+  // The guide (how to place the camera): the first time, and with «?».
+  const [guideOpen, setGuideOpen] = useState(false);
+  const showGuide = guideOpen || (focused && !prefs.handGuideSeen);
+  const closeGuide = () => {
+    setGuideOpen(false);
+    if (!prefs.handGuideSeen) setPrefs({ ...prefs, handGuideSeen: true });
+  };
+  const guide = <HandGuide visible={showGuide} onClose={closeGuide} />;
   const [permission, requestPermission] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
   const [running, setRunning] = useState(false);
@@ -110,8 +119,13 @@ export function HandTrackerScreen() {
   if (!activeDeck || !candidates.length) {
     return (
       <View style={styles.center}>
+        {guide}
         <MaterialCommunityIcons name="cards-outline" size={40} color={colors.textMuted} />
         <Text style={styles.muted}>Abre un mazo en Construir: la cámara reconoce las cartas de ese mazo.</Text>
+        <Pressable style={styles.button} onPress={() => setGuideOpen(true)}>
+          <MaterialCommunityIcons name="help-circle-outline" size={20} color={colors.text} />
+          <Text style={styles.buttonText}>Cómo colocar la cámara</Text>
+        </Pressable>
       </View>
     );
   }
@@ -128,12 +142,16 @@ export function HandTrackerScreen() {
 
   return (
     <View style={styles.screen}>
+      {guide}
       <View style={styles.cameraBox}>
         {focused && <CameraView ref={camera} style={StyleSheet.absoluteFill} facing={facing} animateShutter={false} />}
         <View style={styles.cameraTop}>
           <Text style={styles.badge}>
             {running ? `● Leyendo · ${photos} fotos` : 'Pausado'} · {activeDeck.name}
           </Text>
+          <Pressable onPress={() => setGuideOpen(true)} hitSlop={8} accessibilityLabel="Cómo colocar la cámara">
+            <MaterialCommunityIcons name="help-circle-outline" size={24} color="#fff" />
+          </Pressable>
           <Pressable onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))} hitSlop={8} accessibilityLabel="Cambiar de cámara">
             <MaterialCommunityIcons name="camera-flip-outline" size={24} color="#fff" />
           </Pressable>

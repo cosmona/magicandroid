@@ -133,6 +133,30 @@ export function SettingsSheet() {
         />
       </View>
 
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>Mano (beta)</Text>
+          <Text style={styles.hint}>
+            Pestaña «Mano»: con el móvil en un soporte, la cámara lee los títulos de tu mano y apunta lo que robas y lo que juegas. Está en pruebas: puede equivocarse.
+          </Text>
+        </View>
+        <Switch
+          value={!!prefs.handBeta}
+          onValueChange={(on) => {
+            if (!on) return setPrefs({ ...prefs, handBeta: false });
+            Alert.alert(
+              'Versión beta',
+              'La pestaña «Mano» está en pruebas: el reconocimiento depende de la luz, la cámara y cómo sujetes las cartas, y puede equivocarse. Puedes desactivarla aquí cuando quieras.',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Activar', onPress: () => setPrefs({ ...prefs, handBeta: true }) },
+              ],
+            );
+          }}
+          trackColor={{ true: colors.accent, false: colors.border }}
+        />
+      </View>
+
       <Section
         title="Precios"
         hint="Precios orientativos de Cardmarket (Scryfall los actualiza una vez al día). Elige dónde verlos."

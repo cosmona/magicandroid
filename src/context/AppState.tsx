@@ -39,6 +39,10 @@ export interface Prefs {
   showOwned?: boolean;
   /** Colors of the rows (owned green, wanted pink…). */
   colorCode?: boolean;
+  /** «Mano» (beta): the camera reads your hand. Off unless turned on in Ajustes. */
+  handBeta?: boolean;
+  /** The «Mano» guide (how to place the camera) was seen. */
+  handGuideSeen?: boolean;
   /** Hide Android's navigation buttons (swipe up from the bottom edge to show them). */
   hideNavBar: boolean;
   /** Deck sheet's action buttons and deck picker hidden (more room for the cards). */
