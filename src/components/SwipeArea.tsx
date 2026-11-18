@@ -1,11 +1,15 @@
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useSQLiteContext } from 'expo-sqlite';
 import { displayName, getCardsByIds } from '@/api/scryfall';
 import { matchesFilters, sortCards } from '@/collection/localSearch';
 import { BottomSheet } from '@/components/BottomSheet';
+import { CardSheet } from '@/components/CardSheet';
+import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
+import { RailButton, SynergySheet, WantRailButton } from '@/components/swipe/SwipeRail';
+import { useCardDetails } from '@/hooks/useCardDetails';
 import { ArtPickerModal } from '@/components/ArtPicker';
 import { Button } from '@/components/Button';
 import { HistorySheet, type Decision } from '@/components/HistorySheet';
@@ -17,12 +21,15 @@ import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from
 import { useAppState } from '@/context/AppState';
 import { addCardToDeck, addCardToMaybe, getCollection } from '@/db/database';
 import { useCardQueue } from '@/hooks/useCardQueue';
-import { colors } from '@/theme';
+import { colors, formatEur } from '@/theme';
+
+/** Width kept on the right of the card for the rail of buttons. */
+const RAIL_ROOM = 50;
 
 /** Card stack in the middle of the screen (the web's Deck view): right = add, left = discard. */
 export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const db = useSQLiteContext();
-  const { ready, filters, ensureActiveDeck, refresh, prefs } = useAppState();
+  const { ready, filters, ensureActiveDeck, refresh, prefs, activeDeck, activeCards, activeMaybe } = useAppState();
   // «Solo en mi colección»: your cards (Scryfall data of each printing, cached) with the filters applied on the phone.
   const queue = useCardQueue(filters, ready, prefs.language, async (f) => {
     const rows = await getCollection(db, 'paper');
@@ -42,6 +49,8 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
   const cardRef = useRef<SwipeCardHandle>(null);
   const [picker, setPicker] = useState<'language' | 'art' | null>(null);
+  // The card's own screens: its sheet (tap on the card), «Ficha completa» and «Sinergias».
+  const [open, setOpen] = useState<'sheet' | 'info' | 'synergy' | null>(null);
 
   // Decisions refer to the current search: reset them on a new one.
   const [historyFilters, setHistoryFilters] = useState(filters);
@@ -67,7 +76,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     queue.next();
     setShowBack(false);
 
-    if (dir === 'right' && toMaybe.current) {
+    if (dir === 'up' || (dir === 'right' && toMaybe.current)) {
       toMaybe.current = false;
       const deck = await ensureActiveDeck();
       await addCardToMaybe(db, deck.id, card);
@@ -97,12 +106,22 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
-    const w = Math.min(width - 32, height / CARD_RATIO);
+    // Room on the right for the side rail of buttons.
+    const w = Math.min(width - 32 - RAIL_ROOM, height / CARD_RATIO);
     setCardSize({ width: w, height: w * CARD_RATIO });
   };
 
   const card = queue.current;
   const decision = card ? decisions[card.id] : undefined;
+  // The card in the active deck, its price and whether the deck's format allows it.
+  const inDeck = card ? (activeCards.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0) : 0;
+  const inMaybe = card ? (activeMaybe.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0) : 0;
+  const price = useCardDetails(card && prefs.pricesDeckCards ? [card.id] : [])[card?.id ?? '']?.eur ?? null;
+  const legality = card && activeDeck?.format ? card.legalities?.[activeDeck.format] : undefined;
+  const notLegal =
+    legality && legality !== 'legal' && legality !== 'restricted'
+      ? `${legality === 'banned' ? 'Prohibida' : 'No legal'} en ${activeDeck?.format}`
+      : null;
   let body: React.ReactNode;
   if (!ready || (queue.loading && !card)) {
     body = <ActivityIndicator size="large" color={colors.accent} />;
@@ -126,7 +145,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
             contentFit="contain"
           />
         )}
-        <SwipeCard key={card.id} ref={cardRef} card={card} showBack={showBack} onSwiped={onSwiped} />
+        <SwipeCard key={card.id} ref={cardRef} card={card} showBack={showBack} onSwiped={onSwiped} onTap={() => setOpen('sheet')} />
       </View>
     );
   }
@@ -147,39 +166,68 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
       <View style={styles.cardArea} onLayout={onLayout}>
         {cardSize.width > 0 && body}
         {card && (
-          <>
-            <ArrowButton side="left" disabled={queue.index === 0} onPress={browse(-1)} />
-            <ArrowButton side="right" disabled={!queue.upcoming} onPress={browse(1)} />
+          // Everything about the card at a thumb's reach, over its right edge.
+          <View style={styles.rail}>
+            <WantRailButton card={card} />
+            <View style={styles.railItem}>
+              <OwnRoundButton card={card} size={46} />
+              <Text style={styles.railLabel}>La tengo</Text>
+            </View>
+            <RailButton icon="information-outline" hint="Ficha completa (todo lo de Scryfall)" label="Ficha" onPress={() => setOpen('info')} />
+            <RailButton icon="puzzle-outline" hint="Sinergias y combos de la carta" label="Sinergias" onPress={() => setOpen('synergy')} />
             {card.backImageUrl && (
-              <HintButton
-                hint="Ver la otra cara"
-                style={styles.flip}
-                onPress={() => setShowBack((b) => !b)}
-                hitSlop={6}
-              >
-                <MaterialCommunityIcons name="rotate-3d-variant" size={22} color={colors.text} />
-              </HintButton>
+              <RailButton icon="rotate-3d-variant" hint="Ver la otra cara" label="Girar" active={showBack} onPress={() => setShowBack((b) => !b)} />
             )}
-          </>
+          </View>
         )}
       </View>
       {card && (
-        <View style={styles.actions}>
-          <RoundButton symbol="✕" color={colors.discard} onPress={() => cardRef.current?.swipe('left')} />
-          <IconRound
-            icon="translate"
-            hint="Idioma"
-            label={card.lang.toUpperCase()}
-            onPress={() => setPicker('language')}
-          />
-          <IconRound icon="palette-outline" hint="Arte" onPress={() => setPicker('art')} />
-          <HintButton hint="Historial" style={styles.historyButton} onPress={() => setHistoryOpen(true)} hitSlop={6}>
-            <MaterialCommunityIcons name="history" size={20} color={colors.accent} />
-            <Text style={styles.counter}>
+        // What matters of this card, in one line: where you are, the deck, the price, the rules; language and art.
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.strip}>
+          <HintButton hint="Historial de esta búsqueda" onPress={() => setHistoryOpen(true)} style={styles.chip} hitSlop={4}>
+            <MaterialCommunityIcons name="history" size={15} color={colors.accent} />
+            <Text style={styles.chipText}>
               {queue.position}/{queue.total.toLocaleString('es-ES')}
             </Text>
           </HintButton>
-          <OwnRoundButton card={card} />
+          {inDeck > 0 && (
+            <View style={[styles.chip, { borderColor: colors.add }]}>
+              <MaterialCommunityIcons name="cards-playing" size={15} color={colors.add} />
+              <Text style={[styles.chipText, { color: colors.add }]}>{inDeck} en el mazo</Text>
+            </View>
+          )}
+          {inMaybe > 0 && (
+            <View style={[styles.chip, { borderColor: colors.info }]}>
+              <MaterialCommunityIcons name="help-circle-outline" size={15} color={colors.info} />
+              <Text style={[styles.chipText, { color: colors.info }]}>{inMaybe} en Posibles</Text>
+            </View>
+          )}
+          {notLegal && (
+            <View style={[styles.chip, { borderColor: colors.discard }]}>
+              <MaterialCommunityIcons name="alert-outline" size={15} color={colors.discard} />
+              <Text style={[styles.chipText, { color: colors.discard }]}>{notLegal}</Text>
+            </View>
+          )}
+          {price != null && (
+            <View style={styles.chip}>
+              <Text style={[styles.chipText, { color: colors.undo }]}>{formatEur(price)}</Text>
+            </View>
+          )}
+          <HintButton hint="Idioma de la carta" onPress={() => setPicker('language')} style={styles.chip} hitSlop={4}>
+            <MaterialCommunityIcons name="translate" size={15} color={colors.text} />
+            <Text style={styles.chipText}>{card.lang.toUpperCase()}</Text>
+          </HintButton>
+          <HintButton hint="Otras artes de la carta" onPress={() => setPicker('art')} style={styles.chip} hitSlop={4}>
+            <MaterialCommunityIcons name="palette-outline" size={15} color={colors.text} />
+            <Text style={styles.chipText}>Arte</Text>
+          </HintButton>
+        </ScrollView>
+      )}
+      {card && (
+        <View style={styles.actions}>
+          <SmallRound icon="chevron-left" hint="Carta anterior" disabled={queue.index === 0} onPress={browse(-1)} />
+          <RoundButton symbol="✕" color={colors.discard} onPress={() => cardRef.current?.swipe('left')} />
+          <SmallRound icon="help-circle-outline" hint="A Posibles (o desliza hacia arriba)" color={colors.info} onPress={() => cardRef.current?.swipe('up')} />
           <RoundButton
             symbol="✓"
             color={colors.add}
@@ -189,8 +237,22 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
               cardRef.current?.swipe('right');
             }}
           />
+          <SmallRound icon="chevron-right" hint="Pasar sin decidir" disabled={!queue.upcoming} onPress={browse(1)} />
         </View>
       )}
+
+      {card && open === 'sheet' && (
+        <CardSheet
+          card={card}
+          exact
+          subtitle="Construir"
+          onClose={() => setOpen(null)}
+          onPrinting={(c) => queue.replaceCurrent(c)}
+          nav={{ index: queue.index, total: queue.total, onMove: (step) => browse(step > 0 ? 1 : -1)() }}
+        />
+      )}
+      {card && open === 'info' && <CardInfoScreen id={card.id} onClose={() => setOpen(null)} />}
+      <SynergySheet card={card && open === 'synergy' ? card : null} onClose={() => setOpen(null)} />
 
       {card && picker === 'language' && (
         <LanguagePickerModal
@@ -235,39 +297,27 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   );
 }
 
-function ArrowButton(props: { side: 'left' | 'right'; onPress: () => void; disabled: boolean }) {
-  return (
-    <Pressable
-      onPress={props.onPress}
-      disabled={props.disabled}
-      hitSlop={8}
-      style={({ pressed }) => [
-        styles.arrow,
-        props.side === 'left' ? { left: 2 } : { right: 2 },
-        props.disabled && { opacity: 0.2 },
-        pressed && { backgroundColor: colors.surfaceAlt },
-      ]}
-    >
-      <Text style={styles.arrowText}>{props.side === 'left' ? '‹' : '›'}</Text>
-    </Pressable>
-  );
-}
-
-/** Small round icon button of the bottom row (with an optional tiny label, e.g. the language). */
-function IconRound(props: {
-  icon: 'translate' | 'palette-outline';
+/** A small round button of the bottom row (previous / next / «Posibles»). */
+function SmallRound(props: {
+  icon: 'chevron-left' | 'chevron-right' | 'help-circle-outline';
   hint: string;
-  label?: string;
+  color?: string;
+  disabled?: boolean;
   onPress: () => void;
 }) {
   return (
     <HintButton
       hint={props.hint}
       onPress={props.onPress}
-      style={({ pressed }) => [styles.iconRound, pressed && { opacity: 0.6 }]}
+      disabled={props.disabled}
+      hitSlop={6}
+      style={({ pressed }) => [
+        styles.iconRound,
+        props.color ? { borderColor: props.color } : null,
+        (pressed || props.disabled) && { opacity: props.disabled ? 0.3 : 0.6 },
+      ]}
     >
-      <MaterialCommunityIcons name={props.icon} size={20} color={colors.text} />
-      {props.label && <Text style={styles.iconLabel}>{props.label}</Text>}
+      <MaterialCommunityIcons name={props.icon} size={24} color={props.color ?? colors.text} />
     </HintButton>
   );
 }
@@ -308,7 +358,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  cardArea: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 10 },
+  cardArea: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 10, paddingRight: RAIL_ROOM },
   arrow: {
     position: 'absolute',
     top: '50%',
@@ -326,7 +376,23 @@ const styles = StyleSheet.create({
   decided: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1 },
   decidedText: { fontWeight: '800', fontSize: 13 },
   upcoming: { borderRadius: 16, transform: [{ scale: 0.94 }], opacity: 0.6 },
-  actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: 10 },
+  actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 14, paddingVertical: 8 },
+  rail: { position: 'absolute', right: 8, top: 0, bottom: 0, justifyContent: 'center', gap: 12 },
+  railItem: { alignItems: 'center', gap: 2 },
+  railLabel: { color: colors.text, fontSize: 10, fontWeight: '800', textShadowColor: '#000', textShadowRadius: 4 },
+  strip: { gap: 6, paddingHorizontal: 12, paddingTop: 8, alignItems: 'center' },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 30,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  chipText: { color: colors.text, fontSize: 13, fontWeight: '700' },
   iconRound: {
     width: 44,
     height: 44,

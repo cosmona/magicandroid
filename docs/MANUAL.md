@@ -87,30 +87,48 @@ añade en el idioma que elijas; en el resto solo cambia lo que ves.
 |---|---|
 | Deslizar la carta a la **derecha** | La añade al mazo activo (si no tienes ninguno, crea «Mazo sin nombre») |
 | Deslizar a la **izquierda** | La descarta |
-| Flechas **‹ ›** a los lados | Pasa a la anterior o la siguiente sin decidir nada |
+| Deslizar hacia **arriba** | La aparta en **Posibles** del mazo |
+| **Tocar** la carta | Abre su ficha: idioma, otras artes, Cardmarket, La tengo, La quiero, ± al mazo y a Posibles, texto, legalidad y Ficha completa (con ‹ › para pasar por los resultados) |
 
 Si vuelves a una carta que ya decidiste, verás «✓ Ya añadida» o «✕ Descartada».
 
 Para corregir una decisión, abre el **historial** y toca la carta: vuelves a ella.
 
-### La fila de botones de abajo
+### Los botones del lateral
+
+A la derecha de la carta, a mano del pulgar:
+
+- **♡ La quiero:** apunta esta versión (edición e idioma) para conseguirla; relleno si ya la quieres y con «Otra» si
+  quieres otra versión.
+- **📦 La tengo:** abre un panel con **−** y **＋** para quitar o añadir copias en tu [colección](#6-colección), y
+  **Ver en mi colección**. Verde con un número si ya la tienes.
+- **ⓘ Ficha:** la [ficha completa](#5-ficha-completa-de-una-carta) con todo lo de Scryfall.
+- **Sinergias:** comandantes que más la usan, cartas con las que se juega y combos (EDHREC y Commander Spellbook); toca
+  una para verla en grande.
+- **Girar** (solo en cartas de dos caras): enseña la otra cara.
+
+### La fila de datos
 
 <table><tr><td align="center"><img src="img/la-tengo.jpg" width="240" alt="Panel de «La tengo»"><br><sub>Panel de «La tengo»</sub></td></tr></table>
 
-De izquierda a derecha: **✕** descartar, **idioma**, **arte**, **historial** (con la posición en los resultados),
-**la tengo** y **✓** añadir.
+Debajo de la carta, en una línea (se desliza si no cabe):
 
-- **Idioma** (icono de traducir, con el código del idioma actual): cambia la carta a otro idioma en el que exista.
-- **Arte** (paleta): elige entre sus ilustraciones alternativas (primero las de tu idioma, luego las inglesas).
-- **La tengo** (caja; verde con un número si ya la tienes): abre un panel con **−** y **＋** para quitar o añadir
-  copias de esa carta en tu [colección](#6-colección), y **Ver en mi colección**, que abre la Colección buscándola.
-- En las cartas de **dos caras**, el botón de girar está en la esquina superior derecha de la carta.
+- **Historial** con la posición en los resultados (`1/723`).
+- **En el mazo** y **en Posibles** cuando ya la llevas.
+- **⚠ No legal / Prohibida** en el formato del mazo activo.
+- **Precio** (si está activado en Ajustes → Precios).
+- **Idioma** (cambia la carta a otro idioma en el que exista) y **Arte** (sus ilustraciones alternativas).
+
+### Los botones de abajo
+
+De izquierda a derecha: **‹** carta anterior, **✕** descartar, **?** a Posibles, **✓** añadir al mazo (mantén pulsado
+para Posibles) y **›** pasar a la siguiente sin decidir.
 
 ### Historial ▤
 
 <table><tr><td align="center"><img src="img/historial.jpg" width="240" alt="Historial"><br><sub>Historial</sub></td></tr></table>
 
-El botón ▤ junto al contador abre las miniaturas de las cartas vistas (con su decisión), la actual resaltada y las
+El botón del historial (con el contador) abre las miniaturas de las cartas vistas (con su decisión), la actual resaltada y las
 siguientes. **Toca** una para saltar a ella; **mantén pulsado** para verla en grande. Al llegar al final carga más.
 
 ### Filtros

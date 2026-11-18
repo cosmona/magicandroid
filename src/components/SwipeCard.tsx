@@ -1,5 +1,5 @@
 import { useImperativeHandle, type Ref } from 'react';
-import { StyleSheet, Text, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import Animated, {
@@ -14,7 +14,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { smallImageUrl, type Card } from '@/api/scryfall';
 import { colors } from '@/theme';
 
-export type SwipeDirection = 'left' | 'right';
+export type SwipeDirection = 'left' | 'right' | 'up';
 
 export interface SwipeCardHandle {
   /** Animate the card out as if swiped (used by the on-screen buttons). */
@@ -25,6 +25,8 @@ interface Props {
   card: Card;
   showBack: boolean;
   onSwiped: (dir: SwipeDirection) => void;
+  /** A tap on the card (without dragging it). */
+  onTap?: () => void;
   ref?: Ref<SwipeCardHandle>;
 }
 
@@ -32,14 +34,15 @@ export const CARD_RATIO = 680 / 488; // height / width of a Magic card image
 const FLING_VELOCITY = 800;
 
 /**
- * Top card of the stack. Drag right = add to deck, left = discard.
+ * Top card of the stack. Drag right = add to deck, left = discard, up = «Posibles»; a tap opens it.
  * Gesture callbacks run on the UI thread (Reanimated worklets); the result is
  * sent back to React with `scheduleOnRN`. Render with `key={card.id}` so each
  * new card starts with fresh shared values.
  */
-export function SwipeCard({ card, showBack, onSwiped, ref }: Props) {
-  const { width } = useWindowDimensions();
+export function SwipeCard({ card, showBack, onSwiped, onTap, ref }: Props) {
+  const { width, height } = useWindowDimensions();
   const threshold = width * 0.25;
+  const upThreshold = height * 0.14;
   const x = useSharedValue(0);
   const y = useSharedValue(0);
   const gone = useSharedValue(false);
@@ -49,6 +52,14 @@ export function SwipeCard({ card, showBack, onSwiped, ref }: Props) {
     'worklet';
     if (gone.get()) return;
     gone.set(true);
+    if (dir === 'up') {
+      y.set(
+        withTiming(-height * 1.2, { duration: 220 }, (done) => {
+          if (done) scheduleOnRN(onSwiped, dir);
+        }),
+      );
+      return;
+    }
     x.set(
       withTiming((dir === 'right' ? 1 : -1) * width * 1.5, { duration: 220 }, (done) => {
         if (done) scheduleOnRN(onSwiped, dir);
@@ -67,7 +78,13 @@ export function SwipeCard({ card, showBack, onSwiped, ref }: Props) {
     onDeactivate: (e) => {
       const right = e.translationX > threshold || (e.velocityX > FLING_VELOCITY && e.translationX > 0);
       const left = e.translationX < -threshold || (e.velocityX < -FLING_VELOCITY && e.translationX < 0);
-      if (!e.canceled && (right || left)) {
+      // Up (mostly vertical): «Posibles».
+      const up =
+        Math.abs(e.translationY) > Math.abs(e.translationX) &&
+        (e.translationY < -upThreshold || (e.velocityY < -FLING_VELOCITY && e.translationY < 0));
+      if (!e.canceled && up) {
+        flyOut('up');
+      } else if (!e.canceled && (right || left)) {
         flyOut(right ? 'right' : 'left');
       } else {
         x.set(withSpring(0));
@@ -89,12 +106,17 @@ export function SwipeCard({ card, showBack, onSwiped, ref }: Props) {
   const discardStampStyle = useAnimatedStyle(() => ({
     opacity: interpolate(x.get(), [-threshold, 0], [1, 0], Extrapolation.CLAMP),
   }));
+  const maybeStampStyle = useAnimatedStyle(() => ({
+    opacity:
+      Math.abs(y.get()) > Math.abs(x.get()) ? interpolate(y.get(), [-upThreshold, 0], [1, 0], Extrapolation.CLAMP) : 0,
+  }));
 
   const uri = (showBack && card.backImageUrl) || card.imageUrl;
 
   return (
     <GestureDetector gesture={pan}>
       <Animated.View style={[styles.card, cardStyle]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onTap} disabled={!onTap} accessibilityLabel="Ver la ficha de la carta">
         <Image
           source={{ uri: uri ?? undefined }}
           // ~15 KB thumbnail shows almost instantly while the full image loads.
@@ -104,10 +126,14 @@ export function SwipeCard({ card, showBack, onSwiped, ref }: Props) {
           contentFit="contain"
           transition={150}
         />
-        <Animated.View style={[styles.stamp, styles.addStamp, addStampStyle]}>
+        </Pressable>
+        <Animated.View pointerEvents="none" style={[styles.stamp, styles.maybeStamp, maybeStampStyle]}>
+          <Text style={[styles.stampText, { color: colors.info }]}>POSIBLES</Text>
+        </Animated.View>
+        <Animated.View pointerEvents="none" style={[styles.stamp, styles.addStamp, addStampStyle]}>
           <Text style={[styles.stampText, { color: colors.add }]}>AÑADIR</Text>
         </Animated.View>
-        <Animated.View style={[styles.stamp, styles.discardStamp, discardStampStyle]}>
+        <Animated.View pointerEvents="none" style={[styles.stamp, styles.discardStamp, discardStampStyle]}>
           <Text style={[styles.stampText, { color: colors.discard }]}>DESCARTAR</Text>
         </Animated.View>
       </Animated.View>
@@ -129,5 +155,6 @@ const styles = StyleSheet.create({
   },
   addStamp: { left: 20, borderColor: colors.add, transform: [{ rotate: '-15deg' }] },
   discardStamp: { right: 20, borderColor: colors.discard, transform: [{ rotate: '15deg' }] },
+  maybeStamp: { top: undefined, bottom: 40, alignSelf: 'center', borderColor: colors.info },
   stampText: { fontSize: 28, fontWeight: '900', letterSpacing: 2 },
 });
