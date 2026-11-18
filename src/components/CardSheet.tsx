@@ -8,9 +8,9 @@ import { displayName, getCardInLanguage, getCardsByIds, type Card } from '@/api/
 import { ArtPickerModal } from '@/components/ArtPicker';
 import { CardShareSheet } from '@/components/CardShareSheet';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
-import { OwnPill, WantPill } from '@/components/collection/OwnButton';
+import { OwnPill } from '@/components/collection/OwnButton';
 import { LanguagePill } from '@/components/LanguagePicker';
-import { ManaCost } from '@/components/ManaCost';
+import { ManaCost, SymbolText } from '@/components/ManaCost';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { CardTagsSheet, TagChip, useCardTags, useTags } from '@/components/tags/Tags';
 import { useAppState } from '@/context/AppState';
@@ -269,7 +269,6 @@ export function CardSheet({
             {/* Collection. */}
             <View style={styles.wrap}>
               <OwnPill card={card} />
-              <WantPill card={card} />
             </View>
 
             {/* The active deck and «Posibles». */}
@@ -309,9 +308,7 @@ export function CardSheet({
             <View style={styles.block}>
               <Text style={styles.blockTitle}>Texto</Text>
               <View style={styles.textBox}>
-                <Text style={styles.text} selectable>
-                  {card.oracleText || 'Sin texto de reglas.'}
-                </Text>
+                <SymbolText text={card.oracleText || 'Sin texto de reglas.'} style={styles.text} />
               </View>
             </View>
 

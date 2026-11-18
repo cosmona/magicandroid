@@ -688,7 +688,7 @@ export function DeckSheet() {
                 <TextRow
                   card={item}
                   issues={validation.cardIssues[item.oracleId]}
-                  owned={owned?.[item.oracleId]}
+                  owned={owned ? (owned[item.oracleId] ?? 0) : undefined}
                   tags={prefs.showTags === false ? [] : (deckTags[item.oracleId] ?? []).map((u) => allTags.find((t) => t.uid === u)).filter((t) => !!t)}
                   onPress={() => actions.preview(item)}
                   onAdd={() => actions.add(item)}
