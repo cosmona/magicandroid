@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { GestureDetector, GestureHandlerRootView, ScrollView, usePanGesture } from 'react-native-gesture-handler';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -14,6 +14,7 @@ import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
 import { OwnPill } from '@/components/collection/OwnButton';
 import { LanguagePill } from '@/components/LanguagePicker';
 import { CARD_RATIO } from '@/components/SwipeCard';
+import { SynergySheet } from '@/components/swipe/SwipeRail';
 import { CardTagsSheet, TagChip, useCardTags, useTags } from '@/components/tags/Tags';
 import { useAppState } from '@/context/AppState';
 import {
@@ -77,7 +78,7 @@ function CardPage({
   const failed = failedKey === key;
   const [back, setBack] = useState(false);
   const [zoom, setZoom] = useState(false);
-  const [modal, setModal] = useState<'art' | 'share' | 'info' | 'tags' | null>(null);
+  const [modal, setModal] = useState<'art' | 'share' | 'info' | 'tags' | 'synergy' | null>(null);
   const [usage, setUsage] = useState<{ deckName: string; quantity: number }[]>([]);
   const [note, setNote] = useState<string | null>(null);
 
@@ -150,6 +151,21 @@ function CardPage({
     await changeMaybeQuantity(db, activeDeck.id, card.oracleId, -1);
     await refresh(activeDeck.id);
   };
+  // Add a copy to a chosen deck (main or «Posibles») without leaving the sheet; if it's not the
+  // active deck, ask whether to switch to it.
+  const addTo = async (id: number, name: string, where: 'main' | 'maybe') => {
+    if (!card) return;
+    if (where === 'main') await addCardToDeck(db, id, card);
+    else await addCardToMaybe(db, id, card);
+    await refresh(activeDeck?.id ?? id);
+    flash(where === 'maybe' ? `＋1 en Posibles de «${name}»` : `＋1 en «${name}»`);
+    if (activeDeck?.id !== id) {
+      Alert.alert('Mazo activo', `¿Poner «${name}» como mazo activo?`, [
+        { text: 'Ahora no', style: 'cancel' },
+        { text: 'Sí', onPress: () => setActiveDeckId(id) },
+      ]);
+    }
+  };
   const pick = (c: Card) => {
     setPicked({ key: initialId, card: c });
     setBack(false);
@@ -180,7 +196,7 @@ function CardPage({
         ) : (
           <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
             {/* Tags of the card (when it's yours or wanted it can have them) and the button to change them. */}
-            <View style={styles.wrap}>
+            <View style={[styles.wrap, { marginTop: 6 }]}>
               {prefs.showTags !== false && tags.map((t) => <TagChip key={t.uid} tag={t} small />)}
               <Pressable style={styles.smallBtn} onPress={() => setModal('tags')} hitSlop={6} accessibilityLabel="Etiquetas de la carta">
                 <MaterialCommunityIcons name="tag-outline" size={13} color={colors.textMuted} />
@@ -283,6 +299,14 @@ function CardPage({
               )}
             </View>
 
+            <Pressable style={styles.infoBtn} onPress={() => setModal('synergy')} accessibilityLabel="Sinergias y combos">
+              <MaterialCommunityIcons name="puzzle-outline" size={20} color={colors.info} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.infoText]}>Sinergias y combos</Text>
+                <Text style={styles.muted}>Cartas que combinan con esta</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textMuted} />
+            </Pressable>
             <Pressable style={styles.infoBtn} onPress={() => setModal('info')} accessibilityLabel="Ficha completa">
               <MaterialCommunityIcons name="information-outline" size={20} color={colors.info} />
               <View style={{ flex: 1 }}>
@@ -316,6 +340,7 @@ function CardPage({
           <CardShareSheet card={{ scryfallId: card.id, name: displayName(card), imageUrl: card.imageUrl }} onClose={() => setModal(null)} />
         )}
         {card && modal === 'info' && <CardInfoScreen id={card.id} onClose={() => setModal(null)} />}
+        <SynergySheet card={card && modal === 'synergy' ? card : null} onClose={() => setModal(null)} />
         <CardTagsSheet oracleId={card && modal === 'tags' ? card.oracleId : null} name={card ? displayName(card) : undefined} onClose={() => setModal(null)} />
 
         {/* Choose which deck «Al mazo» / «A Posibles» target (the chosen deck becomes active). */}
@@ -330,9 +355,9 @@ function CardPage({
                       key={d.id}
                       style={[styles.pickOption, activeDeck?.id === d.id && styles.pickOptionOn]}
                       onPress={() => {
-                        setActiveDeckId(d.id);
+                        const where = deckPicker === 'maybe' ? 'maybe' : 'main';
                         setDeckPicker(false);
-                        flash(`Mazo activo: «${d.name}»`);
+                        addTo(d.id, d.name, where);
                       }}
                     >
                       <Text style={{ fontSize: 16 }}>🃏</Text>
@@ -345,10 +370,16 @@ function CardPage({
                   <Pressable
                     style={styles.pickOption}
                     onPress={async () => {
+                      const where = deckPicker === 'maybe' ? 'maybe' : 'main';
                       const id = await createDeck(db, 'Mazo nuevo', null);
-                      setActiveDeckId(id);
                       setDeckPicker(false);
-                      flash('Mazo nuevo activo');
+                      if (card) {
+                        if (where === 'main') await addCardToDeck(db, id, card);
+                        else await addCardToMaybe(db, id, card);
+                      }
+                      setActiveDeckId(id);
+                      await refresh(id);
+                      flash(where === 'maybe' ? '＋1 en Posibles del mazo nuevo (activo)' : '＋1 en el mazo nuevo (activo)');
                     }}
                   >
                     <MaterialCommunityIcons name="plus" size={18} color={colors.accent} />

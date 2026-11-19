@@ -621,7 +621,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           <MaterialCommunityIcons name="import" size={24} color={colors.accent} />
         </Pressable>
         <Pressable style={styles.scanButton} onPress={() => setScanning(true)} hitSlop={6}>
-          <Text style={styles.scanIcon}>📷</Text>
+          <MaterialCommunityIcons name="text-recognition" size={24} color={colors.text} />
         </Pressable>
       </View>
 

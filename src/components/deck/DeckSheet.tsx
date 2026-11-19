@@ -109,7 +109,9 @@ export function DeckSheet() {
   const { activeDeck, activeCards, activeSideboard, activeMaybe, setActiveDeckId, refresh, prefs, setPrefs } = useAppState();
   // «La quiero» of the exact printing each deck card has.
   const wantedIds = useWantedPrintings(db, activeCards.map((c) => c.scryfallId));
-  const [mode, setMode] = useState<DeckView>(prefs.deckView);
+  // The view is saved in the preferences, so closing and reopening the deck keeps the one you were on.
+  const mode = prefs.deckView;
+  const setMode = (v: DeckView) => setPrefs({ ...prefs, deckView: v });
   const [groupMenu, setGroupMenu] = useState(false);
   const [sortMenu, setSortMenu] = useState(false);
   const [collapsed, setCollapsed] = useRememberedSet('deck');
@@ -461,8 +463,8 @@ export function DeckSheet() {
   // While the view is dragged sideways, a copy of the summary + buttons is pinned over the cards so
   // only the cards slide. `scrollYRef` tracks the active list's scroll to pin them at the right spot.
   const scrollY = useSharedValue(0);
-  const [topSize, setTopSize] = useState({ summary: 0, bar: 0 });
-  const pinCollapse = useAnimatedStyle(() => ({ height: Math.max(0, topSize.summary + topSize.bar - Math.min(scrollY.get(), topSize.summary)) }));
+  const [topSize, setTopSize] = useState({ summary: 0, bar: 0, actions: 0 });
+  const pinCollapse = useAnimatedStyle(() => ({ height: Math.max(0, topSize.summary + topSize.bar + topSize.actions - Math.min(scrollY.get(), topSize.summary)) }));
   const pinInner = useAnimatedStyle(() => ({ transform: [{ translateY: -Math.min(scrollY.get(), topSize.summary) }] }));
 
   // The deck's summary scrolls away with the cards; the row of buttons stays at the top (sticky).
@@ -770,7 +772,9 @@ export function DeckSheet() {
             if (entry.type === 'pre')
               return (
                 <View>
-                  {actionsRow}
+                  <View onLayout={(e) => setTopSize((st) => (st.actions === Math.round(e.nativeEvent.layout.height) ? st : { ...st, actions: Math.round(e.nativeEvent.layout.height) }))}>
+                    {actionsRow}
+                  </View>
                   {listHeaderFor(m)}
                 </View>
               );
@@ -883,6 +887,7 @@ export function DeckSheet() {
         <Animated.View style={pinInner}>
           {header}
           {buttonsBar}
+          {actionsRow}
         </Animated.View>
       </Animated.View>
     ) : null;

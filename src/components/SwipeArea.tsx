@@ -18,7 +18,7 @@ import { LanguagePickerModal } from '@/components/LanguagePicker';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { CARD_RATIO, SwipeCard, type SwipeCardHandle, type SwipeDirection } from '@/components/SwipeCard';
 import { useAppState } from '@/context/AppState';
-import { addCardToDeck, addCardToMaybe, changeMaybeQuantity, changeQuantity, getCollection } from '@/db/database';
+import { addCardToDeck, addCardToMaybe, addToCollection, changeMaybeQuantity, changeQuantity, getCollection, getOwnedCounts, removeOneFromCollection } from '@/db/database';
 import { useCardQueue } from '@/hooks/useCardQueue';
 import { colors } from '@/theme';
 
@@ -110,6 +110,32 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     else await changeMaybeQuantity(db, deck.id, shown.oracleId, -1);
     buzz(delta > 0 ? 'add' : 'discard');
     refresh(deck.id);
+  };
+
+  // Copies of the card on screen you own (in the collection), and − / ＋ for it right here.
+  const [owned, setOwned] = useState(0);
+  const [ownedBump, setOwnedBump] = useState(0);
+  const ownedOracle = queue.current?.oracleId;
+  useEffect(() => {
+    if (!ownedOracle) return setOwned(0);
+    let cancelled = false;
+    getOwnedCounts(db, [ownedOracle], 'paper')
+      .then((counts) => !cancelled && setOwned(counts[ownedOracle] ?? 0))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [db, ownedOracle, ownedBump]);
+  const changeOwned = async (delta: 1 | -1) => {
+    const shown = queue.current;
+    if (!shown) return;
+    if (delta > 0) await addToCollection(db, shown, 'paper');
+    else {
+      if (owned === 0) return;
+      await removeOneFromCollection(db, shown.oracleId, shown.id, 'paper');
+    }
+    buzz(delta > 0 ? 'add' : 'discard');
+    setOwnedBump((n) => n + 1);
   };
 
   // Arrows: move through the cards without adding or discarding.
@@ -204,6 +230,12 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
         <View style={styles.cardSlot}>
         {cardSize.width > 0 && body}
         </View>
+        {card && notLegal && (
+          <View style={styles.legalBadge} pointerEvents="none">
+            <MaterialCommunityIcons name="alert-outline" size={13} color={colors.discard} />
+            <Text style={styles.legalBadgeText} numberOfLines={1}>{notLegal}</Text>
+          </View>
+        )}
         {card && (
           // The tab near the right edge: swipe it left (or tap it) to bring the buttons.
           <View style={styles.edge} {...edgePan.panHandlers}>
@@ -262,12 +294,14 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
             onSub={() => changeCopies('maybe', -1)}
             onAdd={() => changeCopies('maybe', 1)}
           />
-          {notLegal && (
-            <View style={[styles.chip, { borderColor: colors.discard }]}>
-              <MaterialCommunityIcons name="alert-outline" size={15} color={colors.discard} />
-              <Text style={[styles.chipText, { color: colors.discard }]}>{notLegal}</Text>
-            </View>
-          )}
+          <Stepper
+            icon="bookshelf"
+            label="Tengo"
+            value={owned}
+            color={colors.accent}
+            onSub={() => changeOwned(-1)}
+            onAdd={() => changeOwned(1)}
+          />
         </ScrollView>
       )}
       {card && (
@@ -351,7 +385,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
 
 /** − [icon label N] ＋, like the PC's deck buttons: the copies of the card on screen in the deck or «Posibles». */
 function Stepper(props: {
-  icon: 'cards-playing' | 'help-circle-outline';
+  icon: 'cards-playing' | 'help-circle-outline' | 'bookshelf';
   label: string;
   value: number;
   color: string;
@@ -520,6 +554,8 @@ const styles = StyleSheet.create({
   },
   stepperMain: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, height: '100%' },
   stepperText: { fontSize: 13, fontWeight: '800' },
+  legalBadge: { position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.72)', borderColor: colors.discard, borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, maxWidth: '70%' },
+  legalBadgeText: { color: colors.discard, fontSize: 12, fontWeight: '700' },
   stepperBadge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   stepperBadgeText: { fontSize: 12, fontWeight: '900' },
   iconRound: {
