@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type ComponentRef, type ReactNode } from 'react';
 import { galleryFor, listFor, RowLines, TileIcons, type CardInfo, type GalleryLayout, type ListLayout } from '@/listLayout';
 import { useRememberedSet } from '@/hooks/useRememberedSet';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -14,6 +14,7 @@ import { displayName, getCardsByIds, smallImageUrl, type CardDetails } from '@/a
 import { SheetDragArea } from '@/components/BottomSheet';
 import { DeckFormModal } from '@/components/DeckFormModal';
 import { DeckPicker } from '@/components/deck/DeckPicker';
+import { ViewSlider } from '@/components/ViewSlider';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
 import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/components/CardControls';
 import { CardShareSheet, type ShareableCard } from '@/components/CardShareSheet';
@@ -330,7 +331,8 @@ export function DeckSheet() {
     () => groupDeck(activeDeck ? sortedCards : [], groupBy, validation.usesCommander, groupCtx),
     [activeDeck, sortedCards, groupBy, validation.usesCommander, groupCtx],
   );
-  const items = useMemo(() => {
+  const buildItems = useCallback(
+    (viewMode: DeckView) => {
     const out: ListItem[] = [];
     const headers = groups.length > 1 || groupBy !== 'none';
     for (const group of groups) {
@@ -338,7 +340,7 @@ export function DeckSheet() {
       if (headers) out.push({ type: 'header', key: `h:${group.key}`, group, collapsed: isCollapsed });
       if (isCollapsed) continue;
       const put = (cards: DeckCard[], prefix: string) => {
-        if (mode === 'gallery') {
+        if (viewMode === 'gallery') {
           for (let i = 0; i < cards.length; i += 3)
             out.push({ type: 'row', key: `r:${prefix}:${cards[i].oracleId}`, cards: cards.slice(i, i + 3) });
         } else {
@@ -357,7 +359,10 @@ export function DeckSheet() {
       } else put(group.cards, group.key);
     }
     return out;
-  }, [groups, groupBy, subGroupBy, groupCtx, collapsed, mode]);
+    },
+    [groups, groupBy, subGroupBy, groupCtx, collapsed],
+  );
+  const items = useMemo(() => buildItems(mode), [buildItems, mode]);
   const hasGroups = items.some((i) => i.type === 'header');
   const openAll = () => setCollapsed(new Set());
   const closeAll = () => setCollapsed(new Set([...groups.map((g) => g.key), SIDEBOARD_KEY, MAYBE_KEY]));
@@ -638,25 +643,8 @@ export function DeckSheet() {
     </View>
   );
 
-  const listData = useMemo<ListItem[]>(() => [{ type: 'bar', key: '_bar' }, { type: 'pre', key: '_pre' }, ...items], [items]);
-
-  // Swiping the list left / right goes to the next / previous view (a horizontal move only: the list
-  // still scrolls up and down, and cards are still dragged with a long press).
-  const stepView = (step: number) => {
-    const i = VIEWS.findIndex((v) => v.key === mode);
-    setMode(VIEWS[(i + step + VIEWS.length) % VIEWS.length].key);
-  };
-  // (Inside the sheet the gestures are the gesture handler's: a horizontal pan; vertical moves scroll.)
-  const viewSwipe = usePanGesture({
-    activeOffsetX: [-30, 30],
-    failOffsetY: [-15, 15],
-    onDeactivate: (e) => {
-      if (!e.canceled && Math.abs(e.translationX) > 70) scheduleOnRN(stepView, e.translationX < 0 ? 1 : -1);
-    },
-  });
-
-  // Scrolls with the cards: the problem list can get long.
-  const listHeader = (
+  // Scrolls with the cards: the problem list can get long. Built per view (the «Texto» commanders).
+  const listHeaderFor = (viewMode: DeckView) => (
     <View>
       {!activeDeck && (
         <Text style={styles.empty}>
@@ -664,7 +652,7 @@ export function DeckSheet() {
         </Text>
       )}
       {/* «Texto»: the commander(s) in big, as on the shared deck picture. */}
-      {mode === 'text' && validation.usesCommander && activeCards.some((c) => c.isCommander) && (
+      {viewMode === 'text' && validation.usesCommander && activeCards.some((c) => c.isCommander) && (
         <View style={styles.textCommanders}>
           {activeCards
             .filter((c) => c.isCommander && c.imageUrl)
@@ -681,13 +669,10 @@ export function DeckSheet() {
     </View>
   );
 
-  return (
-    <View style={styles.sheet} ref={sheetRef} collapsable={false}>
-      <GestureDetector gesture={viewSwipe}>
-      <View style={{ flex: 1 }}>
+  const renderDeckList = (m: DeckView) => (
         <FlatList
-          key={mode}
-          data={listData}
+          key={m}
+          data={[{ type: 'bar' as const, key: '_bar' }, { type: 'pre' as const, key: '_pre' }, ...buildItems(m)]}
           stickyHeaderIndices={[1]}
           keyExtractor={(item) => item.key}
           ListHeaderComponent={<SheetDragArea>{header}</SheetDragArea>}
@@ -756,15 +741,15 @@ export function DeckSheet() {
               <Text style={styles.empty}>Mazo vacío. Desliza cartas a la derecha para añadirlas.</Text>
             ) : undefined
           }
-          initialNumToRender={mode === 'big' ? 2 : 8}
-          windowSize={mode === 'big' ? 3 : 7}
+          initialNumToRender={m === 'big' ? 2 : 8}
+          windowSize={m === 'big' ? 3 : 7}
           renderItem={({ item: entry }) => {
             if (entry.type === 'bar') return <SheetDragArea>{buttonsBar}</SheetDragArea>;
             if (entry.type === 'pre')
               return (
                 <View>
                   {actionsRow}
-                  {listHeader}
+                  {listHeaderFor(m)}
                 </View>
               );
             if (entry.type === 'sub') {
@@ -826,7 +811,7 @@ export function DeckSheet() {
             const item = entry.card;
             return (
               <>
-                {mode === 'text' ? (
+                {m === 'text' ? (
                   <TextRow
                     card={item}
                     issues={validation.cardIssues[item.oracleId]}
@@ -836,7 +821,7 @@ export function DeckSheet() {
                     onAdd={() => actions.add(item)}
                     onSub={() => actions.sub(item)}
                   />
-                ) : mode === 'big' ? (
+                ) : m === 'big' ? (
                   <BigCard
                     card={item}
                     actions={actions}
@@ -867,8 +852,16 @@ export function DeckSheet() {
             );
           }}
         />
-      </View>
-      </GestureDetector>
+  );
+
+  return (
+    <View style={styles.sheet} ref={sheetRef} collapsable={false}>
+      <ViewSlider
+        index={VIEWS.findIndex((v) => v.key === mode)}
+        count={VIEWS.length}
+        onChange={(i) => setMode(VIEWS[i].key)}
+        renderView={(i) => renderDeckList(VIEWS[i].key)}
+      />
 
       {dragging && (
         <>

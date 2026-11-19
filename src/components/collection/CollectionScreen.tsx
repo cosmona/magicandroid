@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { galleryFor, listFor, RowLines, TileIcons, type CardInfo } from '@/listLayout';
 import { useRememberedSet } from '@/hooks/useRememberedSet';
+import { ViewSlider } from '@/components/ViewSlider';
 import {
   ActivityIndicator,
-  PanResponder,
   Modal,
   Alert,
   Pressable,
@@ -307,14 +307,15 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     [owned, effectiveGroup, organizeCtx],
   );
 
-  const items = useMemo(() => {
+  const buildItems = useCallback(
+    (viewMode: CollectionView) => {
     const out: Item[] = [];
     for (const group of groups) {
       const isCollapsed = groupBy !== 'none' && collapsed.has(group.key);
       if (groupBy !== 'none') out.push({ type: 'header', key: `h:${group.key}`, group, collapsed: isCollapsed });
       if (isCollapsed) continue;
       const put = (list: CollectionCard[], prefix: string) => {
-        if (view !== 'gallery') {
+        if (viewMode !== 'gallery') {
           for (const card of list) out.push({ type: 'card', key: `${prefix}:${card.scryfallId}`, card });
         } else {
           for (let i = 0; i < list.length; i += GALLERY_COLUMNS) {
@@ -334,7 +335,10 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
       } else put(group.cards, group.key);
     }
     return out;
-  }, [groups, groupBy, collapsed, view, effectiveSub, organizeCtx]);
+    },
+    [groups, groupBy, collapsed, effectiveSub, organizeCtx],
+  );
+  const items = useMemo(() => buildItems(view), [buildItems, view]);
 
   // ---- Several cards selected (long press or «Seleccionar»): a bar at the bottom with what to do.
   const shownCards = useMemo(() => items.flatMap((it) => (it.type === 'card' ? [it.card] : it.type === 'row' ? it.cards : [])), [items]);
@@ -542,27 +546,11 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     };
   };
 
-  // Swiping the list left / right goes to the next / previous view (a horizontal move only: the list
-  // still scrolls up and down, and cards are still dragged with a long press).
-  const viewPan = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 24 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
-        onPanResponderRelease: (_, g) => {
-          if (Math.abs(g.dx) < 70) return;
-          const i = VIEWS.findIndex((v) => v.key === view);
-          setView(VIEWS[(i + (g.dx < 0 ? 1 : -1) + VIEWS.length) % VIEWS.length].key);
-        },
-      }),
-    [view, setView],
-  );
-
   // When the title has scrolled away, a small one shows in the sticky row.
   const [headerHeight, setHeaderHeight] = useState(0);
   const [pinned, setPinned] = useState(false);
 
   // The sticky row of buttons and what goes under it (search results) come first in the list.
-  const listData = useMemo<Item[]>(() => [{ type: 'toolbar', key: '_toolbar' }, { type: 'extras', key: '_extras' }, ...items], [items]);
 
   // The title and the search scroll away; the row of buttons stays at the top (sticky).
   const header = (
@@ -814,16 +802,14 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     </View>
   );
 
-  return (
-    <SafeAreaView style={styles.screen} edges={['bottom']}>
-      <View style={{ flex: 1 }} {...viewPan.panHandlers}>
+  const renderCollectionList = (v: CollectionView, active: boolean) => (
         <FlatList
-          data={listData}
+          data={[{ type: 'toolbar' as const, key: '_toolbar' }, { type: 'extras' as const, key: '_extras' }, ...buildItems(v)]}
           stickyHeaderIndices={[1]}
-          onScroll={(e) => {
+          onScroll={active ? (e) => {
             const p = headerHeight > 0 && e.nativeEvent.contentOffset.y > headerHeight - 4;
             if (p !== pinned) setPinned(p);
-          }}
+          } : undefined}
           scrollEventThrottle={64}
           keyExtractor={(item) => item.key}
           ListHeaderComponent={header}
@@ -952,7 +938,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                   )}
                 </CardControlsRow>
             );
-            if (view === 'text') {
+            if (v === 'text') {
               // One line per card: copies, name (⚠ wanted / tags), cost and − ＋.
               const tags = prefs.showTags === false ? [] : (cardTags[card.oracleId] ?? []).map((u) => tagsByUid[u]).filter(Boolean);
               return (
@@ -984,7 +970,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                 </View>
               );
             }
-            if (view === 'big') {
+            if (v === 'big') {
               // The card at full width, its icons over it (Ajustes → Cartas y listas) and its buttons under.
               return (
                 <View style={[styles.bigCard, tint]}>
@@ -1033,7 +1019,16 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
             );
           }}
         />
-      </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.screen} edges={['bottom']}>
+      <ViewSlider
+        index={VIEWS.findIndex((x) => x.key === view)}
+        count={VIEWS.length}
+        onChange={(i) => setView(VIEWS[i].key)}
+        renderView={(i) => renderCollectionList(VIEWS[i].key, VIEWS[i].key === view)}
+      />
 
       <CardTagsSheet oracleId={tagCard?.oracleId ?? null} name={tagCard?.name} onClose={() => setTagCard(null)} />
       <TagsManagerSheet visible={managingTags} onClose={() => setManagingTags(false)} />
