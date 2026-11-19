@@ -1,7 +1,7 @@
 // Supervised sync (the same file in both apps): compares what the PC and the phone have, lists every
 // difference with a suggested choice (the most recent change wins), and once the user has reviewed
 // them, says what each device has to write or delete so that both end up the same.
-import type { SyncData, SyncDeck, SyncPatch } from '@/sync/sync';
+import type { SavedSearch, SyncData, SyncDeck, SyncPatch } from '@/sync/sync';
 
 type Row = Record<string, string | number | null>;
 
@@ -409,3 +409,21 @@ export const KIND_LABELS: Record<DiffKind, string> = {
   cardTag: 'Etiquetas en cartas',
   deckTag: 'Etiquetas en mazos',
 };
+
+/** Saved searches of both devices joined: one per name, the most recently edited wins. */
+export function mergeSavedSearches(pc: SavedSearch[] = [], phone: SavedSearch[] = []): SavedSearch[] {
+  const by = new Map<string, SavedSearch>();
+  for (const sch of [...pc, ...phone]) {
+    const cur = by.get(sch.name);
+    if (!cur || (sch.updatedAt ?? 0) >= (cur.updatedAt ?? 0)) by.set(sch.name, sch);
+  }
+  return [...by.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+}
+
+/** Whether two saved-search lists are the same (ignoring order). */
+export function sameSavedSearches(a: SavedSearch[] = [], b: SavedSearch[] = []): boolean {
+  if (a.length !== b.length) return false;
+  const key = (sch: SavedSearch) => `${sch.name} ${JSON.stringify(sch.filters)}`;
+  const set = new Set(a.map(key));
+  return b.every((sch) => set.has(key(sch)));
+}

@@ -30,6 +30,13 @@ export interface SyncDeck {
   maybe: Row[];
 }
 
+/** A saved search (Construir's filters with a name). Kept in the `settings` «prefs» JSON. */
+export interface SavedSearch {
+  name: string;
+  filters: unknown;
+  updatedAt?: number;
+}
+
 export interface SyncData {
   app: 'magicswipe';
   version: number;
@@ -47,6 +54,8 @@ export interface SyncData {
   deckTags?: Row[];
   /** Deletions (`sync_tombstones`: kind + key + deleted_at), to tell «deleted there» from «new here». */
   tombstones: Row[];
+  /** Saved searches (from the `settings` «prefs» JSON); missing from older apps. */
+  savedSearches?: SavedSearch[];
 }
 
 /**
@@ -70,6 +79,8 @@ export interface SyncPatch {
   /** Tags on decks, and `tag_uid|deck_uid` to take off (missing in patches from older apps). */
   deckTags?: Row[];
   deleteDeckTags?: string[];
+  /** The whole saved-searches list to write into «prefs» (missing = leave as is). */
+  savedSearches?: SavedSearch[];
 }
 
 /** Answer of the PC to the phone's `poll` while the user reviews the differences. */
@@ -124,7 +135,35 @@ export async function exportSyncData(db: SQLiteDatabase, device: string): Promis
     cardTags: await db.getAllAsync<Row>('SELECT * FROM card_tags'),
     tombstones: await db.getAllAsync<Row>('SELECT * FROM sync_tombstones'),
     deckTags: await db.getAllAsync<Row>('SELECT * FROM deck_tags'),
+    savedSearches: await readSavedSearches(db),
   };
+}
+
+/** The saved searches stored inside the `settings` «prefs» JSON. */
+export async function readSavedSearches(db: SQLiteDatabase): Promise<SavedSearch[]> {
+  const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'prefs'");
+  try {
+    const arr = (JSON.parse(row?.value ?? '{}') as { savedSearches?: SavedSearch[] }).savedSearches;
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Replaces the saved searches inside the `settings` «prefs» JSON (other prefs untouched). */
+export async function writeSavedSearches(db: SQLiteDatabase, searches: SavedSearch[]): Promise<void> {
+  const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'prefs'");
+  let prefs: Record<string, unknown> = {};
+  try {
+    prefs = JSON.parse(row?.value ?? '{}');
+  } catch {
+    prefs = {};
+  }
+  prefs.savedSearches = searches;
+  await db.runAsync(
+    "INSERT INTO settings (key, value) VALUES ('prefs', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    JSON.stringify(prefs),
+  );
 }
 
 /** Throws a readable error if `data` isn't a payload this app understands. */
@@ -250,6 +289,7 @@ export async function applyPatch(db: SQLiteDatabase, patch: SyncPatch): Promise<
       await db.runAsync('DELETE FROM tags WHERE uid = ?', uid);
     }
     await writeRows(db, patch);
+    if (patch.savedSearches !== undefined) await writeSavedSearches(db, patch.savedSearches);
   });
 }
 
