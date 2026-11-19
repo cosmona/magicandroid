@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { GestureDetector, GestureHandlerRootView, usePanGesture } from 'react-native-gesture-handler';
+import { ActivityIndicator, Linking, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { GestureDetector, GestureHandlerRootView, ScrollView, usePanGesture } from 'react-native-gesture-handler';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { Image } from 'expo-image';
@@ -19,6 +19,7 @@ import { useAppState } from '@/context/AppState';
 import {
   addCardToDeck,
   addCardToMaybe,
+  createDeck,
   changeMaybeQuantity,
   changeQuantity,
   getDeckUsage,
@@ -51,7 +52,8 @@ function CardPage({
 }) {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
-  const { prefs, activeDeck, activeCards, activeMaybe, ensureActiveDeck, refresh } = useAppState();
+  const { prefs, decks, activeDeck, activeCards, activeMaybe, ensureActiveDeck, setActiveDeckId, refresh } = useAppState();
+  const [deckPicker, setDeckPicker] = useState<false | 'main' | 'maybe'>(false);
   const initialId = typeof initial === 'string' ? initial : initial.id;
   // The card loaded for an id, and a printing picked here (language / art), each for the card it belongs to.
   const key = `${initialId}|${prefs.language}|${exact}`;
@@ -194,20 +196,18 @@ function CardPage({
               )}
             </View>
 
-            {/* Language, other arts, shops, share. */}
-            <View style={[styles.wrap, { justifyContent: 'center' }]}>
-              <LanguagePill card={card} lang={card.lang} onPick={pick} />
-              <Pill icon="image-multiple-outline" label="Otras artes" onPress={() => setModal('art')} />
-              {details?.cardmarketUrl && (
-                <Pill icon="cart-outline" label="Cardmarket" color={colors.undo} onPress={() => Linking.openURL(details.cardmarketUrl!)} />
-              )}
-              <Pill icon="share-variant" label="Compartir" onPress={() => setModal('share')} />
+            {/* Language, other arts, shops, share — one line. */}
+            <View style={styles.pillRow}>
+              <LanguagePill card={card} lang={card.lang} onPick={pick} compact />
+              <Pill icon="image-multiple-outline" onPress={() => setModal('art')} />
+              {details?.cardmarketUrl && <Pill icon="cart-outline" color={colors.undo} onPress={() => Linking.openURL(details.cardmarketUrl!)} />}
+              <Pill icon="share-variant" onPress={() => setModal('share')} />
             </View>
 
-            {/* Type and printing (the name, cost and rules text are already on the card image above). */}
-            <View style={{ gap: 3 }}>
-              <Text style={styles.type}>{card.typeLine}</Text>
-              <Text style={styles.muted}>
+            {/* Edition in one line (the name, type, cost and rules text are on the card image above). */}
+            <View style={styles.editionRow}>
+              <MaterialCommunityIcons name="bookshelf" size={16} color={colors.textMuted} />
+              <Text style={styles.muted} numberOfLines={1}>
                 {card.setName ?? card.set.toUpperCase()} · {card.set.toUpperCase()}
                 {card.collectorNumber ? ` #${card.collectorNumber}` : ''}
                 {card.releasedAt ? ` · ${card.releasedAt.slice(0, 4)}` : ''} · {RARITY_LABELS[card.rarity] ?? card.rarity}
@@ -228,8 +228,9 @@ function CardPage({
                 count={main}
                 onAdd={addMain}
                 onSub={subMain}
+                onPickDeck={() => setDeckPicker('main')}
               />
-              <StepButton label="A Posibles" icon="help-circle-outline" color={colors.info} count={maybe} onAdd={addMaybe} onSub={subMaybe} />
+              <StepButton label="A Posibles" icon="help-circle-outline" color={colors.info} count={maybe} onAdd={addMaybe} onSub={subMaybe} onPickDeck={() => setDeckPicker('maybe')} />
               {note && <Text style={styles.note}>{note}</Text>}
             </View>
 
@@ -300,6 +301,48 @@ function CardPage({
         )}
         {card && modal === 'info' && <CardInfoScreen id={card.id} onClose={() => setModal(null)} />}
         <CardTagsSheet oracleId={card && modal === 'tags' ? card.oracleId : null} name={card ? displayName(card) : undefined} onClose={() => setModal(null)} />
+
+        {/* Choose which deck «Al mazo» / «A Posibles» target (the chosen deck becomes active). */}
+        {deckPicker && (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setDeckPicker(false)} statusBarTranslucent>
+            <Pressable style={styles.pickBackdrop} onPress={() => setDeckPicker(false)}>
+              <Pressable style={styles.pickBox} onPress={() => {}}>
+                <Text style={styles.pickTitle}>{deckPicker === 'maybe' ? 'Posibles de qué mazo' : 'Añadir a qué mazo'}</Text>
+                <ScrollView contentContainerStyle={{ gap: 4 }}>
+                  {decks.map((d) => (
+                    <Pressable
+                      key={d.id}
+                      style={[styles.pickOption, activeDeck?.id === d.id && styles.pickOptionOn]}
+                      onPress={() => {
+                        setActiveDeckId(d.id);
+                        setDeckPicker(false);
+                        flash(`Mazo activo: «${d.name}»`);
+                      }}
+                    >
+                      <Text style={{ fontSize: 16 }}>🃏</Text>
+                      <Text style={styles.pickName} numberOfLines={1}>
+                        {d.name}
+                      </Text>
+                      {activeDeck?.id === d.id && <MaterialCommunityIcons name="check" size={18} color={colors.accent} />}
+                    </Pressable>
+                  ))}
+                  <Pressable
+                    style={styles.pickOption}
+                    onPress={async () => {
+                      const id = await createDeck(db, 'Mazo nuevo', null);
+                      setActiveDeckId(id);
+                      setDeckPicker(false);
+                      flash('Mazo nuevo activo');
+                    }}
+                  >
+                    <MaterialCommunityIcons name="plus" size={18} color={colors.accent} />
+                    <Text style={[styles.pickName, { color: colors.accent }]}>Mazo nuevo</Text>
+                  </Pressable>
+                </ScrollView>
+              </Pressable>
+            </Pressable>
+          </Modal>
+        )}
     </View>
   );
 }
@@ -452,11 +495,11 @@ export function CardSheet({
 
 type Glyph = keyof typeof MaterialCommunityIcons.glyphMap;
 
-function Pill({ icon, label, color, onPress }: { icon: Glyph; label: string; color?: string; onPress: () => void }) {
+function Pill({ icon, label, color, onPress }: { icon: Glyph; label?: string; color?: string; onPress: () => void }) {
   return (
     <Pressable style={({ pressed }) => [styles.pill, pressed && { opacity: 0.6 }]} onPress={onPress} accessibilityLabel={label}>
       <MaterialCommunityIcons name={icon} size={16} color={color ?? colors.text} />
-      <Text style={[styles.pillText, color ? { color } : null]}>{label}</Text>
+      {label ? <Text style={[styles.pillText, color ? { color } : null]}>{label}</Text> : null}
     </Pressable>
   );
 }
@@ -469,6 +512,7 @@ function StepButton({
   count,
   onAdd,
   onSub,
+  onPickDeck,
 }: {
   label: string;
   icon: Glyph;
@@ -476,6 +520,8 @@ function StepButton({
   count: number;
   onAdd: () => void;
   onSub: () => void;
+  /** Opens a deck chooser (the chosen deck becomes active). */
+  onPickDeck?: () => void;
 }) {
   return (
     <View style={[styles.step, { borderColor: color }]}>
@@ -503,6 +549,15 @@ function StepButton({
           </View>
         )}
       </Pressable>
+      {onPickDeck && (
+        <Pressable
+          style={({ pressed }) => [styles.stepPick, { borderColor: color }, pressed && { backgroundColor: color + '33' }]}
+          onPress={onPickDeck}
+          accessibilityLabel="Elegir otro mazo"
+        >
+          <MaterialCommunityIcons name="chevron-down" size={20} color={color} />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -519,6 +574,15 @@ function Tile({ label, value, color }: { label: string; value: string; color?: s
 }
 
 const styles = StyleSheet.create({
+  pillRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'nowrap' },
+  editionRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stepPick: { width: 40, alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1.5 },
+  pickBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 28 },
+  pickBox: { backgroundColor: colors.surface, borderRadius: 16, padding: 14, maxHeight: '70%', borderWidth: 1, borderColor: colors.border },
+  pickTitle: { color: colors.text, fontSize: 16, fontWeight: '900', marginBottom: 8 },
+  pickOption: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 8, borderRadius: 10 },
+  pickOptionOn: { backgroundColor: colors.surfaceAlt },
+  pickName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600' },
   screen: { flex: 1, backgroundColor: colors.bg },
   head: {
     flexDirection: 'row',

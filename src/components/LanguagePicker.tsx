@@ -27,14 +27,20 @@ async function resolveRef(ref: CardRef): Promise<Card | null> {
  * "🌐 Español ▾" pill for any enlarged card (card info, combos, sample hand, deck preview…):
  * opens the card's languages and hands the chosen printing to `onPick`.
  */
-export function LanguagePill({ card, lang, onPick }: { card: CardRef; lang?: string; onPick: (card: Card) => void }) {
+export function LanguagePill({ card, lang, onPick, compact }: { card: CardRef; lang?: string; onPick: (card: Card) => void; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Pressable style={styles.pill} onPress={() => setOpen(true)} hitSlop={6} accessibilityLabel="Cambiar idioma">
         <MaterialCommunityIcons name="translate" size={16} color={colors.text} />
-        <Text style={styles.pillText}>{lang ? languageName(lang) : 'Idioma'}</Text>
-        <MaterialCommunityIcons name="chevron-down" size={16} color={colors.textMuted} />
+        {compact ? (
+          lang ? <Text style={styles.pillText}>{lang.toUpperCase()}</Text> : null
+        ) : (
+          <>
+            <Text style={styles.pillText}>{lang ? languageName(lang) : 'Idioma'}</Text>
+            <MaterialCommunityIcons name="chevron-down" size={16} color={colors.textMuted} />
+          </>
+        )}
       </Pressable>
       {open && (
         <LanguagePickerModal
