@@ -7,6 +7,7 @@ import { SyncScreen } from '@/components/SyncScreen';
 import { LayoutBuilder } from '@/components/LayoutBuilder';
 import { useAppState, type DeckView } from '@/context/AppState';
 import { colors } from '@/theme';
+import { AppearanceSettings } from '@/components/AppearanceSettings';
 
 const DECK_VIEWS: { key: DeckView; label: string }[] = [
   { key: 'list', label: '☰ Lista' },
@@ -43,6 +44,10 @@ export function SettingsSheet() {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.title}>Ajustes</Text>
+
+      <Section title="Apariencia" hint="El tema de colores de la app y, si quieres, cada color por separado (como en el PC). Se aplica al reabrir la app.">
+        <AppearanceSettings />
+      </Section>
 
       <Section
         title="Idioma de las cartas"

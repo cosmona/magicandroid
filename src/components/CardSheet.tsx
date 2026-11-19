@@ -408,6 +408,7 @@ export function CardSheet({
   onPrinting,
   exact = false,
   subtitle,
+  tint,
   extra,
   nav,
 }: {
@@ -418,6 +419,8 @@ export function CardSheet({
   exact?: boolean;
   /** Where it was opened from (shown in the header). */
   subtitle?: string;
+  /** Background tint for the sheet (color code: deck = deckModal, synergies = synergyModal). */
+  tint?: string;
   /** More things for this card (the deck's buttons and validation). */
   extra?: ReactNode;
   /** ‹ › through the list it was opened from; `cardAt` gives the neighbours for the swipe. */
@@ -475,7 +478,7 @@ export function CardSheet({
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <GestureHandlerRootView style={[styles.screen, { paddingTop: insets.top }]}>
+      <GestureHandlerRootView style={[styles.screen, { paddingTop: insets.top }, tint ? { backgroundColor: tint } : null]}>
         {/* Header: close, where it comes from, ‹ n / total ›. */}
         <View style={styles.head}>
           <Pressable onPress={onClose} hitSlop={10} style={styles.headBtn} accessibilityLabel="Cerrar">

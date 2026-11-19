@@ -1084,6 +1084,7 @@ export function DeckSheet() {
           card={preview.scryfallId}
           exact
           subtitle={`Mazo · ${activeDeck?.name ?? ''}`}
+          tint={colors.deckModal}
           onClose={() => setPreviewId(null)}
           onPrinting={(c) => {
             if (deckId && c.id !== preview.scryfallId) run(setDeckCardPrinting(db, deckId, preview.imageUrl, c));

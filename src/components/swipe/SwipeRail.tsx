@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     textShadowColor: '#000',
     textShadowRadius: 4,
   },
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, backgroundColor: colors.synergyModal },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
