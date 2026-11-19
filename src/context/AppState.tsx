@@ -105,7 +105,7 @@ interface AppState {
   filters: Filters;
   setFilters: (f: Filters) => void;
   prefs: Prefs;
-  setPrefs: (p: Prefs) => void;
+  setPrefs: (p: Prefs | ((prev: Prefs) => Prefs)) => void;
 }
 
 const AppStateContext = createContext<AppState | null>(null);
@@ -190,9 +190,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   );
 
   const setPrefs = useCallback(
-    (p: Prefs) => {
-      setPrefsState(p);
-      setSetting(db, PREFS_KEY, JSON.stringify(p));
+    // Accepts an updater so two setPrefs in one handler chain (e.g. «agrupar» changing deckGroup and
+    // then clearing the folded set) each build on the previous one instead of clobbering it.
+    (p: Prefs | ((prev: Prefs) => Prefs)) => {
+      setPrefsState((prev) => {
+        const next = typeof p === 'function' ? p(prev) : p;
+        setSetting(db, PREFS_KEY, JSON.stringify(next));
+        return next;
+      });
     },
     [db],
   );

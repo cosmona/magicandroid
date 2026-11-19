@@ -13,9 +13,11 @@ export function useRememberedSet(key: string, initial: () => Set<string> = () =>
   const set = useCallback(
     (action: SetAction) => {
       const next = typeof action === 'function' ? action(value) : action;
-      setPrefs({ ...prefs, openState: { ...prefs.openState, [key]: [...next] } });
+      // Functional update: merge onto the latest prefs, so changing the grouping and clearing the
+      // folded set in the same tap don't overwrite each other.
+      setPrefs((prev) => ({ ...prev, openState: { ...prev.openState, [key]: [...next] } }));
     },
-    [value, prefs, setPrefs, key],
+    [value, setPrefs, key],
   );
   return [value, set] as const;
 }

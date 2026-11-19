@@ -7,7 +7,7 @@ import { Image } from 'expo-image';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { displayName, getCardInLanguage, getCardsByIds, type Card } from '@/api/scryfall';
+import { displayName, getAllSets, getCardInLanguage, getCardsByIds, type Card } from '@/api/scryfall';
 import { ArtPickerModal } from '@/components/ArtPicker';
 import { CardShareSheet } from '@/components/CardShareSheet';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
@@ -26,7 +26,7 @@ import {
   removeCardFromDeck,
 } from '@/db/database';
 import { useCardDetails } from '@/hooks/useCardDetails';
-import { RARITY_LABELS } from '@/icons';
+import { RARITY_ICONS, RARITY_LABELS } from '@/icons';
 import { colors, formatEur, formatLabel } from '@/theme';
 
 const LEGAL_LABEL: Record<string, string> = { legal: 'Legal', not_legal: 'No legal', banned: 'Prohibida', restricted: 'Restringida' };
@@ -62,6 +62,18 @@ function CardPage({
   const [failedKey, setFailedKey] = useState<string | null>(null);
   const base = typeof initial !== 'string' ? initial : loaded?.key === key ? loaded.card : null;
   const card = picked?.key === initialId ? picked.card : base;
+  // The set's symbol (Scryfall SVG), shown before the edition.
+  const [setIcon, setSetIcon] = useState<string | null>(null);
+  const cardSet = card?.set;
+  useEffect(() => {
+    let cancelled = false;
+    getAllSets()
+      .then((sets) => !cancelled && setSetIcon((cardSet && sets[cardSet]?.iconUrl) || null))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [cardSet]);
   const failed = failedKey === key;
   const [back, setBack] = useState(false);
   const [zoom, setZoom] = useState(false);
@@ -204,14 +216,18 @@ function CardPage({
               <Pill icon="share-variant" onPress={() => setModal('share')} />
             </View>
 
-            {/* Edition in one line (the name, type, cost and rules text are on the card image above). */}
+            {/* Edition in one line: the set symbol + edition, then the rarity symbol + its name. */}
             <View style={styles.editionRow}>
-              <MaterialCommunityIcons name="bookshelf" size={16} color={colors.textMuted} />
-              <Text style={styles.muted} numberOfLines={1}>
+              {setIcon ? <Image source={{ uri: setIcon }} style={styles.editionIcon} contentFit="contain" tintColor={colors.textMuted} /> : null}
+              <Text style={[styles.muted, { flexShrink: 1 }]} numberOfLines={1}>
                 {card.setName ?? card.set.toUpperCase()} · {card.set.toUpperCase()}
                 {card.collectorNumber ? ` #${card.collectorNumber}` : ''}
-                {card.releasedAt ? ` · ${card.releasedAt.slice(0, 4)}` : ''} · {RARITY_LABELS[card.rarity] ?? card.rarity}
+                {card.releasedAt ? ` · ${card.releasedAt.slice(0, 4)}` : ''} ·{' '}
               </Text>
+              {RARITY_ICONS[card.rarity as keyof typeof RARITY_ICONS] ? (
+                <Image source={RARITY_ICONS[card.rarity as keyof typeof RARITY_ICONS]} style={styles.editionIcon} contentFit="contain" />
+              ) : null}
+              <Text style={styles.muted}>{RARITY_LABELS[card.rarity] ?? card.rarity}</Text>
             </View>
 
             {/* Collection. */}
@@ -576,6 +592,7 @@ function Tile({ label, value, color }: { label: string; value: string; color?: s
 const styles = StyleSheet.create({
   pillRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'nowrap' },
   editionRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  editionIcon: { width: 16, height: 16 },
   stepPick: { width: 40, alignItems: 'center', justifyContent: 'center', borderLeftWidth: 1.5 },
   pickBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 28 },
   pickBox: { backgroundColor: colors.surface, borderRadius: 16, padding: 14, maxHeight: '70%', borderWidth: 1, borderColor: colors.border },
