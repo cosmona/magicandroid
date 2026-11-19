@@ -419,7 +419,7 @@ export function CardSheet({
   exact?: boolean;
   /** Where it was opened from (shown in the header). */
   subtitle?: string;
-  /** Background tint for the sheet (color code: deck = deckModal, synergies = synergyModal). */
+  /** A subtle colour code for the header (deck = colors.deck, collection = colors.collection…). */
   tint?: string;
   /** More things for this card (the deck's buttons and validation). */
   extra?: ReactNode;
@@ -478,9 +478,9 @@ export function CardSheet({
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <GestureHandlerRootView style={[styles.screen, { paddingTop: insets.top }, tint ? { backgroundColor: tint } : null]}>
+      <GestureHandlerRootView style={[styles.screen, { paddingTop: insets.top }]}>
         {/* Header: close, where it comes from, ‹ n / total ›. */}
-        <View style={styles.head}>
+        <View style={[styles.head, tint ? { backgroundColor: tint + '22', borderColor: tint } : null]}>
           <Pressable onPress={onClose} hitSlop={10} style={styles.headBtn} accessibilityLabel="Cerrar">
             <MaterialCommunityIcons name="close" size={24} color={colors.text} />
           </Pressable>

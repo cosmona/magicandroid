@@ -561,7 +561,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   // The title and the search scroll away; the row of buttons stays at the top (sticky).
   const header = (
     <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
-      <View style={styles.titleRow}>
+      <View style={[styles.titleRow, { borderBottomWidth: 2, borderBottomColor: colors.collection, backgroundColor: colors.collection + '1a' }]}>
         <Pressable onPress={() => setPickingDeck(true)} style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }} accessibilityLabel="Ver toda la colección o las cartas de un mazo">
           <Text style={styles.title} numberOfLines={1}>
             {viewDeck ? `🃏 ${viewDeck.name}` : '📦 Mi colección'}
@@ -1116,6 +1116,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           card={preview.scryfallId}
           exact
           subtitle="Tu colección"
+          tint={colors.collection}
           onClose={() => setPreview(null)}
           onPrinting={async (c) => {
             if (c.id === preview.scryfallId) return;

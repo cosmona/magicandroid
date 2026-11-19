@@ -477,7 +477,7 @@ export function DeckSheet() {
   // The deck's summary scrolls away with the cards; the row of buttons stays at the top (sticky).
   // Dragging the summary or the buttons moves the sheet.
   const header = (
-    <View>
+    <View style={{ backgroundColor: colors.deck + '14', borderBottomWidth: 2, borderBottomColor: colors.deck }}>
       <View style={styles.titleRow}>
         <DeckSummary
           onPressCover={() => setPicking((p) => !p)}
@@ -1084,7 +1084,7 @@ export function DeckSheet() {
           card={preview.scryfallId}
           exact
           subtitle={`Mazo · ${activeDeck?.name ?? ''}`}
-          tint={colors.deckModal}
+          tint={colors.deck}
           onClose={() => setPreviewId(null)}
           onPrinting={(c) => {
             if (deckId && c.id !== preview.scryfallId) run(setDeckCardPrinting(db, deckId, preview.imageUrl, c));
