@@ -1,4 +1,3 @@
-import { useSharedValue } from 'react-native-reanimated';
 import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { BottomSheet } from '@/components/BottomSheet';
@@ -30,7 +29,6 @@ export default function MainScreen() {
   };
 
   // The deck sheet while the bar is dragged (0 closed … 1 open; -1 not dragged).
-  const deckFollow = useSharedValue(-1);
   return (
     <View style={styles.screen}>
       <TopBar onOpenFilters={() => setFiltersOpen(true)} />
@@ -42,7 +40,7 @@ export default function MainScreen() {
           </View>
         )}
       </View>
-      <DeckBar onOpen={() => setDeckOpen(true)} onClose={() => setDeckOpen(false)} follow={deckFollow} />
+      <DeckBar onOpen={() => setDeckOpen(true)} />
 
       <BottomSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} heightRatio={0.92}>
         <FilterPanel
@@ -54,7 +52,7 @@ export default function MainScreen() {
         />
       </BottomSheet>
 
-      <BottomSheet visible={deckOpen} onClose={() => setDeckOpen(false)} fullScreen follow={deckFollow}>
+      <BottomSheet visible={deckOpen} onClose={() => setDeckOpen(false)} fullScreen>
         <DeckSheet />
       </BottomSheet>
     </View>

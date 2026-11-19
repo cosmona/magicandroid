@@ -460,10 +460,10 @@ export function DeckSheet() {
 
   // While the view is dragged sideways, a copy of the summary + buttons is pinned over the cards so
   // only the cards slide. `scrollYRef` tracks the active list's scroll to pin them at the right spot.
-  const scrollYRef = useRef(0);
-  const [viewDragging, setViewDragging] = useState<{ y: number } | null>(null);
+  const scrollY = useSharedValue(0);
   const [topSize, setTopSize] = useState({ summary: 0, bar: 0 });
-  const onViewDrag = (active: boolean) => setViewDragging(active ? { y: scrollYRef.current } : null);
+  const pinCollapse = useAnimatedStyle(() => ({ height: Math.max(0, topSize.summary + topSize.bar - Math.min(scrollY.get(), topSize.summary)) }));
+  const pinInner = useAnimatedStyle(() => ({ transform: [{ translateY: -Math.min(scrollY.get(), topSize.summary) }] }));
 
   // The deck's summary scrolls away with the cards; the row of buttons stays at the top (sticky).
   // Dragging the summary or the buttons moves the sheet.
@@ -682,7 +682,7 @@ export function DeckSheet() {
           data={[{ type: 'bar' as const, key: '_bar' }, { type: 'pre' as const, key: '_pre' }, ...buildItems(m)]}
           stickyHeaderIndices={[1]}
           keyExtractor={(item) => item.key}
-          onScroll={active ? (e) => (scrollYRef.current = e.nativeEvent.contentOffset.y) : undefined}
+          onScroll={active ? (e) => scrollY.set(e.nativeEvent.contentOffset.y) : undefined}
           scrollEventThrottle={32}
           ListHeaderComponent={
             <SheetDragArea>
@@ -876,6 +876,17 @@ export function DeckSheet() {
         />
   );
 
+  // The fixed header drawn over the sliding cards (summary collapses with scroll, like the sticky bar).
+  const pinnedHeader =
+    topSize.summary + topSize.bar > 0 ? (
+      <Animated.View style={[styles.viewPin, pinCollapse]}>
+        <Animated.View style={pinInner}>
+          {header}
+          {buttonsBar}
+        </Animated.View>
+      </Animated.View>
+    ) : null;
+
   return (
     <View style={styles.sheet} ref={sheetRef} collapsable={false}>
       <ViewSlider
@@ -883,24 +894,8 @@ export function DeckSheet() {
         count={VIEWS.length}
         onChange={(i) => setMode(VIEWS[i].key)}
         renderView={(i) => renderDeckList(VIEWS[i].key, VIEWS[i].key === mode)}
-        onDrag={onViewDrag}
+        pinned={pinnedHeader}
       />
-      {viewDragging && topSize.summary + topSize.bar > 0 && (
-        // A copy of the summary + buttons, pinned over the cards while they slide (so the header
-        // stays put). Collapsed to match the current scroll, like the sticky header.
-        <View
-          pointerEvents="none"
-          style={[
-            styles.viewPin,
-            { height: topSize.summary + topSize.bar - Math.min(viewDragging.y, topSize.summary) },
-          ]}
-        >
-          <View style={{ transform: [{ translateY: -Math.min(viewDragging.y, topSize.summary) }] }}>
-            {header}
-            {buttonsBar}
-          </View>
-        </View>
-      )}
 
       {dragging && (
         <>
@@ -1823,7 +1818,7 @@ const styles = StyleSheet.create({
   textCommanderImage: { width: 150, height: 209, borderRadius: 9 },
   textCommanderName: { color: colors.accent, fontWeight: '800', fontSize: 13, maxWidth: 160 },
   sheet: { flex: 1, backgroundColor: colors.surface },
-  viewPin: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden', backgroundColor: colors.surface, zIndex: 5 },
+  viewPin: { overflow: 'hidden', backgroundColor: colors.surface },
   side: {
     marginTop: 16,
     marginHorizontal: 12,

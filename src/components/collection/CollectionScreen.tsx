@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { galleryFor, listFor, RowLines, TileIcons, type CardInfo } from '@/listLayout';
 import { useRememberedSet } from '@/hooks/useRememberedSet';
 import { ViewSlider } from '@/components/ViewSlider';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import {
   ActivityIndicator,
   Modal,
@@ -550,10 +551,10 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const [headerHeight, setHeaderHeight] = useState(0);
   const [pinned, setPinned] = useState(false);
   // While the view is dragged sideways, a copy of the header + buttons is pinned over the cards.
-  const scrollYRef = useRef(0);
   const [toolbarH, setToolbarH] = useState(0);
-  const [viewDragging, setViewDragging] = useState<{ y: number } | null>(null);
-  const onViewDrag = (active: boolean) => setViewDragging(active ? { y: scrollYRef.current } : null);
+  const scrollY = useSharedValue(0);
+  const pinCollapse = useAnimatedStyle(() => ({ height: Math.max(0, headerHeight + toolbarH - Math.min(scrollY.get(), headerHeight)) }));
+  const pinInner = useAnimatedStyle(() => ({ transform: [{ translateY: -Math.min(scrollY.get(), headerHeight) }] }));
 
   // The sticky row of buttons and what goes under it (search results) come first in the list.
 
@@ -815,7 +816,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           data={[{ type: 'toolbar' as const, key: '_toolbar' }, { type: 'extras' as const, key: '_extras' }, ...buildItems(v)]}
           stickyHeaderIndices={[1]}
           onScroll={active ? (e) => {
-            scrollYRef.current = e.nativeEvent.contentOffset.y;
+            scrollY.set(e.nativeEvent.contentOffset.y);
             const p = headerHeight > 0 && e.nativeEvent.contentOffset.y > headerHeight - 4;
             if (p !== pinned) setPinned(p);
           } : undefined}
@@ -1030,6 +1031,17 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         />
   );
 
+  // The fixed title + buttons drawn over the sliding cards (title collapses with scroll).
+  const pinnedHeader =
+    headerHeight + toolbarH > 0 ? (
+      <Animated.View style={[styles.viewPin, pinCollapse]}>
+        <Animated.View style={pinInner}>
+          {header}
+          {toolbarBlock}
+        </Animated.View>
+      </Animated.View>
+    ) : null;
+
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
       <ViewSlider
@@ -1037,17 +1049,8 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         count={VIEWS.length}
         onChange={(i) => setView(VIEWS[i].key)}
         renderView={(i) => renderCollectionList(VIEWS[i].key, VIEWS[i].key === view)}
-        onDrag={onViewDrag}
+        pinned={pinnedHeader}
       />
-      {viewDragging && headerHeight + toolbarH > 0 && (
-        // A copy of the title + buttons, pinned over the cards while they slide sideways.
-        <View pointerEvents="none" style={[styles.viewPin, { height: headerHeight + toolbarH - Math.min(viewDragging.y, headerHeight) }]}>
-          <View style={{ transform: [{ translateY: -Math.min(viewDragging.y, headerHeight) }] }}>
-            {header}
-            {toolbarBlock}
-          </View>
-        </View>
-      )}
 
       <CardTagsSheet oracleId={tagCard?.oracleId ?? null} name={tagCard?.name} onClose={() => setTagCard(null)} />
       <TagsManagerSheet visible={managingTags} onClose={() => setManagingTags(false)} />
@@ -1149,7 +1152,7 @@ const styles = StyleSheet.create({
   pinnedTitle: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 14, paddingTop: 6 },
   pinnedTitleText: { color: colors.accent, fontSize: 14, fontWeight: '800', flexShrink: 1 },
   pinnedTitleMeta: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
-  viewPin: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden', backgroundColor: colors.bg, zIndex: 5 },
+  viewPin: { overflow: 'hidden', backgroundColor: colors.bg },
   stickyBar: { backgroundColor: colors.bg, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   textRow: {
     flexDirection: 'row',

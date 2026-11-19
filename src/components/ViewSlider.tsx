@@ -19,6 +19,7 @@ export function ViewSlider({
   onChange,
   renderView,
   onDrag,
+  pinned,
 }: {
   index: number;
   count: number;
@@ -27,6 +28,8 @@ export function ViewSlider({
   renderView: (index: number) => ReactNode;
   /** True while a sideways drag is happening (to pin a fixed header over the sliding cards). */
   onDrag?: (active: boolean) => void;
+  /** A fixed header drawn over the sliding cards; it only shows while dragging (no lag). */
+  pinned?: ReactNode;
 }) {
   const { width } = useWindowDimensions();
   const x = useSharedValue(0);
@@ -79,6 +82,9 @@ export function ViewSlider({
   });
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
+  // The pinned header shows the instant the cards start moving, and hides when they settle (driven by
+  // the gesture on the UI thread, so there is no lag).
+  const pinStyle = useAnimatedStyle(() => ({ opacity: Math.abs(x.get()) > 0.5 ? 1 : 0 }));
   const showNeighbour = drag && drag.at === index && index + drag.dir >= 0 && index + drag.dir < count;
 
   return (
@@ -90,6 +96,11 @@ export function ViewSlider({
             {renderView(index + drag.dir)}
           </Animated.View>
         )}
+        {pinned && (
+          <Animated.View pointerEvents="none" style={[styles.pin, pinStyle]}>
+            {pinned}
+          </Animated.View>
+        )}
       </View>
     </GestureDetector>
   );
@@ -99,4 +110,5 @@ const styles = StyleSheet.create({
   clip: { flex: 1, overflow: 'hidden' },
   fill: { flex: 1 },
   side: { position: 'absolute', top: 0, bottom: 0 },
+  pin: { position: 'absolute', top: 0, left: 0, right: 0 },
 });
