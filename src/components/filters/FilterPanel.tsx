@@ -26,6 +26,7 @@ import {
 } from '@/icons';
 import { colors, DECK_ONLY_FORMATS, FORMATS } from '@/theme';
 import { rulesQuery } from '@/api/rulesGlossary';
+import { useAppState } from '@/context/AppState';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic'];
 
@@ -93,6 +94,7 @@ export function FilterPanel({ applied, onApply }: Props) {
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled
       >
+        <SavedSearches draft={draft} onApply={onApply} />
         <Section title="Nombre">
           <Input
             value={draft.name}
@@ -251,6 +253,48 @@ export function FilterPanel({ applied, onApply }: Props) {
   );
 }
 
+/** Saved searches (name + filters), kept in Ajustes and synced with the PC. Tap one to search with it. */
+function SavedSearches({ draft, onApply }: { draft: Filters; onApply: (f: Filters) => void }) {
+  const { prefs, setPrefs } = useAppState();
+  const saved = prefs.savedSearches ?? [];
+  const [name, setName] = useState('');
+  const same = (f: Filters) => JSON.stringify({ ...DEFAULT_FILTERS, ...f }) === JSON.stringify({ ...DEFAULT_FILTERS, ...draft });
+  const save = () => {
+    const n = name.trim();
+    if (!n) return;
+    // A name that already exists is replaced (to update a saved search).
+    setPrefs({ ...prefs, savedSearches: [...saved.filter((x) => x.name !== n), { name: n, filters: draft, updatedAt: Date.now() }] });
+    setName('');
+  };
+  const remove = (n: string) => setPrefs({ ...prefs, savedSearches: saved.filter((x) => x.name !== n) });
+  return (
+    <Section title="Búsquedas guardadas" hint="Guarda estos filtros con un nombre y vuelve a buscar con un toque. Se sincronizan con el PC.">
+      {saved.length > 0 && (
+        <View style={styles.savedList}>
+          {saved.map((sch) => (
+            <View key={sch.name} style={[styles.savedChip, same(sch.filters) && { borderColor: colors.accent }]}>
+              <Pressable style={styles.savedChipMain} onPress={() => onApply({ ...DEFAULT_FILTERS, ...sch.filters })} accessibilityLabel={`Buscar «${sch.name}»`}>
+                <Text style={styles.savedChipText} numberOfLines={1}>
+                  🔖 {sch.name}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => remove(sch.name)} hitSlop={8} accessibilityLabel={`Borrar «${sch.name}»`}>
+                <Text style={styles.savedChipX}>✕</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
+      <View style={styles.savedSaveRow}>
+        <View style={{ flex: 1 }}>
+          <Input value={name} onChangeText={setName} placeholder="Nombre de esta búsqueda" onSubmit={save} />
+        </View>
+        <Button label="Guardar" onPress={save} style={{ opacity: name.trim() ? 1 : 0.5 }} />
+      </View>
+    </Section>
+  );
+}
+
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
     <View style={{ gap: 8 }}>
@@ -393,6 +437,12 @@ function SetPicker({ value, onChange }: { value: string | null; onChange: (code:
 }
 
 const styles = StyleSheet.create({
+  savedList: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
+  savedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 10, paddingRight: 8, height: 34, borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, maxWidth: '100%' },
+  savedChipMain: { flexShrink: 1 },
+  savedChipText: { color: colors.text, fontWeight: '700', fontSize: 13 },
+  savedChipX: { color: colors.textMuted, fontSize: 14, fontWeight: '800' },
+  savedSaveRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   panel: { flex: 1, backgroundColor: colors.surface },
   header: {
     flexDirection: 'row',

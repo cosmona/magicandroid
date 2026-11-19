@@ -133,6 +133,8 @@ siguientes. **Toca** una para saltar a ella; **mantén pulsado** para verla en g
 
 ### Filtros
 
+Arriba del todo, **Búsquedas guardadas**: escribe un nombre y «Guardar» para guardar los filtros tal como están; toca una búsqueda guardada para volver a buscar con ellos, o ✕ para borrarla. Se sincronizan con el PC.
+
 <table><tr><td align="center"><img src="img/filtros.jpg" width="240" alt="Filtros de búsqueda"><br><sub>Filtros de búsqueda</sub></td></tr></table>
 
 La fila **Filtros** (debajo de las pestañas) muestra un resumen de lo que estás filtrando; tócala para cambiarlo:

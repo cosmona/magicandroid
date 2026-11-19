@@ -30,6 +30,8 @@ export type DeckSort = 'cmc' | 'name' | 'added' | 'addedNew' | 'copies';
 export interface Prefs {
   /** Scryfall language code cards are shown in when available ('en' = as returned). */
   language: string;
+  /** Construir: saved searches (name + filters), synced with the PC. */
+  savedSearches?: { name: string; filters: Filters; updatedAt?: number }[];
   /** Vibrate on add/discard. */
   haptics: boolean;
   /** View the deck sheet opens with. */
