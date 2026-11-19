@@ -18,12 +18,15 @@ export function ViewSlider({
   count,
   onChange,
   renderView,
+  onDrag,
 }: {
   index: number;
   count: number;
   onChange: (index: number) => void;
   /** The real content of view `i` (an index into the list of views). */
   renderView: (index: number) => ReactNode;
+  /** True while a sideways drag is happening (to pin a fixed header over the sliding cards). */
+  onDrag?: (active: boolean) => void;
 }) {
   const { width } = useWindowDimensions();
   const x = useSharedValue(0);
@@ -40,12 +43,18 @@ export function ViewSlider({
   const change = (step: -1 | 1) => {
     onChange(index + step);
     setDrag(null);
+    onDrag?.(false);
   };
-  const rest = () => setDrag(null);
+  const rest = () => {
+    setDrag(null);
+    onDrag?.(false);
+  };
+  const begin = () => onDrag?.(true);
 
   const pan = usePanGesture({
     activeOffsetX: [-20, 20],
     failOffsetY: [-16, 16],
+    onActivate: () => scheduleOnRN(begin),
     onUpdate: (e) => {
       let dx = e.translationX;
       const dir: -1 | 1 = dx < 0 ? 1 : -1;

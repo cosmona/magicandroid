@@ -549,6 +549,11 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   // When the title has scrolled away, a small one shows in the sticky row.
   const [headerHeight, setHeaderHeight] = useState(0);
   const [pinned, setPinned] = useState(false);
+  // While the view is dragged sideways, a copy of the header + buttons is pinned over the cards.
+  const scrollYRef = useRef(0);
+  const [toolbarH, setToolbarH] = useState(0);
+  const [viewDragging, setViewDragging] = useState<{ y: number } | null>(null);
+  const onViewDrag = (active: boolean) => setViewDragging(active ? { y: scrollYRef.current } : null);
 
   // The sticky row of buttons and what goes under it (search results) come first in the list.
 
@@ -622,7 +627,10 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     </View>
   );
   const toolbarBlock = (
-    <View style={styles.stickyBar}>
+    <View
+      style={styles.stickyBar}
+      onLayout={(e) => setToolbarH((h) => (h === Math.round(e.nativeEvent.layout.height) ? h : Math.round(e.nativeEvent.layout.height)))}
+    >
       {pinned && (
         <Pressable onPress={() => setPickingDeck(true)} style={styles.pinnedTitle} accessibilityLabel="Ver toda la colección o las cartas de un mazo">
           <Text style={styles.pinnedTitleText} numberOfLines={1}>
@@ -807,6 +815,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           data={[{ type: 'toolbar' as const, key: '_toolbar' }, { type: 'extras' as const, key: '_extras' }, ...buildItems(v)]}
           stickyHeaderIndices={[1]}
           onScroll={active ? (e) => {
+            scrollYRef.current = e.nativeEvent.contentOffset.y;
             const p = headerHeight > 0 && e.nativeEvent.contentOffset.y > headerHeight - 4;
             if (p !== pinned) setPinned(p);
           } : undefined}
@@ -1028,7 +1037,17 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         count={VIEWS.length}
         onChange={(i) => setView(VIEWS[i].key)}
         renderView={(i) => renderCollectionList(VIEWS[i].key, VIEWS[i].key === view)}
+        onDrag={onViewDrag}
       />
+      {viewDragging && headerHeight + toolbarH > 0 && (
+        // A copy of the title + buttons, pinned over the cards while they slide sideways.
+        <View pointerEvents="none" style={[styles.viewPin, { height: headerHeight + toolbarH - Math.min(viewDragging.y, headerHeight) }]}>
+          <View style={{ transform: [{ translateY: -Math.min(viewDragging.y, headerHeight) }] }}>
+            {header}
+            {toolbarBlock}
+          </View>
+        </View>
+      )}
 
       <CardTagsSheet oracleId={tagCard?.oracleId ?? null} name={tagCard?.name} onClose={() => setTagCard(null)} />
       <TagsManagerSheet visible={managingTags} onClose={() => setManagingTags(false)} />
@@ -1130,6 +1149,7 @@ const styles = StyleSheet.create({
   pinnedTitle: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 14, paddingTop: 6 },
   pinnedTitleText: { color: colors.accent, fontSize: 14, fontWeight: '800', flexShrink: 1 },
   pinnedTitleMeta: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  viewPin: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden', backgroundColor: colors.bg, zIndex: 5 },
   stickyBar: { backgroundColor: colors.bg, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   textRow: {
     flexDirection: 'row',

@@ -13,7 +13,6 @@ import { CardShareSheet } from '@/components/CardShareSheet';
 import { CardInfoScreen } from '@/components/cardInfo/CardInfoScreen';
 import { OwnPill } from '@/components/collection/OwnButton';
 import { LanguagePill } from '@/components/LanguagePicker';
-import { ManaCost, SymbolText } from '@/components/ManaCost';
 import { CARD_RATIO } from '@/components/SwipeCard';
 import { CardTagsSheet, TagChip, useCardTags, useTags } from '@/components/tags/Tags';
 import { useAppState } from '@/context/AppState';
@@ -205,13 +204,8 @@ function CardPage({
               <Pill icon="share-variant" label="Compartir" onPress={() => setModal('share')} />
             </View>
 
-            {/* Name, cost, type and printing. */}
+            {/* Type and printing (the name, cost and rules text are already on the card image above). */}
             <View style={{ gap: 3 }}>
-              <View style={styles.nameRow}>
-                <Text style={styles.name}>{displayName(card)}</Text>
-                <ManaCost cost={card.manaCost || null} size={18} />
-              </View>
-              {card.printedName && card.printedName !== card.name && <Text style={styles.muted}>{card.name}</Text>}
               <Text style={styles.type}>{card.typeLine}</Text>
               <Text style={styles.muted}>
                 {card.setName ?? card.set.toUpperCase()} · {card.set.toUpperCase()}
@@ -258,13 +252,6 @@ function CardPage({
                 </View>
               </View>
             )}
-
-            <View style={styles.block}>
-              <Text style={styles.blockTitle}>Texto</Text>
-              <View style={styles.textBox}>
-                <SymbolText text={card.oracleText || 'Sin texto de reglas.'} style={styles.text} />
-              </View>
-            </View>
 
             <View style={styles.wrap}>
               {stat && <Tile label={stat.label} value={stat.value} />}

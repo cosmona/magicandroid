@@ -310,7 +310,7 @@ Bolt», «1x Sol Ring (CMR) 472»):
 ### Pasar de carta en la ficha
 
 Al abrir una carta desde el mazo, la colección o Construir, **desliza a la izquierda o a la derecha** para ir a la
-siguiente o la anterior de la lista: la otra carta entra siguiendo tu dedo, con su imagen y todos sus datos. Si sueltas
+siguiente o la anterior de la lista: la otra carta entra siguiendo tu dedo, con su imagen y todos sus datos. El nombre, el coste de maná y el texto de reglas ya salen en la propia imagen de la carta, así que no se repiten debajo. Si sueltas
 pasado un tercio de la pantalla (o con un golpe rápido) cambia; si no, vuelve. También con ‹ › de la cabecera.
 
 ## 5. Ficha completa de una carta
@@ -342,8 +342,8 @@ quieres), **seleccionar**, **abrir o cerrar todos los grupos** (al agrupar), **a
 menú) y las mismas **vistas que el mazo**: lista, galería, grande (la carta a todo el ancho con sus botones) y texto (una
 línea por carta con − ＋). La vista elegida se recuerda. Al bajar por la lista, el título y el buscador suben y la fila de botones se queda fija arriba, con el
 nombre en pequeño (tócalo para cambiar de mazo). **Desliza la lista a la izquierda o a la derecha** para cambiar de
-vista (también en el mazo): la vista nueva entra siguiendo tu dedo, con sus cartas; sueltas pasado un tercio para
-cambiar. Si tienes etiquetas, debajo salen para filtrar
+vista (también en el mazo): la vista nueva entra siguiendo tu dedo, con sus cartas (la cabecera se queda fija;
+solo se deslizan las cartas); sueltas pasado un tercio para cambiar. Si tienes etiquetas, debajo salen para filtrar
 (la última abre su gestión).
 
 <table><tr><td align="center"><img src="img/coleccion.jpg" width="240" alt="Tu colección"><br><sub>Tu colección</sub></td></tr></table>
