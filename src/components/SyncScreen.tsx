@@ -84,7 +84,7 @@ async function findPc(t: SyncTarget): Promise<string | null> {
 export function SyncScreen({ onClose }: { onClose: () => void }) {
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
-  const { refresh } = useAppState();
+  const { refresh, setPrefs } = useAppState();
   const [permission, requestPermission] = useCameraPermissions();
   const [step, setStep] = useState<Step>({ kind: 'idle' });
   const [lastPc, setLastPc] = useState<SyncTarget | null>(null);
@@ -157,6 +157,9 @@ export function SyncScreen({ onClose }: { onClose: () => void }) {
         try {
           await saveBackup(db, 'Antes de sincronizar con el PC');
           await applyPatch(db, answer.patch);
+          // Show the merged saved searches right away (applyPatch wrote them to the prefs in the DB).
+          if (answer.patch.savedSearches)
+            setPrefs((prev) => ({ ...prev, savedSearches: answer.patch.savedSearches as NonNullable<typeof prev.savedSearches> }));
           await post(base, token, { version: SYNC_VERSION, op: 'applied' });
         } catch (e) {
           const error = e instanceof Error ? e.message : String(e);

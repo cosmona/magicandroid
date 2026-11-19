@@ -1470,6 +1470,7 @@ function CardRow({ card, actions, issues, crown, owned, drag, wanted, info, layo
           <Text style={styles.name}>
             {crown && card.isCommander ? '👑 ' : ''}
             {displayName(card)}
+            {card.quantity > 1 ? <Text style={styles.nameQty}>{`  ×${card.quantity}`}</Text> : ''}
           </Text>
           {info && layout && <RowLines layout={layout} info={info} />}
         </View>
@@ -1669,6 +1670,7 @@ function GalleryTile({
   info,
   layout,
   invalid,
+  crown,
   onPress,
 }: {
   card: DeckCard;
@@ -1691,6 +1693,13 @@ function GalleryTile({
         />
       )}
       <TileIcons layout={layout} info={info} />
+      {card.quantity > 0 && (
+        <View style={styles.galleryQty} pointerEvents="none">
+          <Text style={styles.galleryQtyText}>
+            {crown && card.isCommander ? '👑 ' : ''}×{card.quantity}
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -2132,6 +2141,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
     elevation: 12,
   },
+  galleryQty: { position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.78)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
+  galleryQtyText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  nameQty: { color: colors.accent, fontWeight: '800' },
   galleryImage: { flex: 1, borderRadius: 8 },
   badge: {
     position: 'absolute',
