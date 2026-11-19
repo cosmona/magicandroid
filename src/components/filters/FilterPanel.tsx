@@ -27,6 +27,7 @@ import {
 import { colors, DECK_ONLY_FORMATS, FORMATS } from '@/theme';
 import { rulesQuery } from '@/api/rulesGlossary';
 import { useAppState } from '@/context/AppState';
+import { useSeen } from '@/hooks/useSeen';
 
 const RARITIES: Rarity[] = ['common', 'uncommon', 'rare', 'mythic'];
 
@@ -257,6 +258,7 @@ export function FilterPanel({ applied, onApply }: Props) {
 function SavedSearches({ draft, onApply }: { draft: Filters; onApply: (f: Filters) => void }) {
   const { prefs, setPrefs } = useAppState();
   const saved = prefs.savedSearches ?? [];
+  const { isNew, markSeen } = useSeen();
   const [name, setName] = useState('');
   const same = (f: Filters) => JSON.stringify({ ...DEFAULT_FILTERS, ...f }) === JSON.stringify({ ...DEFAULT_FILTERS, ...draft });
   const save = () => {
@@ -273,10 +275,18 @@ function SavedSearches({ draft, onApply }: { draft: Filters; onApply: (f: Filter
         <View style={styles.savedList}>
           {saved.map((sch) => (
             <View key={sch.name} style={[styles.savedChip, same(sch.filters) && { borderColor: colors.accent }]}>
-              <Pressable style={styles.savedChipMain} onPress={() => onApply({ ...DEFAULT_FILTERS, ...sch.filters })} accessibilityLabel={`Buscar «${sch.name}»`}>
+              <Pressable
+                style={styles.savedChipMain}
+                onPress={() => {
+                  markSeen(`search:${sch.name}`, sch.updatedAt);
+                  onApply({ ...DEFAULT_FILTERS, ...sch.filters });
+                }}
+                accessibilityLabel={`Buscar «${sch.name}»`}
+              >
                 <Text style={styles.savedChipText} numberOfLines={1}>
                   🔖 {sch.name}
                 </Text>
+                {isNew(`search:${sch.name}`, sch.updatedAt) && <Text style={styles.savedChipNew}>nuevo</Text>}
               </Pressable>
               <Pressable onPress={() => remove(sch.name)} hitSlop={8} accessibilityLabel={`Borrar «${sch.name}»`}>
                 <Text style={styles.savedChipX}>✕</Text>
@@ -438,6 +448,7 @@ function SetPicker({ value, onChange }: { value: string | null; onChange: (code:
 
 const styles = StyleSheet.create({
   savedList: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
+  savedChipNew: { color: colors.bg, backgroundColor: colors.accent, fontSize: 9, fontWeight: '800', textTransform: 'uppercase', borderRadius: 5, paddingHorizontal: 4, paddingVertical: 1, overflow: 'hidden' },
   savedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 10, paddingRight: 8, height: 34, borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, maxWidth: '100%' },
   savedChipMain: { flexShrink: 1 },
   savedChipText: { color: colors.text, fontWeight: '700', fontSize: 13 },

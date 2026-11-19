@@ -403,14 +403,20 @@ export interface Deck {
   format: string | null;
   cardCount: number;
   coverImage: string | null;
+  /** When the deck or its cards last changed (ms); for the «nuevo» badge. */
+  updatedAt: number;
 }
 
 const DECK_SELECT = `
-  SELECT d.id, d.uid, d.name, d.format,
+  SELECT d.id, d.uid, d.name, d.format, d.updated_at AS updatedAt,
     COALESCE((SELECT SUM(quantity) FROM deck_cards WHERE deck_id = d.id), 0) AS cardCount,
     COALESCE(d.cover_image,
       (SELECT image_url FROM deck_cards WHERE deck_id = d.id ORDER BY added_at LIMIT 1)) AS coverImage
   FROM decks d`;
+
+/** Newest change across the collection (ms), for the «nuevo» badge on the Collection tab. */
+export const getCollectionVersion = async (db: SQLiteDatabase): Promise<number> =>
+  (await db.getFirstAsync<{ v: number | null }>('SELECT MAX(updated_at) AS v FROM collection_cards'))?.v ?? 0;
 
 export const getDecks = (db: SQLiteDatabase) => db.getAllAsync<Deck>(`${DECK_SELECT} ORDER BY d.created_at DESC`);
 

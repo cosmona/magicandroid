@@ -1,10 +1,13 @@
-import { useState, type ComponentProps } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheet } from '@/components/BottomSheet';
 import { SettingsSheet } from '@/components/SettingsSheet';
+import { useSQLiteContext } from 'expo-sqlite';
+import { getCollectionVersion } from '@/db/database';
+import { useSeen } from '@/hooks/useSeen';
 import { colors } from '@/theme';
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
@@ -17,6 +20,16 @@ type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>
 export function AppTabBar({ state, descriptors, emitter, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const db = useSQLiteContext();
+  const { isNew, markSeen } = useSeen();
+  const [collVer, setCollVer] = useState(0);
+  const onCollection = state.routes[state.index]?.name === 'collection';
+  useEffect(() => {
+    getCollectionVersion(db).then(setCollVer).catch(() => {});
+  }, [db, state.index]);
+  useEffect(() => {
+    if (onCollection) markSeen('collection', collVer);
+  }, [onCollection, collVer, markSeen]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 6 }]}>
@@ -58,6 +71,7 @@ export function AppTabBar({ state, descriptors, emitter, navigateToTab }: TabBar
             >
               {options.tabBarIcon?.({ focused, color, size: 20 })}
               <Text style={[styles.tabLabel, { color }]}>{options.title ?? route.name}</Text>
+              {route.name === 'collection' && !focused && isNew('collection', collVer) && <View style={styles.tabDot} />}
             </Pressable>
           );
         })}
@@ -91,6 +105,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surfaceAlt,
   },
+  tabDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, marginLeft: 1 },
   tabs: {
     flexDirection: 'row',
     padding: 4,

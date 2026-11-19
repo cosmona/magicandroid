@@ -21,6 +21,7 @@ import { CardShareSheet, type ShareableCard } from '@/components/CardShareSheet'
 import { HintButton } from '@/components/Hint';
 import { PrintingPicker } from '@/components/PrintingPicker';
 import { DeckSummary } from '@/components/deck/DeckSummary';
+import { useSeen } from '@/hooks/useSeen';
 import { DeckStatsScreen } from '@/components/deck/DeckStatsScreen';
 import { ShareDeckModal } from '@/components/deck/ShareDeckModal';
 import { DeckSynergyScreen } from '@/components/deck/DeckSynergyScreen';
@@ -110,6 +111,12 @@ export function DeckSheet() {
   // «La quiero» of the exact printing each deck card has.
   const wantedIds = useWantedPrintings(db, activeCards.map((c) => c.scryfallId));
   // The view is saved in the preferences, so closing and reopening the deck keeps the one you were on.
+  const { markSeen: markDeckSeen } = useSeen();
+  const seenDeckUid = activeDeck?.uid;
+  const seenDeckAt = activeDeck?.updatedAt;
+  useEffect(() => {
+    if (seenDeckUid) markDeckSeen(`deck:${seenDeckUid}`, seenDeckAt);
+  }, [seenDeckUid, seenDeckAt, markDeckSeen]);
   const mode = prefs.deckView;
   const setMode = (v: DeckView) => setPrefs({ ...prefs, deckView: v });
   const [groupMenu, setGroupMenu] = useState(false);

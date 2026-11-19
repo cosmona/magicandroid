@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { GalleryLayout, LayoutPlace, ListLayout } from '@/listLayout';
 import { useSQLiteContext } from 'expo-sqlite';
+import { initSeen } from '@/hooks/useSeen';
 import { DEFAULT_FILTERS, type Filters } from '@/api/scryfall';
 import type { DeckGroupBy } from '@/deck/group';
 import {
@@ -140,6 +141,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     (async () => {
+      initSeen(db);
       const savedDeck = await getSetting(db, 'activeDeckId');
       const savedFilters = await getSetting(db, FILTERS_KEY);
       const savedPrefs = await getSetting(db, PREFS_KEY);
@@ -173,7 +175,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     creatingDeck.current ??= (async () => {
       const id = await createDeck(db, UNNAMED_DECK, null);
       setActiveDeckId(id);
-      return (await getDeck(db, id)) ?? { id, uid: '', name: UNNAMED_DECK, format: null, cardCount: 0, coverImage: null };
+      return (await getDeck(db, id)) ?? { id, uid: '', name: UNNAMED_DECK, format: null, cardCount: 0, coverImage: null, updatedAt: Date.now() };
     })().finally(() => {
       // Once the state has the new deck, `activeDeck` takes over.
       setTimeout(() => (creatingDeck.current = null), 1000);

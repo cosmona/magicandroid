@@ -7,6 +7,7 @@ import { artCropUrl } from '@/api/scryfall';
 import { DeckFormModal } from '@/components/DeckFormModal';
 import { ImportListModal } from '@/components/ImportListModal';
 import { useAppState } from '@/context/AppState';
+import { useSeen } from '@/hooks/useSeen';
 import { TagChip, useDeckTags, useTags } from '@/components/tags/Tags';
 import { createDeck } from '@/db/database';
 import { colors, formatLabel } from '@/theme';
@@ -18,6 +19,7 @@ import { colors, formatLabel } from '@/theme';
 export function DeckPicker({ onPicked }: { onPicked?: () => void }) {
   const db = useSQLiteContext();
   const { decks, activeDeck, setActiveDeckId } = useAppState();
+  const { isNew, markSeen } = useSeen();
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const allTags = useTags();
@@ -46,11 +48,17 @@ export function DeckPicker({ onPicked }: { onPicked?: () => void }) {
             key={deck.id}
             style={[styles.tile, deck.id === activeDeck?.id && styles.tileActive]}
             onPress={() => {
+              markSeen(`deck:${deck.uid}`, deck.updatedAt);
               setActiveDeckId(deck.id);
               onPicked?.();
             }}
           >
             <View style={styles.cover}>
+              {isNew(`deck:${deck.uid}`, deck.updatedAt) && (
+                <View style={styles.newBadge}>
+                  <Text style={styles.newBadgeText}>nuevo</Text>
+                </View>
+              )}
               {deck.coverImage && (
                 <Image
                   source={{ uri: artCropUrl(deck.coverImage) }}
@@ -119,6 +127,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.surfaceAlt,
   },
+  newBadge: { position: 'absolute', top: 4, right: 4, zIndex: 2, backgroundColor: colors.accent, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
+  newBadgeText: { color: colors.bg, fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
   tagIcons: { position: 'absolute', left: 3, bottom: 3, right: 3, flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
   tileName: { color: colors.text, fontSize: 12, fontWeight: '700' },
   tileMeta: { color: colors.textMuted, fontSize: 10 },
