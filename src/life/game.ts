@@ -1,18 +1,18 @@
-// Life counter state (pure functions, no React). Persisted as JSON in the SQLite `settings` table.
+// Estado del contador de vidas (funciones puras, sin React). Persistido como JSON en la tabla `settings` de SQLite.
 
 export interface Player {
   name: string;
-  /** Index in PLAYER_COLORS. */
+  /** Índice en PLAYER_COLORS. */
   color: number;
   life: number;
   poison: number;
-  /** Commander damage received from each player, by player index (own index unused). */
+  /** Daño de comandante recibido de cada jugador, por índice de jugador (el índice propio no se usa). */
   commander: number[];
-  /** Photos shown when something happens to the player (PNG data URLs, background cut out). */
+  /** Fotos que se muestran cuando le pasa algo al jugador (data URLs PNG, con el fondo recortado). */
   photos?: Partial<Record<PhotoKind, string>>;
 }
 
-/** When a photo shows: taking damage, dealing (commander) damage, gaining life. */
+/** Cuándo se muestra una foto: recibir daño, hacer daño (de comandante), ganar vida. */
 export type PhotoKind = 'hurt' | 'attack' | 'heal';
 export const PHOTO_KINDS: { key: PhotoKind; label: string; hint: string }[] = [
   { key: 'hurt', label: 'Recibe daño', hint: 'Al perder vidas, veneno o daño de comandante.' },
@@ -23,17 +23,17 @@ export const PHOTO_KINDS: { key: PhotoKind; label: string; hint: string }[] = [
 export interface LifeGame {
   startingLife: number;
   players: Player[];
-  /** What the panels show and which effects are on (kept from game to game). */
+  /** Qué muestran los paneles y qué efectos están activos (se mantienen de partida en partida). */
   settings?: Partial<LifeSettings>;
-  /** When the game started (ms), for its statistics. */
+  /** Cuándo empezó la partida (ms), para sus estadísticas. */
   startedAt?: number;
-  /** Everything that happened, in order (for the statistics at the end). */
+  /** Todo lo que pasó, en orden (para las estadísticas del final). */
   log?: LifeEvent[];
-  /** The turn controller: whose turn, which one and which phase (when it's on). */
+  /** El controlador de turnos: de quién es el turno, cuál y qué fase (cuando está activo). */
   turn?: TurnState;
 }
 
-/** The phases and steps of a Magic turn, in order. */
+/** Las fases y pasos de un turno de Magic, en orden. */
 export const PHASES: { key: string; label: string; short: string; group: string; hint: string }[] = [
   { key: 'untap', label: 'Enderezar', short: 'Enderezar', group: 'Inicio', hint: 'Endereza tus permanentes. Nadie recibe prioridad.' },
   { key: 'upkeep', label: 'Mantenimiento', short: 'Mantenim.', group: 'Inicio', hint: 'Se disparan las habilidades «al comienzo de tu mantenimiento».' },
@@ -48,30 +48,30 @@ export const PHASES: { key: string; label: string; short: string; group: string;
   { key: 'end', label: 'Paso final', short: 'Final', group: 'Final', hint: 'Se disparan las habilidades «al comienzo del paso final».' },
   { key: 'cleanup', label: 'Limpieza', short: 'Limpieza', group: 'Final', hint: 'Descarta hasta 7 cartas; se quita el daño de las criaturas.' },
 ];
-/** The groups of phases, in order (Inicio, Principal 1, Combate, Principal 2, Final). */
+/** Los grupos de fases, en orden (Inicio, Principal 1, Combate, Principal 2, Final). */
 export const PHASE_GROUPS = [...new Set(PHASES.map((p) => p.group))];
 
 export interface TurnState {
-  /** Whose turn it is. */
+  /** De quién es el turno. */
   player: number;
-  /** Turn number (1, 2, 3… one per player's turn). */
+  /** Número de turno (1, 2, 3… uno por turno de cada jugador). */
   number: number;
-  /** Index in PHASES. */
+  /** Índice en PHASES. */
   phase: number;
-  /** When this turn started (ms). */
+  /** Cuándo empezó este turno (ms). */
   startedAt: number;
-  /** Turns already played: who and how long (for the statistics). */
+  /** Turnos ya jugados: quién y cuánto duró (para las estadísticas). */
   history: { player: number; ms: number }[];
 }
 
-/** Starts the turns with `player` (turn 1, untap step). */
+/** Empieza los turnos con `player` (turno 1, paso de enderezar). */
 export const startTurns = (game: LifeGame, player: number, at: number): LifeGame => ({
   ...game,
   turn: { player, number: 1, phase: 0, startedAt: at, history: [] },
 });
 export const stopTurns = (game: LifeGame): LifeGame => ({ ...game, turn: undefined });
 
-/** The next player still in the game after `from`. */
+/** El siguiente jugador que sigue en la partida después de `from`. */
 function nextAlive(game: LifeGame, from: number): number {
   const n = game.players.length;
   for (let k = 1; k <= n; k++) {
@@ -81,7 +81,7 @@ function nextAlive(game: LifeGame, from: number): number {
   return (from + 1) % n;
 }
 
-/** Ends the turn: the next player (still in the game) starts at «Enderezar». */
+/** Termina el turno: el siguiente jugador (que sigue en la partida) empieza en «Enderezar». */
 export function nextTurn(game: LifeGame, at: number): LifeGame {
   const t = game.turn;
   if (!t) return game;
@@ -97,22 +97,22 @@ export function nextTurn(game: LifeGame, at: number): LifeGame {
   };
 }
 
-/** Next phase / step (after «Limpieza», the next player's turn). */
+/** Siguiente fase / paso (después de «Limpieza», el turno del siguiente jugador). */
 export function nextPhase(game: LifeGame, at: number): LifeGame {
   const t = game.turn;
   if (!t) return game;
   return t.phase >= PHASES.length - 1 ? nextTurn(game, at) : { ...game, turn: { ...t, phase: t.phase + 1 } };
 }
 
-/** Back one phase (not into the previous turn). */
+/** Retrocede una fase (sin entrar en el turno anterior). */
 export const prevPhase = (game: LifeGame): LifeGame =>
   game.turn && game.turn.phase > 0 ? { ...game, turn: { ...game.turn, phase: game.turn.phase - 1 } } : game;
 
-/** Straight to a phase of the current turn. */
+/** Directo a una fase del turno actual. */
 export const goToPhase = (game: LifeGame, phase: number): LifeGame =>
   game.turn ? { ...game, turn: { ...game.turn, phase: Math.max(0, Math.min(PHASES.length - 1, phase)) } } : game;
 
-/** One change during the game: life (−/+), commander damage or poison of `player`, caused by `from`. */
+/** Un cambio durante la partida: vida (−/+), daño de comandante o veneno de `player`, causado por `from`. */
 export interface LifeEvent {
   at: number;
   player: number;
@@ -121,41 +121,41 @@ export interface LifeEvent {
   from?: number;
 }
 
-/** What each panel shows (Partida → Pantalla). */
+/** Qué muestra cada panel (Partida → Pantalla). */
 export interface LifeShow {
-  /** Player's name. */
+  /** Nombre del jugador. */
   name: boolean;
-  /** Running change above the number («−3»). */
+  /** Cambio acumulado sobre el número («−3»). */
   delta: boolean;
-  /** − / ＋ marks on the sides. */
+  /** Marcas − / ＋ en los lados. */
   steps: boolean;
-  /** With 3+ players, the − / ＋ sides split in one button per player (who deals the damage). */
+  /** Con 3+ jugadores, los lados − / ＋ se dividen en un botón por jugador (quién hace el daño). */
   sources: boolean;
-  /** Commander damage of each opponent with − / ＋. */
+  /** Daño de comandante de cada rival con − / ＋. */
   commander: boolean;
-  /** Poison counter on the bottom button. */
+  /** Contador de veneno en el botón inferior. */
   poison: boolean;
-  /** The turn controller (whose turn and the phases of Magic). */
+  /** El controlador de turnos (de quién es el turno y las fases de Magic). */
   turns: boolean;
 }
 
-/** Effects (Partida → Efectos). */
+/** Efectos (Partida → Efectos). */
 export interface LifeEffects {
-  /** Each player's photos when taking damage, dealing it or gaining life. */
+  /** Las fotos de cada jugador al recibir daño, hacerlo o ganar vida. */
   photos: boolean;
-  /** The panel flashes red (damage) or green (life). */
+  /** El panel parpadea en rojo (daño) o verde (vida). */
   flash: boolean;
-  /** The panel shakes when taking damage. */
+  /** El panel tiembla al recibir daño. */
   shake: boolean;
-  /** Numbers that float up from the panel («−1», «+3»). */
+  /** Números que flotan hacia arriba desde el panel («−1», «+3»). */
   floating: boolean;
-  /** At 5 life or less the number beats like a heart, with a red glow. */
+  /** A 5 vidas o menos el número late como un corazón, con un brillo rojo. */
   heartbeat: boolean;
-  /** A big skull when a player is out. */
+  /** Una calavera grande cuando un jugador queda eliminado. */
   skull: boolean;
-  /** Confetti over the winner when only one is left. */
+  /** Confeti sobre el ganador cuando solo queda uno. */
   confetti: boolean;
-  /** Hit / heal sounds. */
+  /** Sonidos de golpe / curación. */
   sound: boolean;
 }
 
@@ -190,13 +190,13 @@ export const EFFECT_OPTIONS: { key: keyof LifeEffects; label: string; hint: stri
   { key: 'sound', label: 'Sonidos', hint: 'Un golpe al recibir daño y un tintineo al ganar vidas.', icon: 'mdiVolumeHigh' },
 ];
 
-/** The game's settings, with the defaults for anything not set. */
+/** Los ajustes de la partida, con los valores por defecto para lo que no esté puesto. */
 export function lifeSettings(game: LifeGame): LifeSettings {
   return {
     show: { ...DEFAULT_LIFE_SETTINGS.show, ...game.settings?.show },
     effects: {
       ...DEFAULT_LIFE_SETTINGS.effects,
-      // Games saved with photos before effects existed keep showing them.
+      // Las partidas guardadas con fotos antes de que existieran los efectos las siguen mostrando.
       photos: game.settings?.effects?.photos ?? game.players.some((p) => p.photos && Object.keys(p.photos).length > 0),
       ...game.settings?.effects,
     },
@@ -219,7 +219,7 @@ export const LIFE_OPTIONS = [20, 25, 30, 40];
 export const POISON_LIMIT = 10;
 export const COMMANDER_LIMIT = 21;
 
-/** Panel backgrounds: dark enough for white numbers, distinct from each other. */
+/** Fondos de los paneles: lo bastante oscuros para números blancos, distintos entre sí. */
 export const PLAYER_COLORS = ['#8e3b3b', '#2f5f93', '#2f7a4f', '#8a6d1f', '#6b4593', '#2c7b7b', '#93506f', '#5a5f6b'];
 
 export function newPlayer(index: number, count: number, life: number): Player {
@@ -240,7 +240,7 @@ export function newGame(count: number, startingLife: number, previous?: LifeGame
     log: [],
     players: Array.from({ length: count }, (_, i) => {
       const fresh = newPlayer(i, count, startingLife);
-      // Keep names and colors when restarting or changing the number of players.
+      // Mantener nombres y colores al reiniciar o cambiar el número de jugadores.
       const old = previous?.players[i];
       return old ? { ...fresh, name: old.name, color: old.color, photos: old.photos } : fresh;
     }),
@@ -249,7 +249,7 @@ export function newGame(count: number, startingLife: number, previous?: LifeGame
 
 export const DEFAULT_GAME = newGame(2, 20);
 
-/** Parses a stored game, or null if it doesn't look like one. */
+/** Parsea una partida guardada, o null si no parece una. */
 export function parseGame(json: string | null): LifeGame | null {
   if (!json) return null;
   try {
@@ -266,11 +266,11 @@ const update = (game: LifeGame, index: number, change: (p: Player) => Player): L
   players: game.players.map((p, i) => (i === index ? change(p) : p)),
 });
 
-/** Adds an event to the game's log (`at` = now, given by the caller). */
+/** Añade un evento al registro de la partida (`at` = ahora, lo da quien llama). */
 const logged = (game: LifeGame, e: LifeEvent | null): LifeGame =>
   e ? { ...game, startedAt: game.startedAt ?? e.at, log: [...(game.log ?? []), e] } : game;
 
-/** Life ± `delta`; `from` = who caused it (damage). */
+/** Vida ± `delta`; `from` = quién lo causó (daño). */
 export const changeLife = (game: LifeGame, index: number, delta: number, from?: number, at = 0) =>
   logged(
     update(game, index, (p) => ({ ...p, life: p.life + delta })),
@@ -283,7 +283,7 @@ export const changePoison = (game: LifeGame, index: number, delta: number, at = 
     at && game.players[index].poison + delta >= 0 ? { at, player: index, kind: 'poison', delta } : null,
   );
 
-/** Commander damage also takes life (as the rules say). */
+/** El daño de comandante también quita vida (como dicen las reglas). */
 export const changeCommander = (game: LifeGame, index: number, from: number, delta: number, at = 0) => {
   const current = game.players[index].commander[from] ?? 0;
   const real = Math.max(0, current + delta) - current;
@@ -297,41 +297,41 @@ export const changeCommander = (game: LifeGame, index: number, from: number, del
   );
 };
 
-/** One player's numbers in a game. */
+/** Los números de un jugador en una partida. */
 export interface PlayerStats {
-  /** Life lost (damage and commander damage). */
+  /** Vida perdida (daño y daño de comandante). */
   damageTaken: number;
-  /** Damage dealt to others (when it was known who dealt it). */
+  /** Daño hecho a otros (cuando se supo quién lo hizo). */
   damageDealt: number;
   commanderDealt: number;
   lifeGained: number;
   poison: number;
   lowest: number;
   highest: number;
-  /** The biggest single hit received (taps a moment apart count as one). */
+  /** El mayor golpe único recibido (toques con un instante de diferencia cuentan como uno). */
   biggestHit: number;
-  /** Turns played and their average length (ms), with the turn controller. */
+  /** Turnos jugados y su duración media (ms), con el controlador de turnos. */
   turns: number;
   avgTurn: number;
-  /** Order of elimination (1 = first out), and who dealt the last damage. */
+  /** Orden de eliminación (1 = el primero en caer), y quién hizo el último daño. */
   outOrder?: number;
   outAt?: number;
   outBy?: number;
 }
 
 export interface GameStats {
-  /** Milliseconds from the start to the last change. */
+  /** Milisegundos desde el inicio hasta el último cambio. */
   duration: number;
   players: PlayerStats[];
-  /** dealt[from][to]: damage `from` dealt to `to`. */
+  /** dealt[from][to]: daño que `from` hizo a `to`. */
   dealt: number[][];
   winner: number | null;
   events: number;
-  /** Turns played (with the turn controller). */
+  /** Turnos jugados (con el controlador de turnos). */
   turns: number;
 }
 
-/** The game's statistics, from its log (replayed from the starting life). */
+/** Las estadísticas de la partida, de su registro (reproducidas desde la vida inicial). */
 export function gameStats(game: LifeGame): GameStats {
   const n = game.players.length;
   const log = game.log ?? [];
@@ -378,7 +378,7 @@ export function gameStats(game: LifeGame): GameStats {
         dealt[e.from][e.player] += loss;
         if (e.kind === 'commander') players[e.from].commanderDealt += loss;
       }
-      // Taps less than 2.5 s apart (and from the same player) are one hit.
+      // Toques con menos de 2,5 s de diferencia (y del mismo jugador) son un solo golpe.
       const h = lastHit[e.player];
       const amount = e.at - h.at < 2500 && h.from === e.from ? h.amount + loss : loss;
       lastHit[e.player] = { at: e.at, amount, from: e.from };
@@ -395,7 +395,7 @@ export function gameStats(game: LifeGame): GameStats {
       s.outAt = e.at;
       s.outBy = e.from ?? lastHit[e.player].from;
     } else if (!out && s.outOrder !== undefined) {
-      // Brought back (a correction): not out any more.
+      // Recuperado (una corrección): ya no está eliminado.
       s.outOrder = undefined;
       s.outAt = undefined;
       s.outBy = undefined;
@@ -422,13 +422,13 @@ export const setPhoto = (game: LifeGame, index: number, kind: PhotoKind, url: st
 export const recolorPlayer = (game: LifeGame, index: number, color: number) =>
   update(game, index, (p) => ({ ...p, color }));
 
-/** The winner when everyone else is out (null while two or more are still playing). */
+/** El ganador cuando todos los demás están eliminados (null mientras siguen jugando dos o más). */
 export function winnerOf(game: LifeGame): number | null {
   const alive = game.players.map((p, i) => (lossReason(p) ? -1 : i)).filter((i) => i >= 0);
   return alive.length === 1 && game.players.length > 1 ? alive[0] : null;
 }
 
-/** Why the player is out, or null. */
+/** Por qué está eliminado el jugador, o null. */
 export function lossReason(p: Player): string | null {
   if (p.life <= 0) return 'Sin vidas';
   if (p.poison >= POISON_LIMIT) return `${POISON_LIMIT} de veneno`;
@@ -437,8 +437,8 @@ export function lossReason(p: Player): string | null {
 }
 
 /**
- * Rows of player indexes for the table layout. The top row faces the other way (rotated 180°),
- * as if the phone lay in the middle of the table.
+ * Filas de índices de jugador para la disposición en mesa. La fila de arriba mira al revés (girada 180°),
+ * como si el móvil estuviera en el centro de la mesa.
  */
 export function tableRows(count: number): number[][] {
   switch (count) {

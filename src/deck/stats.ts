@@ -1,30 +1,30 @@
-// Deck statistics and sample-hand helpers (pure functions, no React).
+// Estadísticas del mazo y utilidades de mano de prueba (funciones puras, sin React).
 import { mainType, manaValue, type TypeKey } from '@/collection/organize';
 import type { DeckCard } from '@/db/database';
 
 export type ManaColor = 'W' | 'U' | 'B' | 'R' | 'G' | 'C';
 export const MANA_COLORS: ManaColor[] = ['W', 'U', 'B', 'R', 'G', 'C'];
 
-/** Last column of the curve: "7+". */
+/** Última columna de la curva: «7+». */
 export const CURVE_MAX = 7;
 
 export interface DeckStats {
-  /** Copies in the deck (commanders included). */
+  /** Copias en el mazo (comandantes incluidos). */
   total: number;
   lands: number;
-  /** Average mana value of the non-land copies. */
+  /** Valor de maná medio de las copias que no son tierra. */
   averageCost: number;
-  /** Non-land copies per mana value (index 0…CURVE_MAX, the last one is "7+"). */
+  /** Copias que no son tierra por valor de maná (índice 0…CURVE_MAX, la última es «7+»). */
   curve: { creatures: number; others: number }[];
-  /** Colored symbols in the mana costs (× copies). Hybrid counts for both colors. */
+  /** Símbolos de color en los costes de maná (× copias). El híbrido cuenta para ambos colores. */
   symbols: Record<ManaColor, number>;
-  /** Land copies that can produce each color. */
+  /** Copias de tierra que pueden producir cada color. */
   sources: Record<ManaColor, number>;
-  /** Copies per main type, most common first. */
+  /** Copias por tipo principal, el más común primero. */
   types: { type: TypeKey; count: number }[];
-  /** Suggested number of lands for a deck of this size. */
+  /** Número de tierras sugerido para un mazo de este tamaño. */
   landRange: [number, number];
-  /** Deck size the range is for (the format's size, or the current count). */
+  /** Tamaño de mazo para el que es el rango (el tamaño del formato, o el recuento actual). */
   landRangeSize: number;
 }
 
@@ -38,7 +38,7 @@ const BASIC_TYPES: Record<string, ManaColor> = {
   Forest: 'G',
 };
 
-/** Colors a land can make: "Add {G}", "any color", basic land types (duals) and fetched basics. */
+/** Colores que puede dar una tierra: «Add {G}», «any color», tipos de tierra básica (duales) y básicas buscadas. */
 export function landColors(card: Pick<DeckCard, 'typeLine' | 'oracleText'>): Set<ManaColor> {
   const out = new Set<ManaColor>();
   const text = card.oracleText ?? '';
@@ -53,7 +53,7 @@ export function landColors(card: Pick<DeckCard, 'typeLine' | 'oracleText'>): Set
   return out;
 }
 
-/** Colored symbols of one mana cost: {W}=W, {W/U}=W+U, {2/W}={W/P}=W, {C}=C. */
+/** Símbolos de color de un coste de maná: {W}=W, {W/U}=W+U, {2/W}={W/P}=W, {C}=C. */
 function costSymbols(manaCost: string | null): ManaColor[] {
   const out: ManaColor[] = [];
   for (const [, sym] of (manaCost ?? '').matchAll(/\{([^}]+)\}/g))
@@ -62,22 +62,22 @@ function costSymbols(manaCost: string | null): ManaColor[] {
 }
 
 /**
- * Mana value for the curve. Split cards and Rooms ("{1}{W} // {4}{W}{W}") count as the sum of
- * both halves for Scryfall, but each half is cast on its own: use the cheaper one. Other cards
- * (adventures, double-faced) keep Scryfall's value, which is already the main / front face.
+ * Valor de maná para la curva. Las cartas divididas y las Rooms («{1}{W} // {4}{W}{W}») cuentan como la
+ * suma de ambas mitades para Scryfall, pero cada mitad se lanza por su cuenta: usa la más barata. Otras
+ * cartas (aventuras, doble cara) mantienen el valor de Scryfall, que ya es la cara principal / frontal.
  */
 export function curveCost(card: Pick<DeckCard, 'cmc' | 'manaCost'>): number {
   const halves = (card.manaCost ?? '').split(' // ').filter((h) => h.includes('{'));
   if (halves.length < 2) return card.cmc;
   const values = halves.map((h) => manaValue(h));
-  // Only split cards / Rooms add both halves up; adventures and double-faced cards don't.
+  // Solo las cartas divididas / Rooms suman ambas mitades; las aventuras y las de doble cara no.
   if (values.reduce((a, b) => a + b, 0) !== card.cmc) return card.cmc;
   return Math.min(...values);
 }
 
 /**
- * `format`: the deck's size rules for the land advice — the exact size of a commander-style deck
- * (100 / 60), or 'limited' (40). Without it the advice goes by the current number of cards.
+ * `format`: las reglas de tamaño del mazo para el consejo de tierras — el tamaño exacto de un mazo
+ * estilo comandante (100 / 60), o 'limited' (40). Sin él, el consejo va por el número actual de cartas.
  */
 export function deckStats(cards: DeckCard[], format?: { commanderSize?: number | null; limited?: boolean }): DeckStats {
   const curve = Array.from({ length: CURVE_MAX + 1 }, () => ({ creatures: 0, others: 0 }));
@@ -93,7 +93,7 @@ export function deckStats(cards: DeckCard[], format?: { commanderSize?: number |
     const type = mainType(card.typeLine);
     total += n;
     types.set(type, (types.get(type) ?? 0) + n);
-    // Creature lands (Dryad Arbor) are mana sources too, but go in the curve as creatures.
+    // Las tierras-criatura (Dryad Arbor) también son fuentes de maná, pero van en la curva como criaturas.
     if (/\bLand\b/.test(card.typeLine.split(' // ')[0])) for (const c of landColors(card)) sources[c] += n;
     if (type === 'land') {
       lands += n;
@@ -107,9 +107,9 @@ export function deckStats(cards: DeckCard[], format?: { commanderSize?: number |
     for (const c of costSymbols(card.manaCost)) symbols[c] += n;
   }
 
-  // Commander-size decks play ~35-38 lands; 60-card decks ~22-26 (40 % of the deck).
+  // Los mazos estilo comandante juegan ~35-38 tierras; los de 60 cartas ~22-26 (40 % del mazo).
   const big = total >= 90;
-  // An unfinished Commander deck still aims at its final size (35-38 lands in 100 cards).
+  // Un mazo de Commander sin terminar sigue apuntando a su tamaño final (35-38 tierras en 100 cartas).
   const size = format?.commanderSize ?? (format?.limited ? 40 : total);
   const landRange: [number, number] = format?.commanderSize
     ? [Math.round(size * 0.35), Math.round(size * 0.38)]
@@ -130,22 +130,22 @@ export function deckStats(cards: DeckCard[], format?: { commanderSize?: number |
   };
 }
 
-// ---- Sample hand ----
+// ---- Mano de prueba ----
 
-/** One copy of a card in the library. */
+/** Una copia de una carta en la biblioteca. */
 export interface LibraryCard {
   key: string;
   card: DeckCard;
 }
 
-/** The library to draw from: every copy, without the commanders (they start in the command zone). */
+/** La biblioteca de la que robar: cada copia, sin los comandantes (empiezan en la zona de mando). */
 export function buildLibrary(cards: DeckCard[], usesCommander: boolean): LibraryCard[] {
   return cards
     .filter((c) => !(usesCommander && c.isCommander))
     .flatMap((card) => Array.from({ length: card.quantity }, (_, i) => ({ key: `${card.oracleId}:${i}`, card })));
 }
 
-/** Fisher-Yates shuffle into a new array. */
+/** Barajado Fisher-Yates en un array nuevo. */
 export function shuffle<T>(list: T[]): T[] {
   const out = [...list];
   for (let i = out.length - 1; i > 0; i--) {
@@ -162,7 +162,7 @@ function choose(n: number, k: number): number {
   return r;
 }
 
-/** Chance of drawing between `min` and `max` lands in `draw` cards from `size` cards holding `lands`. */
+/** Probabilidad de robar entre `min` y `max` tierras en `draw` cartas de `size` cartas con `lands` tierras. */
 export function landOdds(size: number, lands: number, draw: number, min: number, max: number): number {
   if (size < draw) return 0;
   let p = 0;
@@ -170,7 +170,7 @@ export function landOdds(size: number, lands: number, draw: number, min: number,
   return p;
 }
 
-// ---- Land recommendation (like Arena's "Recommend lands") ----
+// ---- Recomendación de tierras (como el «Recomendar tierras» de Arena) ----
 
 export type BasicColor = 'W' | 'U' | 'B' | 'R' | 'G';
 export const BASIC_COLORS: BasicColor[] = ['W', 'U', 'B', 'R', 'G'];
@@ -183,17 +183,17 @@ export const BASIC_NAMES: Record<BasicColor, string> = {
 };
 
 export interface LandPlan {
-  /** Lands the deck should end up with. */
+  /** Tierras con las que debería acabar el mazo. */
   target: number;
-  /** Basics to add per color. */
+  /** Básicas a añadir por color. */
   add: Record<BasicColor, number>;
-  /** How many basics in total. */
+  /** Cuántas básicas en total. */
   count: number;
-  /** Lands still missing (target − lands). */
+  /** Tierras que aún faltan (objetivo − tierras). */
   needed: number;
 }
 
-/** Splits `n` by `weights` with whole numbers (largest remainder). */
+/** Reparte `n` según `weights` con números enteros (mayor resto). */
 function apportion(n: number, weights: Record<BasicColor, number>): Record<BasicColor, number> {
   const out: Record<BasicColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
   const sum = BASIC_COLORS.reduce((s, c) => s + weights[c], 0);
@@ -209,12 +209,12 @@ function apportion(n: number, weights: Record<BasicColor, number>): Record<Basic
 }
 
 /**
- * Basic lands to add so the deck reaches a sensible land count, split by colors: each color
- * should have land sources in proportion to its mana symbols, so the basics go first to the
- * colors short of sources.
- * - `deckSize`: exact size of commander-style formats (100 / 60), only sets the target: lands are added even
- *   if the deck goes over it (the validation banner then says so). null = constructed (60+).
- * - `identity`: commander color identity ("WG"), restricts the colors; null = use the mana symbols.
+ * Tierras básicas a añadir para que el mazo llegue a un número sensato de tierras, repartidas por colores:
+ * cada color debería tener fuentes de tierra en proporción a sus símbolos de maná, así que las básicas van
+ * primero a los colores cortos de fuentes.
+ * - `deckSize`: tamaño exacto de los formatos estilo comandante (100 / 60), solo fija el objetivo: las tierras
+ *   se añaden aunque el mazo se pase (el banner de validación lo avisa). null = construido (60+).
+ * - `identity`: identidad de color del comandante («WG»), restringe los colores; null = usar los símbolos de maná.
  */
 export function recommendLands(
   stats: DeckStats,
@@ -223,7 +223,7 @@ export function recommendLands(
   limited = false,
 ): LandPlan {
   const nonLands = stats.total - stats.lands;
-  // Limited (40 cards): ~17 lands. Constructed: ~40 % and at least 24. Commander: 37 %.
+  // Limited (40 cartas): ~17 tierras. Construido: ~40 % y al menos 24. Commander: 37 %.
   const target =
     deckSize !== null
       ? Math.round(deckSize * 0.37)
@@ -237,7 +237,7 @@ export function recommendLands(
   const weights = { W: 0, U: 0, B: 0, R: 0, G: 0 };
   const symbolSum = allowed.reduce((s, c) => s + stats.symbols[c], 0);
   for (const c of allowed) weights[c] = symbolSum > 0 ? stats.symbols[c] / symbolSum : 1 / allowed.length;
-  // Sources each color should have once the deck has `target` lands, minus what it already has.
+  // Fuentes que debería tener cada color una vez el mazo tenga `target` tierras, menos lo que ya tiene.
   const deficits = { W: 0, U: 0, B: 0, R: 0, G: 0 };
   for (const c of allowed) deficits[c] = Math.max(0, weights[c] * target - stats.sources[c]);
   const hasDeficit = allowed.some((c) => deficits[c] > 0);
