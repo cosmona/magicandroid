@@ -54,13 +54,13 @@ import { GameStatsModal } from '@/components/life/GameStats';
 import { TurnBar } from '@/components/life/TurnBar';
 
 const KEEP_AWAKE_TAG = 'life-counter';
-/** The time of a change (for the game's statistics). */
+/** El momento de un cambio (para las estadísticas de la partida). */
 const now = () => Date.now();
 
 /**
- * "Vidas" tab: a life counter for 2-6 players around the phone. Tap the left / right half of a
- * panel for −1 / +1 (hold for −10 / +10); the top row faces the players across the table. Poison
- * and commander damage per player, dice and who goes first in the menu. Saved in SQLite.
+ * Pestaña «Vidas»: un contador de vidas para 2-6 jugadores alrededor del móvil. Toca la mitad izquierda /
+ * derecha de un panel para −1 / +1 (mantén para −10 / +10); la fila de arriba mira a los jugadores del otro
+ * lado de la mesa. Veneno y daño de comandante por jugador, dados y quién empieza en el menú. Guardado en SQLite.
  */
 export function LifeCounterScreen() {
   const db = useSQLiteContext();
@@ -72,7 +72,7 @@ export function LifeCounterScreen() {
   const [detail, setDetail] = useState<number | null>(null);
   const [first, setFirst] = useState<number | null>(null);
   const settings = lifeSettings(game);
-  // What just happened to each panel (photo, flash, shake, floating number), for a moment.
+  // Lo que acaba de pasarle a cada panel (foto, parpadeo, temblor, número flotante), por un momento.
   const [events, setEvents] = useState<Record<number, PanelEvent>>({});
   const reactions = useRef(0);
   const react = (i: number, kind: PhotoKind, delta?: number) => {
@@ -82,7 +82,7 @@ export function LifeCounterScreen() {
     setTimeout(() => setEvents((r) => (r[i]?.at === at ? Object.fromEntries(Object.entries(r).filter(([k]) => Number(k) !== i)) : r)), 1900);
   };
 
-  // Load the saved game once; save every change after that.
+  // Carga la partida guardada una vez; guarda cada cambio después.
   useEffect(() => {
     getSetting(db, SETTINGS_KEY)
       .then((json) => {
@@ -95,7 +95,7 @@ export function LifeCounterScreen() {
     if (loaded) setSetting(db, SETTINGS_KEY, JSON.stringify(game)).catch(() => {});
   }, [db, game, loaded]);
 
-  // The screen stays on while this tab is visible.
+  // La pantalla se mantiene encendida mientras esta pestaña está visible.
   useFocusEffect(
     useCallback(() => {
       activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
@@ -114,7 +114,7 @@ export function LifeCounterScreen() {
   const winner = winnerOf(game);
   const count = game.players.length;
   const turnsOn = settings.show.turns;
-  // The game's statistics: by themselves when only one is left (once per game), and from the menu.
+  // Las estadísticas de la partida: solas cuando solo queda uno (una vez por partida), y desde el menú.
   const [statsOpen, setStatsOpen] = useState(false);
   const statsShownFor = useRef<string | null>(null);
   const gameKey = `${game.startedAt ?? ''}`;
@@ -127,7 +127,7 @@ export function LifeCounterScreen() {
     return () => clearTimeout(t);
   }, [winner, gameKey, loaded]);
 
-  /** A change of life of player `i`; `from` = who caused it (with 2 players, the other one). */
+  /** Un cambio de vida del jugador `i`; `from` = quién lo causó (con 2 jugadores, el otro). */
   const lifeChange = (i: number, delta: number, from?: number) => {
     buzz();
     const attacker = delta < 0 ? (from !== undefined && from !== i ? from : count === 2 ? 1 - i : undefined) : undefined;
@@ -177,7 +177,7 @@ export function LifeCounterScreen() {
               onCommander={(from, d) => {
                 buzz();
                 setGame((g) => changeCommander(g, i, from, d, now()));
-                // Commander damage: this player takes it, the other one deals it.
+                // Daño de comandante: este jugador lo recibe, el otro lo hace.
                 if (d > 0) {
                   react(i, 'hurt', -d);
                   react(from, 'attack');
@@ -247,13 +247,13 @@ export function LifeCounterScreen() {
   );
 }
 
-// ---------------------------------------------------------------- Player panel
+// ---------------------------------------------------------------- Panel de jugador
 
-/** Something that just happened to a panel (for its photo, flash, shake and floating number). */
+/** Algo que acaba de pasarle a un panel (para su foto, parpadeo, temblor y número flotante). */
 interface PanelEvent {
   at: number;
   kind: PhotoKind;
-  /** The change, for the floating number (none for the attacker's photo). */
+  /** El cambio, para el número flotante (ninguno para la foto del atacante). */
   delta?: number;
 }
 
@@ -271,7 +271,7 @@ function PlayerPanel({
   event,
   onCommander,
 }: {
-  /** It's this player's turn (turn controller). */
+  /** Es el turno de este jugador (controlador de turnos). */
   turn?: boolean;
   index: number;
   player: Player;
@@ -279,12 +279,12 @@ function PlayerPanel({
   settings: LifeSettings;
   rotated: boolean;
   first: boolean;
-  /** The last one standing (confetti). */
+  /** El último en pie (confeti). */
   winner: boolean;
-  /** A change of life; `from` = the player who caused it (the side's colored buttons). */
+  /** Un cambio de vida; `from` = el jugador que lo causó (los botones de color del lado). */
   onLife: (delta: number, from?: number) => void;
   onOpen: () => void;
-  /** What just happened (photo, flash, shake, floating number). */
+  /** Lo que acaba de pasar (foto, parpadeo, temblor, número flotante). */
   event?: PanelEvent;
   onCommander: (from: number, delta: number) => void;
 }) {
@@ -292,7 +292,7 @@ function PlayerPanel({
   const opponents = players
     .map((p, f) => ({ index: f, name: p.name, color: PLAYER_COLORS[p.color], damage: player.commander[f] ?? 0 }))
     .filter((o) => o.index !== index);
-  // With 3+ players each side is split in one button per opponent (who deals the damage) and one for the rest.
+  // Con 3+ jugadores cada lado se divide en un botón por rival (quién hace el daño) y uno para el resto.
   const segments =
     show.sources && players.length > 2
       ? [...opponents.map((o) => ({ from: o.index as number | undefined, color: o.color, label: o.name })), { from: undefined, color: 'rgba(0,0,0,0.25)', label: 'Otro' }]
@@ -304,7 +304,7 @@ function PlayerPanel({
     Animated.sequence([-1, 1, -0.7, 0.6, -0.3, 0].map((v) => Animated.timing(shake, { toValue: v, duration: 55, useNativeDriver: true }))).start();
   }, [event, fx.shake, shake]);
   const [size, setSize] = useState({ width: 0, height: 0 });
-  // Running change shown above the number ("−3"), cleared after a pause.
+  // Cambio acumulado mostrado sobre el número («−3»), borrado tras una pausa.
   const [delta, setDelta] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -323,7 +323,7 @@ function PlayerPanel({
 
   const out = lossReason(player);
   const big = Math.max(32, Math.min(size.width * 0.42, size.height * 0.5, 140));
-  // Narrow panels (4+ players): compact commander damage and segments with less room below.
+  // Paneles estrechos (4+ jugadores): daño de comandante compacto y segmentos con menos sitio debajo.
   const compact = size.width < 260 && players.length > 2;
   const danger = fx.heartbeat && !out && player.life > 0 && player.life <= 5;
   const photo = fx.photos && event ? player.photos?.[event.kind] : undefined;
@@ -345,7 +345,7 @@ function PlayerPanel({
         {(['minus', 'plus'] as const).map((side) => {
           const sign = side === 'plus' ? 1 : -1;
           return segments && side === 'minus' ? (
-            // One button per player (in their color): who deals the damage, or gives the life.
+            // Un botón por jugador (en su color): quién hace el daño, o da la vida.
             <View key={side} style={[styles.segments, compact && { paddingBottom: 66 }, side === 'minus' ? { paddingLeft: 5 } : { paddingRight: 5 }]}>
               {segments.map((sg, k) => (
                 <Pressable
@@ -407,7 +407,7 @@ function PlayerPanel({
       <View style={styles.bottomBar} pointerEvents="box-none">
         <View style={styles.cmdRow} pointerEvents="box-none">
           {show.commander && compact && opponents.map((o) => (
-            // Narrow panel: one circle per opponent with the damage; tap = +1, hold = −1.
+            // Panel estrecho: un círculo por rival con el daño; tocar = +1, mantener = −1.
             <Pressable
               key={o.index}
               style={({ pressed }) => [styles.cmdDot, { backgroundColor: o.color }, o.damage >= COMMANDER_LIMIT && styles.cmdLethal, pressed && { opacity: 0.7 }]}
@@ -469,9 +469,9 @@ function PlayerPanel({
   );
 }
 
-// ---------------------------------------------------------------- Effects
+// ---------------------------------------------------------------- Efectos
 
-/** The panel lights up red (damage) or green (life) and fades. */
+/** El panel se ilumina en rojo (daño) o verde (vida) y se desvanece. */
 function Flash({ kind }: { kind: PhotoKind }) {
   const [a] = useState(() => new Animated.Value(1));
   useEffect(() => {
@@ -485,7 +485,7 @@ function Flash({ kind }: { kind: PhotoKind }) {
   );
 }
 
-/** «−1» / «+3» floating up from the panel. */
+/** «−1» / «+3» flotando hacia arriba desde el panel. */
 function FloatingNumber({ delta, seed }: { delta: number; seed: number }) {
   const [a] = useState(() => new Animated.Value(0));
   useEffect(() => {
@@ -511,7 +511,7 @@ function FloatingNumber({ delta, seed }: { delta: number; seed: number }) {
   );
 }
 
-/** The life number beating like a heart (5 life or less). */
+/** El número de vida latiendo como un corazón (5 vidas o menos). */
 function Beat({ on, children }: { on: boolean; children: React.ReactNode }) {
   const [a] = useState(() => new Animated.Value(1));
   useEffect(() => {
@@ -534,7 +534,7 @@ function Beat({ on, children }: { on: boolean; children: React.ReactNode }) {
   return <Animated.View style={{ transform: [{ scale: a }] }}>{children}</Animated.View>;
 }
 
-/** A big skull when the player is out. */
+/** Una calavera grande cuando el jugador está eliminado. */
 function Skull({ size }: { size: number }) {
   const [a] = useState(() => new Animated.Value(0));
   useEffect(() => {
@@ -559,7 +559,7 @@ function Skull({ size }: { size: number }) {
 }
 
 const CONFETTI_COLORS = ['#f1c40f', '#e74c3c', '#2ecc71', '#3498db', '#ff7a9c', '#ffffff', '#9b59b6'];
-/** Confetti falling over the winner's panel, with a trophy. */
+/** Confeti cayendo sobre el panel del ganador, con un trofeo. */
 function Confetti({ width, height }: { width: number; height: number }) {
   const [pieces] = useState(() =>
     Array.from({ length: 34 }, (_, i) => ({ x: (i * 53) % 100, delay: ((i * 37) % 30) * 90, duration: 2000 + ((i * 17) % 20) * 90, color: CONFETTI_COLORS[i % 7], v: new Animated.Value(0) })),
@@ -594,7 +594,7 @@ function Confetti({ width, height }: { width: number; height: number }) {
   );
 }
 
-// ---------------------------------------------------------------- Player detail
+// ---------------------------------------------------------------- Detalle de jugador
 
 function PlayerDetail({
   game,
@@ -611,7 +611,7 @@ function PlayerDetail({
   onChange: (update: (g: LifeGame) => LifeGame) => void;
   onClose: () => void;
   onReact: (player: number, kind: PhotoKind) => void;
-  /** The «Fotos» effect is on: show the photos to take. */
+  /** El efecto «Fotos» está activo: muestra las fotos a hacer. */
   photos: boolean;
 }) {
   const player = game.players[index];
@@ -737,9 +737,9 @@ function PlayerDetail({
   );
 }
 
-// ---------------------------------------------------------------- Photos
+// ---------------------------------------------------------------- Fotos
 
-/** Where the players' photos are kept (the game stores their file URIs). */
+/** Dónde se guardan las fotos de los jugadores (la partida guarda sus URIs de archivo). */
 const photoDir = () => {
   const dir = new Directory(Paths.document, 'life-photos');
   if (!dir.exists) dir.create();
@@ -752,7 +752,7 @@ function deletePhotoFile(uri: string) {
   } catch {}
 }
 
-/** The player's photo popping up from the bottom of the panel (shakes when taking damage). */
+/** La foto del jugador saltando desde la parte inferior del panel (tiembla al recibir daño). */
 function ReactionPhoto({ uri, kind, size }: { uri: string; kind: PhotoKind; size: number }) {
   const [anim] = useState(() => new Animated.Value(0));
   const [shake] = useState(() => new Animated.Value(0));
@@ -793,7 +793,7 @@ function ReactionPhoto({ uri, kind, size }: { uri: string; kind: PhotoKind; size
   );
 }
 
-/** The front camera: a 3 s countdown, the photo, and «Guardar» / «Repetir». */
+/** La cámara frontal: una cuenta atrás de 3 s, la foto, y «Guardar» / «Repetir». */
 function PhotoBooth({ title, color, onCancel, onSave }: { title: string; color: string; onCancel: () => void; onSave: (uri: string) => void }) {
   const [permission, requestPermission] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
@@ -911,7 +911,7 @@ function Counter({
   );
 }
 
-// ---------------------------------------------------------------- Menu
+// ---------------------------------------------------------------- Menú
 
 type Roll = { label: string; value: string } | null;
 
