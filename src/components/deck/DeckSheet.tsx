@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-// RNGH lists cooperate with the rows' swipe-to-delete gesture.
+// Las listas de RNGH cooperan con el gesto de deslizar-para-borrar de las filas.
 import { FlatList, GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 import { displayName, getCardsByIds, smallImageUrl, type CardDetails } from '@/api/scryfall';
 import { SheetDragArea } from '@/components/BottomSheet';
@@ -65,19 +65,19 @@ import { validateDeck, type DeckValidation } from '@/validation';
 import { DECK_GROUP_OPTIONS, groupDeck, type DeckGroup, type DeckGroupBy, type DeckGroupContext } from '@/deck/group';
 import { DeckTagsSheet, TagChip, useCardTags, useTags } from '@/components/tags/Tags';
 
-/** Color of «La quiero» (hearts). */
+/** Color de «La quiero» (corazones). */
 const WANT_COLOR = '#ff7a9c';
 
-/** Height of the drop zone that appears at the bottom while dragging a card. */
+/** Altura de la zona de soltar que aparece abajo mientras arrastras una carta. */
 const DROP_ZONE_HEIGHT = 84;
-/** Key of the sideboard in the collapsed set (it folds with the groups). */
+/** Clave del banquillo en el conjunto plegado (se pliega con los grupos). */
 const SIDEBOARD_KEY = '__sideboard';
 const MAYBE_KEY = '__maybe';
 const GHOST_WIDTH = 92;
 
 type Side = 'main' | 'side';
 
-/** What the rows need to start / follow / finish a drag (long press, then move). */
+/** Lo que necesitan las filas para empezar / seguir / terminar un arrastre (pulsación larga, luego mover). */
 interface DragApi {
   x: SharedValue<number>;
   y: SharedValue<number>;
@@ -101,16 +101,16 @@ const VIEWS: { key: DeckView; label: string; icon: IconName }[] = [
 ];
 
 /**
- * Content of the deck bottom sheet (the web's MazoConstructor + Mazos): deck actions,
- * deck picker, then the active deck's cards as a detailed list, an image gallery, or
- * one big card per row. Opens in the view chosen in settings.
+ * Contenido de la hoja inferior del mazo (el MazoConstructor + Mazos de la web): acciones del mazo,
+ * selector de mazo, luego las cartas del mazo activo como lista detallada, galería de imágenes, o
+ * una carta grande por fila. Abre en la vista elegida en los ajustes.
  */
 export function DeckSheet() {
   const db = useSQLiteContext();
   const { activeDeck, activeCards, activeSideboard, activeMaybe, setActiveDeckId, refresh, prefs, setPrefs } = useAppState();
-  // «La quiero» of the exact printing each deck card has.
+  // «La quiero» de la impresión exacta que tiene cada carta del mazo.
   const wantedIds = useWantedPrintings(db, activeCards.map((c) => c.scryfallId));
-  // The view is saved in the preferences, so closing and reopening the deck keeps the one you were on.
+  // La vista se guarda en los prefs, así que cerrar y reabrir el mazo mantiene la que estabas viendo.
   const { markSeen: markDeckSeen, isNew: isSeenNew } = useSeen();
   const newCardsKey = activeDeck ? `deckcards:${activeDeck.uid}` : '';
   const cardIsNew = (c: (typeof activeCards)[number]) => isSeenNew(newCardsKey, c.addedAt);
@@ -125,8 +125,8 @@ export function DeckSheet() {
   const [sortMenu, setSortMenu] = useState(false);
   const [collapsed, setCollapsed] = useRememberedSet('deck');
   const [editing, setEditing] = useState(false);
-  // Oracle id of the card shown enlarged; the card itself is read from the deck so its
-  // quantity / commander update live while the buttons under it are used.
+  // Oracle id de la carta mostrada en grande; la carta se lee del mazo para que su cantidad / comandante
+  // se actualicen en vivo mientras se usan los botones de debajo.
   const [previewId, setPreviewId] = useState<string | null>(null);
   const validation = useMemo(
     () => validateDeck(activeDeck?.format ?? null, activeCards, activeSideboard),
@@ -135,9 +135,9 @@ export function DeckSheet() {
   const preview = previewId ? (activeCards.find((c) => c.oracleId === previewId) ?? null) : null;
   const previewIssues = preview ? validation.cardIssues[preview.oracleId] : undefined;
 
-  // Copies of each deck card in the user's collection (any printing).
+  // Copias de cada carta del mazo en la colección del usuario (cualquier impresión).
   const [owned, setOwned] = useState<Record<string, number> | null>(null);
-  // Bumped after adding to the collection from here, to recount.
+  // Se incrementa tras añadir a la colección desde aquí, para recontar.
   const [ownedVersion, setOwnedVersion] = useState(0);
   useEffect(() => {
     let cancelled = false;
@@ -163,7 +163,7 @@ export function DeckSheet() {
   const missing = owned ? missingCards.reduce((n, m) => n + m.count, 0) : null;
   const [shopping, setShopping] = useState(false);
 
-  // Prices, P/T and tokens from Scryfall (cached; shared with the deck summary).
+  // Precios, F/R y fichas de Scryfall (cacheados; compartidos con el resumen del mazo).
   const details = useCardDetails(activeCards.map((c) => c.scryfallId));
   const tokens = deckTokens(activeCards, details);
   const [showTokens, setShowTokens] = useState(false);
@@ -173,13 +173,13 @@ export function DeckSheet() {
   const [showShare, setShowShare] = useState(false);
   const [shareCard, setShareCard] = useState<ShareableCard | null>(null);
   const [printingCard, setPrintingCard] = useState<DeckCard | null>(null);
-  // "Mis mazos" drops down from the cover, like a select.
+  // «Mis mazos» se despliega desde la portada, como un select.
   const [picking, setPicking] = useState(false);
   const [taggingDeck, setTaggingDeck] = useState(false);
-  // Printing shown in the full Scryfall info screen.
+  // Impresión mostrada en la pantalla de info completa de Scryfall.
   const [infoId, setInfoId] = useState<string | null>(null);
 
-  // Cards saved before validation data existed get it from Scryfall, once per deck.
+  // Las cartas guardadas antes de que existieran los datos de validación los obtienen de Scryfall, una vez por mazo.
   const backfilled = useRef(new Set<number>());
   const activeDeckId = activeDeck?.id;
   useEffect(() => {
@@ -210,7 +210,7 @@ export function DeckSheet() {
       { text: 'Sí', style: 'destructive', onPress: action },
     ]);
 
-  // Last destructive action, undoable for a few seconds from the bar at the bottom.
+  // Última acción destructiva, deshacible durante unos segundos desde la barra de abajo.
   const [undo, setUndo] = useState<{ label: string; snapshot: DeckSnapshot } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(undoTimer.current), []);
@@ -238,7 +238,7 @@ export function DeckSheet() {
       offerUndo('Mazo vaciado', snapshot);
     });
 
-  // A copy of the deck (cards, sideboard, «Posibles», format, cover) opened right away.
+  // Una copia del mazo (cartas, banquillo, «Posibles», formato, portada) abierta al momento.
   const duplicate = async () => {
     if (!activeDeck) return;
     setActiveDeckId(await duplicateDeck(db, activeDeck.id, `${activeDeck.name} (copia)`));
@@ -255,11 +255,11 @@ export function DeckSheet() {
 
   const deckId = activeDeck?.id;
 
-  // ---- Groups: the list is flattened into headers + cards (or gallery rows of 3). ----
+  // ---- Grupos: la lista se aplana en cabeceras + cartas (o filas de galería de 3). ----
   const groupBy = prefs.deckGroup;
   const subGroupBy: DeckGroupBy = groupBy === 'none' || prefs.deckSubGroup === groupBy ? 'none' : (prefs.deckSubGroup ?? 'none');
-  // What the edition, collection, price and tag groupings need: the edition of each printing (from
-  // Scryfall, once), copies owned, prices and tags.
+  // Lo que necesitan las agrupaciones por edición, colección, precio y etiqueta: la edición de cada
+  // impresión (de Scryfall, una vez), copias que tienes, precios y etiquetas.
   const [editions, setEditions] = useState<Record<string, { code: string; name: string; releasedAt: string }>>({});
   const deckIdsKey = activeCards.map((c) => c.scryfallId).sort().join(',');
   useEffect(() => {
@@ -283,7 +283,7 @@ export function DeckSheet() {
   }, [deckIdsKey, groupBy, subGroupBy]);
   const deckTags = useCardTags(activeCards.map((c) => c.oracleId));
   const allTags = useTags();
-  // Ajustes → Cartas y listas: what the list rows and the gallery tiles show.
+  // Ajustes → Cartas y listas: qué muestran las filas de lista y las tarjetas de galería.
   const listLayout = listFor(prefs, 'deck');
   const galleryLayout = galleryFor(prefs, 'deck');
   const infoOf = (c: DeckCard): CardInfo => {
@@ -325,7 +325,7 @@ export function DeckSheet() {
       tags: (c) => (deckTags[c.oracleId] ?? []).map((u) => tagName[u]).filter(Boolean),
     };
   }, [editions, owned, details, deckTags, allTags]);
-  // The cards in the chosen order (each group keeps it).
+  // Las cartas en el orden elegido (cada grupo lo mantiene).
   const sortBy = prefs.deckSort ?? 'cmc';
   const sortedCards = useMemo(() => {
     const name = (c: DeckCard) => c.printedName ?? c.name;
@@ -358,7 +358,7 @@ export function DeckSheet() {
           for (const card of cards) out.push({ type: 'card', key: `${prefix}:${card.oracleId}`, card });
         }
       };
-      // Second level (subgroups), except for the commander.
+      // Segundo nivel (subgrupos), salvo para el comandante.
       const subs = subGroupBy === 'none' || group.key === 'commander' ? [] : groupDeck(group.cards, subGroupBy, false, groupCtx);
       if (subs.length) {
         for (const sg of subs) {
@@ -385,7 +385,7 @@ export function DeckSheet() {
       return next;
     });
 
-  // ---- Drag a card (long press) to the drop zone: main deck ⇄ sideboard. ----
+  // ---- Arrastra una carta (pulsación larga) a la zona de soltar: mazo principal ⇄ banquillo. ----
   const sheetRef = useRef<ComponentRef<typeof View>>(null);
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
@@ -436,7 +436,7 @@ export function DeckSheet() {
   };
   const actions: CardActions = {
     add: (c) => deckId && run(changeQuantity(db, deckId, c.oracleId, 1)),
-    // Going below 1 copy removes the card: undoable like any removal.
+    // Bajar de 1 copia quita la carta: deshacible como cualquier eliminación.
     sub: (c) => (c.quantity <= 1 ? removeCard(c) : deckId && run(changeQuantity(db, deckId, c.oracleId, -1))),
     confirmRemove: (c) =>
       confirm('Quitar carta', `¿Quitar ${displayName(c)} del mazo?`, () => {
@@ -469,15 +469,15 @@ export function DeckSheet() {
   const unnamed = activeDeck?.name === UNNAMED_DECK;
   const toolsHidden = prefs.deckToolsHidden;
 
-  // While the view is dragged sideways, a copy of the summary + buttons is pinned over the cards so
-  // only the cards slide. `scrollYRef` tracks the active list's scroll to pin them at the right spot.
+  // Mientras se arrastra la vista a los lados, una copia del resumen + botones se fija sobre las cartas
+  // para que solo se deslicen las cartas. `scrollYRef` sigue el scroll de la lista activa para fijarlos en el sitio correcto.
   const scrollY = useSharedValue(0);
   const [topSize, setTopSize] = useState({ summary: 0, bar: 0, actions: 0 });
   const pinCollapse = useAnimatedStyle(() => ({ height: Math.max(0, topSize.summary + topSize.bar + topSize.actions - Math.min(scrollY.get(), topSize.summary)) }));
   const pinInner = useAnimatedStyle(() => ({ transform: [{ translateY: -Math.min(scrollY.get(), topSize.summary) }] }));
 
-  // The deck's summary scrolls away with the cards; the row of buttons stays at the top (sticky).
-  // Dragging the summary or the buttons moves the sheet.
+  // El resumen del mazo se va con el scroll de las cartas; la fila de botones se queda arriba (fija).
+  // Arrastrar el resumen o los botones mueve la hoja.
   const header = (
     <View style={{ backgroundColor: colors.deck + '14', borderBottomWidth: 2, borderBottomColor: colors.deck }}>
       <View style={styles.titleRow}>
@@ -531,7 +531,7 @@ export function DeckSheet() {
             )}
             <View style={{ flex: 1 }} />
             {hasGroups && (
-              // One button: closes every group, or opens them all if any is closed.
+              // Un botón: cierra todos los grupos, o los abre todos si alguno está cerrado.
               <HintButton
                 hint={collapsed.size ? 'Abrir todos los grupos' : 'Cerrar todos los grupos'}
                 style={styles.groupButton}
@@ -661,7 +661,7 @@ export function DeckSheet() {
     </View>
   );
 
-  // Scrolls with the cards: the problem list can get long. Built per view (the «Texto» commanders).
+  // Se desplaza con las cartas: la lista de problemas puede alargarse. Construido por vista (los comandantes de «Texto»).
   const listHeaderFor = (viewMode: DeckView) => (
     <View>
       {!activeDeck && (
@@ -703,7 +703,7 @@ export function DeckSheet() {
             </SheetDragArea>
           }
           ListFooterComponent={
-            // Always there for decks that can have one (so it can be found), and whenever it has cards.
+            // Siempre presente para los mazos que pueden tener uno (para que se encuentre), y siempre que tenga cartas.
             activeDeck ? (
               <View>
                 {activeCards.length > 0 && !validation.usesCommander && (
@@ -726,7 +726,7 @@ export function DeckSheet() {
                   />
                 )}
                 {tokens.length > 0 && (
-                  // The deck's tokens, next to Banquillo and Posibles (view or print them).
+                  // Las fichas del mazo, junto a Banquillo y Posibles (verlas o imprimirlas).
                   <Pressable style={styles.tokensRow} onPress={() => setShowTokens(true)}>
                     <MaterialCommunityIcons name="cards-outline" size={20} color={colors.info} />
                     <Text style={styles.tokensTitle}>Fichas</Text>
@@ -893,7 +893,7 @@ export function DeckSheet() {
         />
   );
 
-  // The fixed header drawn over the sliding cards (summary collapses with scroll, like the sticky bar).
+  // La cabecera fija dibujada sobre las cartas que se deslizan (el resumen se colapsa con el scroll, como la barra fija).
   const pinnedHeader =
     topSize.summary + topSize.bar > 0 ? (
       <Animated.View style={[styles.viewPin, pinCollapse]}>
@@ -1157,19 +1157,19 @@ export function DeckSheet() {
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-/** Icon-only deck action; the row's buttons share its width equally. */
+/** Acción de mazo solo-icono; los botones de la fila se reparten su ancho por igual. */
 function Action(props: {
   icon: IconName;
-  /** Accessibility name of the icon-only button. */
+  /** Nombre de accesibilidad del botón solo-icono. */
   hint: string;
   onPress: () => void;
   disabled?: boolean;
-  /** Accent outline (pending "Guardar"). */
+  /** Contorno de acento (pendiente de «Guardar»). */
   highlight?: boolean;
-  /** Background in the tone's color (Cardmarket). */
+  /** Fondo en el color del tono (Cardmarket). */
   filled?: boolean;
   danger?: boolean;
-  /** Color code (see `Tone` in theme). */
+  /** Código de color (ver `Tone` en theme). */
   tone?: Tone;
 }) {
   const tone: Tone | undefined = props.danger ? 'danger' : props.highlight ? 'primary' : props.tone;
@@ -1198,55 +1198,55 @@ function Action(props: {
 interface CardActions {
   add: (c: DeckCard) => void;
   sub: (c: DeckCard) => void;
-  /** Trash button: asks first, then the removal can be undone. */
+  /** Botón de papelera: pregunta primero, luego la eliminación se puede deshacer. */
   confirmRemove: (c: DeckCard) => void;
   cover: (c: DeckCard) => void;
-  /** Pick another printing of the card: artwork or language. */
+  /** Elegir otra impresión de la carta: arte o idioma. */
   printing: (c: DeckCard) => void;
-  /** Moves one copy to the sideboard. */
+  /** Mueve una copia al banquillo. */
   toSide: (c: DeckCard) => void;
-  /** Moves one copy to «Posibles». */
+  /** Mueve una copia a «Posibles». */
   toMaybe: (c: DeckCard) => void;
-  /** «La quiero» on / off. */
+  /** «La quiero» activar / desactivar. */
   want: (c: DeckCard) => void;
-  /** "La tengo": adds this printing to the collection. */
+  /** «La tengo»: añade esta impresión a la colección. */
   own: (c: DeckCard) => void;
-  /** Removes one copy of the card from the collection. */
+  /** Quita una copia de la carta de la colección. */
   unown: (c: DeckCard) => void;
   share: (c: DeckCard) => void;
   preview: (c: DeckCard) => void;
-  /** Opens the screen with everything Scryfall knows about the card. */
+  /** Abre la pantalla con todo lo que Scryfall sabe de la carta. */
   info: (c: DeckCard) => void;
   commander: (c: DeckCard) => void;
 }
 
 interface CardProps {
   card: DeckCard;
-  /** Long press on the card image drags it to the sideboard. */
+  /** Pulsación larga sobre la imagen de la carta la arrastra al banquillo. */
   drag: DragApi;
   actions: CardActions;
-  /** Validation problems of this card (red border + messages). */
+  /** Problemas de validación de esta carta (borde rojo + mensajes). */
   issues?: string[];
-  /** Show the 👑 commander toggle. */
+  /** Muestra el interruptor 👑 de comandante. */
   crown: boolean;
-  /** Copies in the collection; undefined while loading. */
+  /** Copias en la colección; undefined mientras carga. */
   owned?: number;
-  /** Live Scryfall data (price, P/T); undefined until loaded or offline. */
+  /** Datos en vivo de Scryfall (precio, F/R); undefined hasta que carga o sin conexión. */
   details?: CardDetails;
-  /** Show the card's price (Ajustes → Precios). */
+  /** Muestra el precio de la carta (Ajustes → Precios). */
   showPrice: boolean;
-  /** What the row shows (Ajustes → Cartas y listas). */
+  /** Qué muestra la fila (Ajustes → Cartas y listas). */
   info?: CardInfo;
   layout?: ListLayout;
-  /** Marked as «La quiero». */
+  /** Marcada como «La quiero». */
   wanted?: boolean;
-  /** Added since the last time you opened this deck (shows a «nuevo» badge). */
+  /** Añadida desde la última vez que abriste este mazo (muestra un badge «nuevo»). */
   isNewCard?: boolean;
 }
 
 /**
- * "Tienes 2" / "Te falta 1 (tienes 1)" / "No la tienes" under a deck card, from the collection.
- * Tapping it ("+ La tengo") adds this printing to the collection.
+ * «Tienes 2» / «Te falta 1 (tienes 1)» / «No la tienes» bajo una carta del mazo, según la colección.
+ * Tocarlo («+ La tengo») añade esta impresión a la colección.
  */
 function OwnedLine({
   owned,
@@ -1314,9 +1314,9 @@ function OwnedLine({
 }
 
 /**
- * One-line "✓ Válido" / "⚠ N problemas" summary in the deck sheet's fixed header (so it can
- * be dragged like the rest of it). Tapping it lists the deck-level problems and every card
- * with its own problems in a popup; tapping a card there opens it.
+ * Resumen de una línea «✓ Válido» / «⚠ N problemas» en la cabecera fija de la hoja del mazo (para que se
+ * pueda arrastrar como el resto). Tocarlo lista los problemas a nivel de mazo y cada carta con sus propios
+ * problemas en un popup; tocar una carta ahí la abre.
  */
 function ValidationBanner(props: {
   validation: DeckValidation;
@@ -1326,7 +1326,7 @@ function ValidationBanner(props: {
 }) {
   const { validation: v, format, cards, onOpenCard } = props;
   const [open, setOpen] = useState(false);
-  // Only when there are problems: a red ⚠ with how many; tap it for the list.
+  // Solo cuando hay problemas: un ⚠ rojo con cuántos; tócalo para la lista.
   if (!v.checked || v.valid) return null;
   const badCards = cards.filter((c) => v.cardIssues[c.oracleId]);
   const count = v.issues.length + badCards.reduce((n, c) => n + v.cardIssues[c.oracleId].length, 0);
@@ -1404,8 +1404,8 @@ function CardIssues({ issues }: { issues?: string[] }) {
   );
 }
 
-/** One card of the list view, with the same data the web table showed. */
-/** «Texto» view line: copies · name · ⚠ · tags · ✓ / falta N · − ＋ · mana cost (like the shared deck list). */
+/** Una carta de la vista lista, con los mismos datos que mostraba la tabla de la web. */
+/** Línea de la vista «Texto»: copias · nombre · ⚠ · etiquetas · ✓ / falta N · − ＋ · coste de maná (como la lista de mazo compartida). */
 function TextRow(props: Parameters<typeof TextRowInner>[0]) {
   const { prefs } = useAppState();
   return <TextRowInner {...props} showOwned={prefs.showOwned !== false} />;
@@ -1466,7 +1466,7 @@ function TextRowInner({
   );
 }
 
-/** Color of a row's border (Ajustes → Código de colores): green = you have all the copies, pink = you want it. */
+/** Color del borde de una fila (Ajustes → Código de colores): verde = tienes todas las copias, rosa = la quieres. */
 function useRowTint(owned: number | undefined, needed: number, wanted: boolean) {
   const { prefs } = useAppState();
   if (prefs.colorCode === false) return null;
@@ -1517,7 +1517,7 @@ function CardRow({ card, actions, issues, crown, owned, drag, wanted, info, layo
   );
 }
 
-/** "Grande" view: the card at full width (like the swipe stack) with its controls below. */
+/** Vista «Grande»: la carta a ancho completo (como la pila de swipe) con sus controles debajo. */
 function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag, wanted, isNewCard }: CardProps) {
   const tint = useRowTint(owned, card.quantity, !!wanted);
   return (
@@ -1527,7 +1527,7 @@ function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag
           {card.imageUrl && (
             <Image
               source={{ uri: card.imageUrl }}
-              // Thumbnail first (usually cached), full image when it arrives.
+              // La miniatura primero (normalmente cacheada), la imagen completa cuando llega.
               placeholder={{ uri: smallImageUrl(card.imageUrl) }}
               placeholderContentFit="contain"
               style={styles.bigImage}
@@ -1561,7 +1561,7 @@ function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag
   );
 }
 
-/** "F/R 3/4", "Lealtad 5" or "Defensa 4", from the card's live data. */
+/** «F/R 3/4», «Lealtad 5» o «Defensa 4», de los datos en vivo de la carta. */
 function statsOf(d?: CardDetails): { label: string; value: string } | null {
   if (!d) return null;
   if (d.power != null && d.toughness != null) return { label: 'F/R', value: `${d.power}/${d.toughness}` };
@@ -1570,10 +1570,10 @@ function statsOf(d?: CardDetails): { label: string; value: string } | null {
   return null;
 }
 
-/** Quantity stepper + icon buttons under a deck card (same look as the header's actions). */
+/** Stepper de cantidad + botones de icono bajo una carta del mazo (mismo aspecto que las acciones de la cabecera). */
 /**
- * A secondary zone of the deck under its cards (collapsible): the sideboard or «Posibles». Neither counts
- * for the deck's size, curve, stats or price. Sideboard cards can also be dragged back to the main deck.
+ * Una zona secundaria del mazo bajo sus cartas (plegable): el banquillo o «Posibles». Ninguna cuenta para el
+ * tamaño, la curva, las estadísticas ni el precio del mazo. Las cartas del banquillo también se pueden arrastrar de vuelta al mazo principal.
  */
 function ZoneSection({
   zone,
@@ -1653,9 +1653,9 @@ function ZoneSection({
 }
 
 /**
- * Makes its content draggable after a long press (a quick touch still scrolls the list or
- * presses buttons). Positions go to the sheet's shared values; the sheet draws the card
- * following the finger and decides where it was dropped.
+ * Hace su contenido arrastrable tras una pulsación larga (un toque rápido sigue haciendo scroll en la lista o
+ * pulsando botones). Las posiciones van a los shared values de la hoja; la hoja dibuja la carta siguiendo al
+ * dedo y decide dónde se soltó.
  */
 function Draggable({
   oracleId,
@@ -1695,7 +1695,7 @@ function Draggable({
   );
 }
 
-/** One card of the gallery view: thumbnail, copies (👑 for commanders) and a ⚠ mark. */
+/** Una carta de la vista galería: miniatura, copias (👑 para comandantes) y una marca ⚠. */
 function GalleryTile({
   card,
   info,
@@ -1706,7 +1706,7 @@ function GalleryTile({
   onPress,
 }: {
   card: DeckCard;
-  /** What the tile's icons show, and where (Ajustes → Cartas y listas). */
+  /** Qué muestran los iconos de la tarjeta, y dónde (Ajustes → Cartas y listas). */
   info: CardInfo;
   layout: GalleryLayout;
   invalid: boolean;
@@ -1717,7 +1717,7 @@ function GalleryTile({
   return (
     <Pressable style={[styles.galleryItem, invalid && styles.galleryInvalid]} onPress={onPress}>
       {card.imageUrl && (
-        // Gallery tiles are small: the ~15 KB thumbnail is enough and loads fast.
+        // Las tarjetas de galería son pequeñas: la miniatura de ~15 KB basta y carga rápido.
         <Image
           source={{ uri: smallImageUrl(card.imageUrl) }}
           style={styles.galleryImage}
@@ -1907,7 +1907,7 @@ const styles = StyleSheet.create({
   top: { borderBottomWidth: 1, borderBottomColor: colors.border },
   stickyBar: { backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
   titleRow: { paddingHorizontal: 14 },
-  // Under the cover + name: collection status, view switch, buttons toggle.
+  // Bajo la portada + nombre: estado de colección, conmutador de vista, interruptor de botones.
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 8 },
   ownedSummary: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   toolsToggle: {
