@@ -13,8 +13,8 @@ import { createDeck } from '@/db/database';
 import { colors, formatLabel } from '@/theme';
 
 /**
- * Row of saved decks (the web's Mazos list) that drops down under the deck's cover in the
- * deck sheet; tap one to load it, ＋ to create one, Importar to paste a list. `onPicked` closes the dropdown.
+ * Fila de mazos guardados (la lista Mazos de la web) que se despliega bajo la portada del mazo en la
+ * hoja del mazo; toca uno para cargarlo, ＋ para crear uno, Importar para pegar una lista. `onPicked` cierra el desplegable.
  */
 export function DeckPicker({ onPicked }: { onPicked?: () => void }) {
   const db = useSQLiteContext();

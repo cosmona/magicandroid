@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import { colors } from '@/theme';
 
-/** Drag handle drawn at the top of a sheet or bar (Android sheets don't show a native grabber). */
+/** Asa de arrastre dibujada arriba de una hoja o barra (las hojas de Android no muestran un tirador nativo). */
 export function SheetGrip() {
   return <View pointerEvents="none" style={styles.grip} />;
 }

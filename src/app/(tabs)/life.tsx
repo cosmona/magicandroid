@@ -1,6 +1,6 @@
 import { LifeCounterScreen } from '@/components/life/LifeCounterScreen';
 
-/** "Vidas" tab: life counter. */
+/** Pestaña «Vidas»: contador de vidas. */
 export default function LifeTab() {
   return <LifeCounterScreen />;
 }

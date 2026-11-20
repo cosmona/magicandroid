@@ -12,13 +12,13 @@ interface DeckToken {
   id: string;
   name: string;
   typeLine: string;
-  /** Deck cards that make it. */
+  /** Cartas del mazo que la crean. */
   makers: string[];
 }
 
-/** Tokens and emblems the deck's cards make (from Scryfall's `all_parts`), with their images. */
+/** Fichas y emblemas que crean las cartas del mazo (de `all_parts` de Scryfall), con sus imágenes. */
 export function deckTokens(cards: DeckCard[], details: Record<string, CardDetails>): DeckToken[] {
-  // The same token has many printings: group by name + type line.
+  // La misma ficha tiene muchas impresiones: agrupar por nombre + línea de tipo.
   const byKey = new Map<string, DeckToken>();
   for (const card of cards) {
     for (const t of details[card.scryfallId]?.tokens ?? []) {

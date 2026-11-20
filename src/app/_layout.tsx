@@ -8,7 +8,7 @@ import { AppStateProvider, useAppState } from '@/context/AppState';
 import { DATABASE_NAME, migrateDbIfNeeded } from '@/db/database';
 import { colors } from '@/theme';
 
-/** Android's navigation buttons: light icons over the app (transparent bar), or hidden. */
+/** Los botones de navegación de Android: iconos claros sobre la app (barra transparente), u ocultos. */
 function SystemNavigationBar() {
   const { prefs } = useAppState();
   return <NavigationBar style="light" hidden={prefs.hideNavBar} />;

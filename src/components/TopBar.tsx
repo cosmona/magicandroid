@@ -7,7 +7,7 @@ import { useAppState } from '@/context/AppState';
 import { COLOR_ORDER, KEYWORD_LABELS, MANA_ICONS, RARITY_ICONS, TYPE_LABELS, typeIcon } from '@/icons';
 import { colors, formatOption } from '@/theme';
 
-/** "Filtros" button + a one-line summary of the active filters (tap = edit), above the cards. */
+/** Botón «Filtros» + un resumen de una línea de los filtros activos (tocar = editar), sobre las cartas. */
 export function TopBar({ onOpenFilters }: { onOpenFilters: () => void }) {
   const { filters } = useAppState();
   const count = activeFilterCount(filters);

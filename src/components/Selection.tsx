@@ -1,5 +1,5 @@
-// Selecting several cards (deck and collection), as on the PC: a long press (or «Seleccionar») starts it,
-// a tap marks / unmarks, and a bar at the bottom offers what to do with all of them.
+// Seleccionar varias cartas (mazo y colección), como en el PC: una pulsación larga (o «Seleccionar») lo inicia,
+// un toque marca / desmarca, y una barra abajo ofrece qué hacer con todas.
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -47,7 +47,7 @@ export function useSelection<T>(items: T[], keyOf: (item: T) => string) {
 }
 export type Selection<T> = ReturnType<typeof useSelection<T>>;
 
-/** Over a card while selecting: a tap marks / unmarks it; the checkbox in its corner. */
+/** Sobre una carta mientras seleccionas: un toque la marca / desmarca; la casilla en su esquina. */
 export function SelectOverlay({ on, onPress }: { on: boolean; onPress: () => void }) {
   return (
     <Pressable style={[StyleSheet.absoluteFill, styles.overlay, on && styles.overlayOn]} onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
@@ -56,7 +56,7 @@ export function SelectOverlay({ on, onPress }: { on: boolean; onPress: () => voi
   );
 }
 
-/** The bar at the bottom while selecting: how many, all / none, the actions and close. */
+/** La barra de abajo mientras seleccionas: cuántas, todas / ninguna, las acciones y cerrar. */
 export function SelectionBar<T>({ sel, total, actions, extra }: { sel: Selection<T>; total: number; actions: BulkAction[]; extra?: ReactNode }) {
   const insets = useSafeAreaInsets();
   if (!sel.selecting) return null;

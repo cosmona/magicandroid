@@ -29,7 +29,7 @@ const PRICE_PLACES: { key: PricePref; label: string; hint: string }[] = [
   { key: 'pricesCardInfo', label: 'Ficha completa', hint: 'La sección «Precios» de la ficha de una carta.' },
 ];
 
-/** App settings, saved in SQLite (`prefs`). */
+/** Ajustes de la app, guardados en SQLite (`prefs`). */
 export function SettingsSheet() {
   const { prefs, setPrefs, setFilters } = useAppState();
   const [building, setBuilding] = useState(false);

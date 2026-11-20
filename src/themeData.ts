@@ -1,5 +1,5 @@
-// Appearance themes for the phone, ported 1:1 from the PC (same tokens and values). Generated; see
-// Ajustes → Apariencia. The resolved palette is applied in theme.ts.
+// Temas de apariencia para el móvil, portados 1:1 del PC (mismos tokens y valores). Generado; ver
+// Ajustes → Apariencia. La paleta resuelta se aplica en theme.ts.
 export type ColorToken =
   | 'bg'
   | 'surface'

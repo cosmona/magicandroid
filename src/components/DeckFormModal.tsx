@@ -12,7 +12,7 @@ interface Props {
   onSubmit: (name: string, format: string | null) => void;
 }
 
-/** Name + format form, used for "Nuevo mazo" and for the constructor's save button. Mount it only while visible. */
+/** Formulario de nombre + formato, usado para «Nuevo mazo» y para el botón de guardar del constructor. Móntalo solo mientras esté visible. */
 export function DeckFormModal({ title, initialName = '', initialFormat = null, onCancel, onSubmit }: Props) {
   const [name, setName] = useState(initialName);
   const [format, setFormat] = useState<string | null>(initialFormat);

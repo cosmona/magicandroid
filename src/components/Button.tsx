@@ -26,7 +26,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, style }:
   );
 }
 
-/** Pill-shaped toggle used for filter / format options. */
+/** Interruptor con forma de píldora usado para opciones de filtro / formato. */
 export function Chip({
   label,
   selected,

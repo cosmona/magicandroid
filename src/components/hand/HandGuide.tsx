@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors } from '@/theme';
 
-/** One card of the drawn fan: tilted around its bottom, its title highlighted. */
+/** Una carta del abanico dibujado: inclinada sobre su parte inferior, con su título resaltado. */
 function FanCard({ angle, offset }: { angle: number; offset: number }) {
   return (
     <View style={[styles.fanCard, { transformOrigin: '50% 100%', transform: [{ translateX: offset }, { rotate: `${angle}deg` }] }]}>
@@ -15,7 +15,7 @@ function FanCard({ angle, offset }: { angle: number; offset: number }) {
   );
 }
 
-/** The phone on its stand, seen from the side, looking down at the hand. */
+/** El móvil en su soporte, visto de lado, mirando hacia abajo a la mano. */
 function StandDrawing() {
   return (
     <View style={styles.scene}>
@@ -41,7 +41,7 @@ function StandDrawing() {
   );
 }
 
-/** The fan as the camera should see it: titles at the top, none covered. */
+/** El abanico como debería verlo la cámara: títulos arriba, ninguno tapado. */
 function FanDrawing() {
   return (
     <View style={[styles.scene, { alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 10 }]}>
@@ -66,7 +66,7 @@ const TIPS: [string, string][] = [
   ['gesture-tap', 'Si se equivoca, toca una carta de la lista para corregirla.'],
 ];
 
-/** How to place the camera and the cards: shown the first time «Mano» opens (and with «?»). */
+/** Cómo colocar la cámara y las cartas: se muestra la primera vez que abre «Mano» (y con «?»). */
 export function HandGuide({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
