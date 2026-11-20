@@ -11,8 +11,8 @@ import {
 
 type TextExtractor = typeof import('expo-text-extractor');
 
-// The ML Kit module only exists in a build of the app (APK / dev client), not in Expo Go,
-// where requiring it throws.
+// El módulo de ML Kit solo existe en una build de la app (APK / dev client), no en Expo Go,
+// donde requerirlo lanza un error.
 let extractor: TextExtractor | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -22,22 +22,22 @@ try {
   extractor = null;
 }
 
-/** On-device text recognition is available (false in Expo Go). */
+/** El reconocimiento de texto en el dispositivo está disponible (false en Expo Go). */
 export const scanSupported = extractor !== null;
 
-/** What the photo's text says about the card. */
+/** Lo que el texto de la foto dice sobre la carta. */
 export interface ScanHints {
-  /** Set code from the bottom line ("DMU • ES"), lowercase. */
+  /** Código de edición de la línea inferior («DMU • ES»), en minúsculas. */
   set?: string;
-  /** Collector number without leading zeros. */
+  /** Número de coleccionista sin ceros a la izquierda. */
   number?: string;
-  /** Scryfall language code from the bottom line. */
+  /** Código de idioma de Scryfall de la línea inferior. */
   lang?: string;
-  /** Lines that may be the card's name, best first. */
+  /** Líneas que pueden ser el nombre de la carta, la mejor primero. */
   names: string[];
 }
 
-/** Language codes printed on cards → Scryfall codes. */
+/** Códigos de idioma impresos en las cartas → códigos de Scryfall. */
 const PRINTED_LANGS: Record<string, string> = {
   EN: 'en',
   ES: 'es',
@@ -56,14 +56,14 @@ const PRINTED_LANGS: Record<string, string> = {
   PH: 'ph',
 };
 const LANG_ALTERNATION = Object.keys(PRINTED_LANGS).join('|');
-// "DMU • ES", "MH3 · EN", "DMU*ES"… OCR reads the bullet as many things (or drops it).
+// «DMU • ES», «MH3 · EN», «DMU*ES»… el OCR lee el punto de muchas formas (o se lo come).
 const SET_LANG = new RegExp(`(?:^|\\s)([A-Z0-9]{3,5})\\s*[•·*.,:\\-–]?\\s*(${LANG_ALTERNATION})(?=\\s|$)`);
-// "0123/281", "123 / 281"
+// «0123/281», «123 / 281»
 const NUMBER_TOTAL = /(?:^|\s)(\d{1,4})\s*\/\s*\d{1,4}(?=\s|[A-Z]|$)/;
-// "R 0123" or "0123 R" (newer cards print no total).
+// «R 0123» o «0123 R» (las cartas nuevas no imprimen el total).
 const RARITY_NUMBER = /(?:^|\s)[CURMLSTPB]\s+(\d{3,5})(?=\s|$)|(?:^|\s)(\d{3,5})\s+[CURMLSTPB](?=\s|$)/;
 
-/** Pulls set, collector number, language and name candidates out of OCR text blocks. */
+/** Saca edición, número de coleccionista, idioma y candidatos de nombre de los bloques de texto del OCR. */
 export function parseCardText(blocks: string[]): ScanHints {
   const lines = blocks
     .flatMap((b) => b.split('\n'))
@@ -71,12 +71,12 @@ export function parseCardText(blocks: string[]): ScanHints {
     .filter(Boolean);
   const hints: ScanHints = { names: [] };
 
-  // Collector info lives at the bottom: search from the last line up.
+  // La info del coleccionista está abajo: busca desde la última línea hacia arriba.
   for (const line of [...lines].reverse()) {
     const upper = line.toUpperCase();
     if (!hints.set) {
       const m = SET_LANG.exec(upper);
-      // A set code has at least one letter ("2XM", "DMU"); pure numbers are something else.
+      // Un código de edición tiene al menos una letra («2XM», «DMU»); los números puros son otra cosa.
       if (m && /[A-Z]/.test(m[1])) {
         hints.set = m[1].toLowerCase();
         hints.lang = PRINTED_LANGS[m[2]];
@@ -89,7 +89,7 @@ export function parseCardText(blocks: string[]): ScanHints {
     }
   }
 
-  // The name is the first line of the card; type line and rules text come after.
+  // El nombre es la primera línea de la carta; la línea de tipo y el texto de reglas van después.
   for (const line of lines.slice(0, 4)) {
     const name = line
       .replace(/[{}()[\]0-9•·*|<>«»"“”_=+@#$%^&~]/g, ' ')
@@ -105,7 +105,7 @@ const words = (s: string) =>
     .split(/[^\p{L}\p{N}]+/u)
     .filter((w) => w.length >= 3);
 
-/** At least half of the read name's words appear in the card's English or printed name. */
+/** Al menos la mitad de las palabras del nombre leído aparecen en el nombre inglés o impreso de la carta. */
 function nameMatches(card: Card, names: string[]): boolean {
   const cardWords = new Set(words(`${card.name} ${card.printedName ?? ''}`));
   return names.some((n) => {
@@ -115,32 +115,32 @@ function nameMatches(card: Card, names: string[]): boolean {
 }
 
 async function findByName(name: string): Promise<Card | null> {
-  // Fuzzy matching forgives OCR typos but only knows English names…
-  // (it also takes wild guesses, e.g. "Relámpago" → Lightning Greaves: check the words).
+  // El emparejado difuso perdona erratas del OCR pero solo conoce nombres en inglés…
+  // (también acierta a lo loco, p. ej. «Relámpago» → Lightning Greaves: comprueba las palabras).
   const fuzzy = await getCardByFuzzyName(name).catch(() => null);
   if (fuzzy && nameMatches(fuzzy, [name])) return fuzzy;
-  // …the normal search also finds printed names in other languages, but matches any name
-  // containing the words ("Relámpago" → "Grebas relámpago"): prefer an exact name.
+  // …la búsqueda normal también encuentra nombres impresos en otros idiomas, pero cruza con cualquier
+  // nombre que contenga las palabras («Relámpago» → «Grebas relámpago»): prefiere un nombre exacto.
   const page = await searchCards({ ...DEFAULT_FILTERS, name }).catch(() => null);
   if (!page?.cards.length) return null;
   const target = fold(name);
   const exact = page.cards.find((c) => fold(c.name) === target || fold(c.printedName ?? '') === target);
   if (exact) return exact;
-  // Otherwise the shortest name: the fewest extra words around the ones read.
+  // Si no, el nombre más corto: las menos palabras extra alrededor de las leídas.
   return [...page.cards].sort((a, b) => (a.printedName ?? a.name).length - (b.printedName ?? b.name).length)[0];
 }
 
 export interface ScanResult {
   card: Card | null;
   hints: ScanHints;
-  /** Raw recognized lines, shown when nothing matched. */
+  /** Líneas reconocidas en crudo, mostradas cuando no cuadró nada. */
   text: string[];
 }
 
 /**
- * Reads the photo at `uri` and finds the card on Scryfall: the exact printing from the set
- * code + collector number when they're legible (and agree with the name), otherwise by name,
- * then moved to the set/language read from the card when possible.
+ * Lee la foto en `uri` y encuentra la carta en Scryfall: la impresión exacta por el código de
+ * edición + número de coleccionista cuando son legibles (y concuerdan con el nombre), si no por
+ * nombre, luego movida a la edición/idioma leídos de la carta cuando se puede.
  */
 export async function recognizeCard(uri: string): Promise<ScanResult> {
   if (!extractor) throw new Error('El reconocimiento de texto no está disponible en Expo Go.');
@@ -152,7 +152,7 @@ export async function recognizeCard(uri: string): Promise<ScanResult> {
     bySet =
       (hints.lang && (await getCardBySetNumber(hints.set, hints.number, hints.lang).catch(() => null))) ||
       (await getCardBySetNumber(hints.set, hints.number).catch(() => null));
-    // A misread digit gives another card of the set: trust it only if the name agrees.
+    // Un dígito mal leído da otra carta de la edición: fíate solo si el nombre concuerda.
     if (bySet && (hints.names.length === 0 || nameMatches(bySet, hints.names))) {
       return { card: bySet, hints, text };
     }

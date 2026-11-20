@@ -1,13 +1,13 @@
-// Synergy data for a card or a deck, from two community sites (not Scryfall):
-// - EDHREC (edhrec.com): how Commander decks use a card. No official API: these are the JSON
-//   files its own web pages load (json.edhrec.com), so the shape may change without notice.
-// - Commander Spellbook (commanderspellbook.com): combos, through its public API.
+// Datos de sinergia de una carta o un mazo, de dos sitios de la comunidad (no Scryfall):
+// - EDHREC (edhrec.com): cómo usan una carta los mazos de Commander. Sin API oficial: son los JSON
+//   que cargan sus propias páginas web (json.edhrec.com), así que la forma puede cambiar sin aviso.
+// - Commander Spellbook (commanderspellbook.com): combos, a través de su API pública.
 
 const HEADERS = { 'User-Agent': 'MagicSwipe/1.0', Accept: 'application/json' };
 const EDHREC = 'https://json.edhrec.com/pages';
 const SPELLBOOK = 'https://backend.commanderspellbook.com';
 
-/** EDHREC's URL name: "Lim-Dûl, the Necromancer" → "lim-dul-the-necromancer". */
+/** Nombre de URL de EDHREC: «Lim-Dûl, the Necromancer» → «lim-dul-the-necromancer». */
 export function edhrecSlug(name: string): string {
   return name
     .normalize('NFD')
@@ -18,7 +18,7 @@ export function edhrecSlug(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/** Slugs to try: the front face first (double-faced cards), then the whole name (split cards). */
+/** Slugs a probar: la cara frontal primero (cartas de doble cara), luego el nombre entero (cartas divididas). */
 const slugsFor = (name: string) => {
   const front = edhrecSlug(name.split(' // ')[0]);
   const full = edhrecSlug(name);
@@ -28,15 +28,15 @@ const slugsFor = (name: string) => {
 export const edhrecCardUrl = (name: string) => `https://edhrec.com/cards/${slugsFor(name)[0]}`;
 export const edhrecCommanderUrl = (name: string) => `https://edhrec.com/commanders/${slugsFor(name)[0]}`;
 
-/** A card in an EDHREC list. */
+/** Una carta en una lista de EDHREC. */
 export interface EdhrecEntry {
-  /** Scryfall id. */
+  /** Id de Scryfall. */
   id: string;
   name: string;
-  /** Decks that play it, out of `potentialDecks` that could (its colors fit). */
+  /** Mazos que la juegan, de los `potentialDecks` que podrían (encajan sus colores). */
   numDecks: number;
   potentialDecks: number;
-  /** Commander pages: how much more this commander's decks play it than the average deck (-1…1). */
+  /** Páginas de comandante: cuánto más la juegan los mazos de este comandante que el mazo medio (-1…1). */
   synergy?: number;
 }
 
@@ -74,15 +74,15 @@ function memo<T>(key: string, load: () => Promise<T>): Promise<T> {
   return p;
 }
 
-/** The page's JSON, trying each slug; null if EDHREC doesn't have it. */
+/** El JSON de la página, probando cada slug; null si EDHREC no la tiene. */
 async function edhrecPage(kind: 'cards' | 'commanders', name: string) {
   for (const slug of slugsFor(name)) {
     const res = await fetch(`${EDHREC}/${kind}/${slug}.json`, { headers: HEADERS });
-    // Missing pages answer 404 (or 403 for commander pages of non-commanders).
+    // Las páginas que faltan responden 404 (o 403 para páginas de comandante de cartas que no lo son).
     if (res.status === 404 || res.status === 403) continue;
     if (!res.ok) throw new Error(`Error ${res.status} de EDHREC`);
     const body = await res.json();
-    // Some missing pages come back as a redirect stub instead of an error.
+    // Algunas páginas que faltan vuelven como un stub de redirección en vez de un error.
     if (!body?.container?.json_dict) continue;
     return body as { container: { json_dict: { card?: Record<string, unknown>; cardlists?: RawList[] } } };
   }
@@ -90,18 +90,18 @@ async function edhrecPage(kind: 'cards' | 'commanders', name: string) {
 }
 
 export interface EdhrecCard {
-  /** Commander decks on EDHREC that play it, out of those whose colors allow it. */
+  /** Mazos de Commander en EDHREC que la juegan, de aquellos cuyos colores lo permiten. */
   numDecks: number;
   potentialDecks: number;
-  /** Salt score: how much it annoys opponents (0-4, community vote). */
+  /** Puntuación de «sal»: cuánto molesta a los rivales (0-4, voto de la comunidad). */
   salt: number | null;
-  /** Commanders that play it most. */
+  /** Comandantes que más la juegan. */
   topCommanders: EdhrecEntry[];
-  /** Cards most often played alongside it. */
+  /** Cartas que más se juegan junto a ella. */
   topCards: EdhrecEntry[];
 }
 
-/** How Commander decks use a card; null if EDHREC doesn't know it (e.g. not legal in Commander). */
+/** Cómo usan una carta los mazos de Commander; null si EDHREC no la conoce (p. ej. no legal en Commander). */
 export function getEdhrecCard(name: string): Promise<EdhrecCard | null> {
   return memo(`card:${name}`, async () => {
     const page = await edhrecPage('cards', name);
@@ -119,13 +119,13 @@ export function getEdhrecCard(name: string): Promise<EdhrecCard | null> {
 }
 
 export interface EdhrecCommander {
-  /** Decks on EDHREC led by this commander. */
+  /** Mazos en EDHREC liderados por este comandante. */
   numDecks: number;
-  /** Every card EDHREC lists for it, highest synergy first. */
+  /** Todas las cartas que EDHREC lista para él, mayor sinergia primero. */
   cards: EdhrecEntry[];
 }
 
-/** The commander's page: the cards its decks play, by synergy. Null if it isn't a commander. */
+/** La página del comandante: las cartas que juegan sus mazos, por sinergia. Null si no es un comandante. */
 export function getEdhrecCommander(name: string): Promise<EdhrecCommander | null> {
   return memo(`commander:${name}`, async () => {
     const page = await edhrecPage('commanders', name);
@@ -144,17 +144,17 @@ export function getEdhrecCommander(name: string): Promise<EdhrecCommander | null
 
 export interface Combo {
   id: string;
-  /** Card names, in the order the combo lists them. */
+  /** Nombres de las cartas, en el orden en que las lista el combo. */
   cards: string[];
-  /** What it achieves ("Infinite mana", "Win the game"…), translated when known. */
+  /** Qué consigue («Maná infinito», «Ganar la partida»…), traducido cuando se conoce. */
   results: string[];
-  /** Mana needed to start it, as a cost string ("{U}{U}{B}"); '' if none. */
+  /** Maná necesario para arrancarlo, como cadena de coste («{U}{U}{B}»); '' si no hace falta. */
   manaNeeded: string;
-  /** Step by step (English). */
+  /** Paso a paso (en inglés). */
   description: string;
-  /** Other conditions (English), e.g. "A creature on the battlefield". */
+  /** Otras condiciones (en inglés), p. ej. «A creature on the battlefield». */
   prerequisites: string;
-  /** Decks on EDHREC playing it. */
+  /** Mazos en EDHREC que lo juegan. */
   popularity: number;
   url: string;
 }
@@ -171,7 +171,7 @@ interface RawCombo {
   popularity?: number;
 }
 
-/** Spanish for the most common combo results; anything else stays in English. */
+/** Español para los resultados de combo más comunes; cualquier otro se queda en inglés. */
 const RESULTS: [RegExp, string][] = [
   [/^Win the game$/i, 'Ganar la partida'],
   [/^Infinite colorless mana$/i, 'Maná incoloro infinito'],
@@ -215,7 +215,7 @@ const toCombo = (c: RawCombo): Combo => ({
   results: c.produces.map((p) => translate(p.feature.name)),
   manaNeeded: c.manaNeeded ?? '',
   description: c.description ?? '',
-  // Generic pieces ("A creature with flying") aren't cards: they go with the other conditions.
+  // Las piezas genéricas («A creature with flying») no son cartas: van con las otras condiciones.
   prerequisites: [...(c.requires ?? []).map((r) => r.template.name), c.easyPrerequisites, c.notablePrerequisites]
     .filter(Boolean)
     .join('\n'),
@@ -223,7 +223,7 @@ const toCombo = (c: RawCombo): Combo => ({
   url: `https://commanderspellbook.com/combo/${c.id}/`,
 });
 
-/** The most played combos that include this card. */
+/** Los combos más jugados que incluyen esta carta. */
 export function getCardCombos(name: string, limit = 10): Promise<{ total: number; combos: Combo[] }> {
   return memo(`combos:${name}:${limit}`, async () => {
     const q = `card:"${name.split(' // ')[0]}"`;
@@ -236,13 +236,13 @@ export function getCardCombos(name: string, limit = 10): Promise<{ total: number
 }
 
 export interface DeckCombos {
-  /** Combos the deck already has. */
+  /** Combos que el mazo ya tiene. */
   included: Combo[];
-  /** Combos missing cards: `missing` are the ones not in the deck. */
+  /** Combos a los que les faltan cartas: `missing` son las que no están en el mazo. */
   almost: { combo: Combo; missing: string[] }[];
 }
 
-/** Commander Spellbook's "Find my combos" for a deck (card names; commanders apart). */
+/** El «Find my combos» de Commander Spellbook para un mazo (nombres de carta; comandantes aparte). */
 export async function findDeckCombos(main: string[], commanders: string[]): Promise<DeckCombos> {
   const res = await fetch(`${SPELLBOOK}/find-my-combos?limit=100`, {
     method: 'POST',

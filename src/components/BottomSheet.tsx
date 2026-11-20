@@ -19,15 +19,15 @@ import { colors } from '@/theme';
 interface Props {
   visible: boolean;
   onClose: () => void;
-  /** Fraction of the screen height the sheet opens at. */
+  /** Fracción de la altura de la pantalla a la que abre la hoja. */
   heightRatio?: number;
-  /** Dragging up from the open position grows it to the full screen (a third stop). */
+  /** Arrastrar hacia arriba desde la posición abierta la agranda a pantalla completa (un tercer tope). */
   expandable?: boolean;
-  /** Opens at the full screen (under the status bar): just two positions, open or closed. */
+  /** Abre a pantalla completa (bajo la barra de estado): solo dos posiciones, abierta o cerrada. */
   fullScreen?: boolean;
   /**
-   * Driven from outside while a finger drags it (the deck bar): 0 = closed … 1 = open; -1 = not
-   * driven (its own animations and drag work as usual).
+   * Gobernada desde fuera mientras un dedo la arrastra (la barra del mazo): 0 = cerrada … 1 = abierta;
+   * -1 = sin gobernar (sus propias animaciones y arrastre funcionan como siempre).
    */
   follow?: SharedValue<number>;
   children: ReactNode;
@@ -38,12 +38,12 @@ const CLOSE = { duration: 220, easing: Easing.in(Easing.cubic) };
 const SNAP = { damping: 24, stiffness: 240, overshootClamping: true };
 
 interface SheetDrag {
-  /** How far the sheet is pushed down: 0 = full size, `rest` = open, `hidden` = off screen. */
+  /** Cuánto se empuja hacia abajo la hoja: 0 = tamaño completo, `rest` = abierta, `hidden` = fuera de pantalla. */
   offset: SharedValue<number>;
   rest: number;
   hidden: number;
   expandable: boolean;
-  /** Set when a drag closes the sheet: its own animation finishes the job. */
+  /** Se activa cuando un arrastre cierra la hoja: su propia animación termina el trabajo. */
   dragClosing: SharedValue<boolean>;
   onClose: () => void;
   onDragClosed: () => void;
@@ -52,20 +52,21 @@ interface SheetDrag {
 const SheetDragContext = createContext<SheetDrag | null>(null);
 
 /**
- * Makes its children a handle of the enclosing BottomSheet: a vertical drag on them moves
- * the sheet (buttons inside still work with a tap; once the drag starts, their press is
- * cancelled). Horizontal moves are left alone, so horizontal lists inside keep scrolling.
- * Don't wrap vertical lists: use it for the fixed part above them.
+ * Convierte a sus hijos en un asa del BottomSheet que los envuelve: un arrastre vertical sobre ellos
+ * mueve la hoja (los botones de dentro siguen funcionando con un toque; en cuanto empieza el arrastre,
+ * su pulsación se cancela). Los movimientos horizontales se dejan en paz, así que las listas
+ * horizontales de dentro siguen haciendo scroll. No envuelvas listas verticales: úsalo para la parte
+ * fija que está encima de ellas.
  */
 export function SheetDragArea({ children }: { children: ReactNode }) {
   const ctx = useContext(SheetDragContext);
   if (!ctx) throw new Error('SheetDragArea must be inside a BottomSheet');
   const { offset, rest, hidden, expandable, dragClosing, onClose, onDragClosed, setExpanded } = ctx;
   const start = useSharedValue(0);
-  // Highest the sheet can go: full screen if expandable, else its open position.
+  // Lo más alto que puede subir la hoja: pantalla completa si es expandible, si no su posición abierta.
   const top = expandable ? 0 : rest;
 
-  // Each detector needs its own gesture, so every area builds one.
+  // Cada detector necesita su propio gesto, así que cada área construye uno.
   const drag = usePanGesture({
     activeOffsetY: [-8, 8],
     failOffsetX: [-20, 20],
@@ -74,7 +75,7 @@ export function SheetDragArea({ children }: { children: ReactNode }) {
     },
     onUpdate: (e) => {
       const next = start.get() + e.translationY;
-      // Follows the finger; resists when pulled past the top stop.
+      // Sigue al dedo; resiste cuando se tira más allá del tope superior.
       offset.set(next >= top ? next : top + (next - top) * 0.15);
     },
     onDeactivate: (e) => {
@@ -82,10 +83,10 @@ export function SheetDragArea({ children }: { children: ReactNode }) {
         offset.set(withSpring(start.get(), SNAP));
         return;
       }
-      // Where a flick would carry it.
+      // Adónde la llevaría un golpe seco.
       const projected = offset.get() + e.velocityY * 0.2;
       if (projected > rest + (hidden - rest) * 0.25) {
-        // Closing: keep the drag's momentum all the way out (ease-out, no restart).
+        // Cerrando: mantén el impulso del arrastre hasta el final (ease-out, sin reiniciar).
         dragClosing.set(true);
         offset.set(
           withTiming(hidden, { duration: 200, easing: Easing.out(Easing.quad) }, (finished) => {
@@ -109,11 +110,11 @@ export function SheetDragArea({ children }: { children: ReactNode }) {
 }
 
 /**
- * Bottom sheet on React Native's Modal (reliable on every Android/Expo Go), animated with
- * Reanimated. Dragging the top area (or any `SheetDragArea` inside) moves the sheet with the
- * finger; letting go past a quarter of the way down (or with a flick) closes it, otherwise it
- * snaps back — or, when `expandable`, up to the full screen. Also closes by tapping outside or
- * with the back button. Children stay mounted until the closing animation ends.
+ * Hoja inferior sobre el Modal de React Native (fiable en todo Android/Expo Go), animada con
+ * Reanimated. Arrastrar la zona superior (o cualquier `SheetDragArea` de dentro) mueve la hoja con el
+ * dedo; soltar pasado un cuarto del recorrido hacia abajo (o con un golpe seco) la cierra, si no
+ * vuelve a su sitio — o, cuando es `expandable`, sube a pantalla completa. También cierra tocando
+ * fuera o con el botón atrás. Los hijos siguen montados hasta que termina la animación de cierre.
  */
 export function BottomSheet({
   visible,
@@ -126,11 +127,11 @@ export function BottomSheet({
 }: Props) {
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  // The Modal draws under the status and navigation bars (translucent), which on Android can be
-  // taller than the window size reports: measure the real area so full screen reaches the top.
+  // El Modal se dibuja bajo las barras de estado y navegación (translúcidas), que en Android pueden ser
+  // más altas de lo que informa el tamaño de la ventana: mide el área real para que la pantalla completa llegue arriba.
   const [areaHeight, setAreaHeight] = useState(0);
   const height = areaHeight || windowHeight;
-  // Expandable sheets are laid out at full size and pushed down to their open height.
+  // Las hojas expandibles se maquetan a tamaño completo y se empujan hacia abajo hasta su altura abierta.
   const openHeight = fullScreen ? height - insets.top : height * heightRatio;
   const sheetHeight = expandable ? Math.max(openHeight, height - insets.top) : openHeight;
   const rest = sheetHeight - openHeight;
@@ -149,7 +150,7 @@ export function BottomSheet({
     if (!mounted) return;
     if (visible) {
       dragClosing.set(false);
-      // A finger is moving it (it follows that instead of opening by itself).
+      // Un dedo la está moviendo (sigue eso en vez de abrirse por sí sola).
       if (follow && follow.get() >= 0) return;
       offset.set(withTiming(rest, OPEN));
     } else if (!dragClosing.get()) {
@@ -160,7 +161,7 @@ export function BottomSheet({
       );
     }
   }, [visible, mounted, rest, hidden, offset, dragClosing, follow]);
-  // Follow the outside finger.
+  // Sigue al dedo de fuera.
   useAnimatedReaction(
     () => (follow ? follow.get() : -1),
     (p) => {
@@ -196,7 +197,7 @@ export function BottomSheet({
         <Animated.View
           style={[
             styles.sheet,
-            // At the open stop the bottom `rest` px are off screen: keep the content above them.
+            // En el tope abierto los `rest` px de abajo quedan fuera de pantalla: mantén el contenido por encima.
             { height: sheetHeight, paddingBottom: insets.bottom + (expanded ? 0 : rest) },
             expanded && styles.sheetFull,
             sheetStyle,
@@ -239,6 +240,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sheetFull: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
-  // Tall enough to grab comfortably with a thumb.
+  // Lo bastante alta para agarrarla cómodamente con el pulgar.
   handleArea: { paddingTop: 6, paddingBottom: 10 },
 });
