@@ -14,9 +14,9 @@ const icon = (name: IconName, focusedName: IconName = name) =>
   };
 
 /**
- * App tools as tabs at the top, under the app header (`AppTabBar`). "Construir" (the card
- * swipe) is first and is where the app opens, so you always start with cards in your hands.
- * New tools (life counter…) are added here as another <Tabs.Screen> + a file in this folder.
+ * Las herramientas de la app como pestañas arriba, bajo la cabecera de la app (`AppTabBar`). «Construir»
+ * (el swipe de cartas) es la primera y es donde abre la app, así que siempre empiezas con cartas en la mano.
+ * Las herramientas nuevas (contador de vidas…) se añaden aquí como otro <Tabs.Screen> + un archivo en esta carpeta.
  */
 export default function TabsLayout() {
   const { prefs } = useAppState();

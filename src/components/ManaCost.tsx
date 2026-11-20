@@ -4,12 +4,12 @@ import { Image } from 'expo-image';
 import { getSymbols } from '@/api/scryfall';
 import { colors } from '@/theme';
 
-// Loaded once (Scryfall /symbology) and shared by every ManaCost on screen.
+// Se carga una vez (Scryfall /symbology) y lo comparten todos los ManaCost en pantalla.
 let symbolsLoaded: Record<string, string> | null = null;
 
 /**
- * A mana cost like "{2}{R}{R}" or "{1}{U} // {3}" drawn with Scryfall's symbol icons
- * (text until the symbol list arrives, or for any symbol it doesn't know).
+ * Un coste de maná como «{2}{R}{R}» o «{1}{U} // {3}» dibujado con los iconos de símbolo de Scryfall
+ * (texto hasta que llega la lista de símbolos, o para cualquier símbolo que no conozca).
  */
 function useSymbols() {
   const [symbols, setSymbols] = useState(symbolsLoaded);
@@ -29,7 +29,7 @@ function useSymbols() {
   return symbols;
 }
 
-/** Rules text with its symbols ({T}, {R}, {2}…) drawn inline as Scryfall's icons. */
+/** Texto de reglas con sus símbolos ({T}, {R}, {2}…) dibujados en línea como los iconos de Scryfall. */
 export function SymbolText({ text, size = 16, style }: { text: string; size?: number; style?: TextStyle }) {
   const symbols = useSymbols();
   const parts = text.split(/(\{[^}]+\})/g);

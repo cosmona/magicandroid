@@ -7,11 +7,11 @@ import { DeckSummary } from '@/components/deck/DeckSummary';
 import { colors } from '@/theme';
 
 /**
- * Bottom bar showing the active deck. Tap it or swipe it up to open the deck sheet (which slides in
- * with its own animation). It holds no buttons, so the tap and the swipe never compete with anything.
+ * Barra inferior que muestra el mazo activo. Tócala o deslízala hacia arriba para abrir la hoja del mazo
+ * (que entra con su propia animación). No tiene botones, así que el toque y el swipe nunca compiten con nada.
  */
 export function DeckBar({ onOpen }: { onOpen: () => void }) {
-  // It's the bottom edge of the screen: keep it clear of Android's navigation buttons.
+  // Es el borde inferior de la pantalla: mantenla despejada de los botones de navegación de Android.
   const insets = useSafeAreaInsets();
   const swipeUp = usePanGesture({
     activeOffsetY: -10,

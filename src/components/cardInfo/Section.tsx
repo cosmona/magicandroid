@@ -6,8 +6,8 @@ import { colors } from '@/theme';
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 /**
- * A titled card-like block of the info screens (card info, deck synergies, deck stats).
- * `collapsible`: tapping the title folds / unfolds it (starts open).
+ * Un bloque con título tipo tarjeta de las pantallas de info (info de carta, sinergias del mazo, estadísticas).
+ * `collapsible`: tocar el título lo pliega / despliega (empieza abierto).
  */
 export function Section({
   title,
@@ -51,12 +51,12 @@ export function Section({
   );
 }
 
-/** Grey explanation under a section title. */
+/** Explicación en gris bajo el título de una sección. */
 export function SectionHelp({ children }: { children: ReactNode }) {
   return <Text style={styles.help}>{children}</Text>;
 }
 
-/** Small uppercase sub-heading inside a section. */
+/** Subtítulo pequeño en mayúsculas dentro de una sección. */
 export function SubTitle({ children }: { children: ReactNode }) {
   return <Text style={styles.subtitle}>{children}</Text>;
 }

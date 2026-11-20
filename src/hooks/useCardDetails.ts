@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { getCardDetails, type CardDetails } from '@/api/scryfall';
 
 /**
- * Live Scryfall data (prices, P/T, tokens) for these printings, by Scryfall id. Starts empty
- * and fills in when the (shared, cached) request answers; offline it just stays empty.
+ * Datos en vivo de Scryfall (precios, F/R, fichas) para estas impresiones, por id de Scryfall. Empieza vacío
+ * y se rellena cuando responde la petición (compartida, cacheada); sin conexión simplemente se queda vacío.
  */
 export function useCardDetails(ids: string[]): Record<string, CardDetails> {
   const key = [...new Set(ids)].sort().join(',');
@@ -25,11 +25,11 @@ export function useCardDetails(ids: string[]): Record<string, CardDetails> {
     };
   }, [key]);
 
-  // Details of a previous set of ids still apply to the cards they share with this one.
+  // Los datos de un conjunto anterior de ids siguen valiendo para las cartas que comparten con este.
   return state.details;
 }
 
-/** Sum of quantity × price; `priced`/`total` count the copies that have / need a price. */
+/** Suma de cantidad × precio; `priced`/`total` cuentan las copias que tienen / necesitan precio. */
 export function priceTotal(
   items: { scryfallId: string; quantity: number }[],
   details: Record<string, CardDetails>,

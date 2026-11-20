@@ -6,11 +6,11 @@ import { colors, type IconSource } from '@/theme';
 export interface SelectOption<T> {
   value: T;
   label: string;
-  /** Extra text shown dimmed and also matched by the search box (e.g. English name). */
+  /** Texto extra mostrado atenuado y que también cruza con el buscador (p. ej. el nombre en inglés). */
   detail?: string;
-  /** Bundled asset or remote URL (e.g. a set's SVG symbol). */
+  /** Asset empaquetado o URL remota (p. ej. el símbolo SVG de una edición). */
   icon?: IconSource | string;
-  /** Tint for black SVG icons. */
+  /** Tinte para iconos SVG negros. */
   tint?: boolean;
 }
 
@@ -42,7 +42,7 @@ interface ModalProps<T> {
   onClose: () => void;
 }
 
-/** Option list in a modal; optional search box and multiple selection with a "Listo" button. */
+/** Lista de opciones en un modal; buscador opcional y selección múltiple con un botón «Listo». */
 function OptionsModal<T>({ title, options, selected, multi, searchable, onToggle, onClose }: ModalProps<T>) {
   const [query, setQuery] = useState('');
   const visible = useMemo(() => {
@@ -113,7 +113,7 @@ interface SelectProps<T> {
   searchable?: boolean;
 }
 
-/** Single-choice dropdown with a ✕ to clear. */
+/** Desplegable de elección única con una ✕ para limpiar. */
 export function Select<T>({ placeholder, value, options, onChange, searchable }: SelectProps<T>) {
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
@@ -156,7 +156,7 @@ interface MultiSelectProps<T> {
   searchable?: boolean;
 }
 
-/** Button that opens a multiple-choice list; shows how many are selected. */
+/** Botón que abre una lista de elección múltiple; muestra cuántas hay seleccionadas. */
 export function MultiSelect<T>({ placeholder, values, options, onChange, searchable }: MultiSelectProps<T>) {
   const [open, setOpen] = useState(false);
   const toggle = (v: T) => onChange(values.includes(v) ? values.filter((x) => x !== v) : [...values, v]);

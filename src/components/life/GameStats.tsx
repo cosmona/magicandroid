@@ -13,8 +13,8 @@ export function formatDuration(ms: number): string {
 }
 
 /**
- * The game's statistics (the same as on the PC): winner, duration, awards, each player's numbers and who
- * dealt damage to whom. Opens by itself when only one player is left, and from the menu.
+ * Las estadísticas de la partida (iguales que en el PC): ganador, duración, premios, los números de cada
+ * jugador y quién hizo daño a quién. Se abre sola cuando solo queda un jugador, y desde el menú.
  */
 export function GameStatsModal({ game, onClose, onNewGame }: { game: LifeGame; onClose: () => void; onNewGame: () => void }) {
   const insets = useSafeAreaInsets();

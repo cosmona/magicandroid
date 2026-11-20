@@ -6,9 +6,9 @@ import { colors } from '@/theme';
 const front = (name: string) => name.split(' // ')[0].trim().toLowerCase();
 
 /**
- * "En «Mazo»: 2" / "No está en «Mazo»" for any enlarged card: whether the deck being built
- * (the active one) has it, in the main deck and/or the sideboard. Matched by oracle id, or by
- * English name when only that is known (combos). Nothing without an active deck.
+ * «En «Mazo»: 2» / «No está en «Mazo»» para cualquier carta ampliada: si el mazo que se está construyendo
+ * (el activo) la tiene, en el mazo principal y/o el banquillo. Se cruza por oracle id, o por nombre inglés
+ * cuando solo se conoce eso (combos). Nada sin un mazo activo.
  */
 export function InDeckBadge({ oracleId, name }: { oracleId?: string; name?: string }) {
   const { activeDeck, activeCards, activeSideboard } = useAppState();

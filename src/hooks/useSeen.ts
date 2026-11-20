@@ -1,7 +1,7 @@
-// Device-local «last seen» marks for lists (decks, the collection, saved searches), so a list that
-// changed since you last looked at it — above all a change arriving by sync from the other device —
-// can show a «nuevo» badge until you open it. Stored in a settings key that the sync never touches,
-// so «seen» stays per-device and is never shared.
+// Marcas locales (por dispositivo) de «visto por última vez» para las listas (mazos, colección, búsquedas
+// guardadas), para que una lista que cambió desde la última vez que la miraste — sobre todo un cambio que
+// llega por sync desde el otro dispositivo — pueda mostrar un badge «nuevo» hasta que la abras. Se guarda en
+// una clave de settings que la sync nunca toca, así que «visto» es por dispositivo y nunca se comparte.
 import { useSyncExternalStore } from 'react';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
@@ -30,7 +30,7 @@ function persist() {
   ).catch(() => {});
 }
 
-/** Load the «seen» marks once at startup (first run baselines everything as already seen). */
+/** Carga las marcas de «visto» una vez al arrancar (la primera ejecución toma todo como ya visto). */
 export async function initSeen(database: SQLiteDatabase) {
   db = database;
   try {

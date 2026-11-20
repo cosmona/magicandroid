@@ -13,7 +13,7 @@ import { isBasicLand } from '@/print/cardSheet';
 import { colors, formatLabel } from '@/theme';
 import { validateDeck } from '@/validation';
 
-/** «📦 Mi colección ▾» / «🃏 Krenko ▾»: what the collection shows (everything, or one deck). */
+/** «📦 Mi colección ▾» / «🃏 Krenko ▾»: qué muestra la colección (todo, o un mazo). */
 export function DeckPickerModal({
   decks,
   current,
@@ -59,8 +59,8 @@ export function DeckPickerModal({
 }
 
 /**
- * The bar of a deck seen from the collection (as on the PC): what you have of it and what's missing, and its
- * Banquillo (only in formats that have one), Posibles, Fichas, Imprimir and «Abrir en Construir».
+ * La barra de un mazo visto desde la colección (como en el PC): lo que tienes de él y lo que falta, y su
+ * Banquillo (solo en formatos que lo tienen), Posibles, Fichas, Imprimir y «Abrir en Construir».
  */
 export function DeckInCollectionBar({
   deck,
@@ -70,7 +70,7 @@ export function DeckInCollectionBar({
 }: {
   deck: Deck;
   cards: DeckCard[];
-  /** Copies you own of each card (by oracle id). */
+  /** Copias que tienes de cada carta (por oracle id). */
   owned: Record<string, number>;
   onChanged: () => void;
 }) {

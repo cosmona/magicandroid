@@ -6,12 +6,12 @@ import { colors, TONE_COLORS, type Tone } from '@/theme';
 
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-/** Row under a card (deck sheet and collection): a quantity stepper, then icon buttons sharing the width. */
+/** Fila bajo una carta (hoja del mazo y colección): un stepper de cantidad, luego botones de icono repartiéndose el ancho. */
 export function CardControlsRow({ children }: { children: ReactNode }) {
   return <View style={styles.controls}>{children}</View>;
 }
 
-/** "− 2 +" in one rounded piece. */
+/** «− 2 +» en una sola pieza redondeada. */
 export function QuantityStepper(props: { value: number; onSub: () => void; onAdd: () => void }) {
   return (
     <View style={styles.stepper}>
@@ -40,10 +40,10 @@ export function CardIconButton(props: {
   icon: IconName;
   hint: string;
   onPress: () => void;
-  /** Accent background (active state, e.g. the commander). */
+  /** Fondo de acento (estado activo, p. ej. el comandante). */
   filled?: boolean;
   danger?: boolean;
-  /** Color code of the icon (see `Tone` in theme). */
+  /** Código de color del icono (ver `Tone` en theme). */
   tone?: Tone;
 }) {
   const tone = props.danger ? 'danger' : props.tone;
@@ -63,7 +63,7 @@ export function CardIconButton(props: {
   );
 }
 
-/** Floating "Relámpago quitada · ↶ Deshacer" bar at the bottom of its container. */
+/** Barra flotante «Relámpago quitada · ↶ Deshacer» en la parte inferior de su contenedor. */
 export function UndoBar({ label, onUndo }: { label: string; onUndo: () => void }) {
   return (
     <View style={styles.undoBar} pointerEvents="box-none">

@@ -7,14 +7,14 @@ import { useAppState } from '@/context/AppState';
 import { LOGO_MARK, LOGO_MARK_RATIO } from '@/icons';
 import { colors } from '@/theme';
 
-/** Shortest time the loading screen stays up, so it reads as an intro instead of a flash. */
+/** Tiempo mínimo que se queda la pantalla de carga, para que se lea como una intro y no como un parpadeo. */
 const MIN_VISIBLE_MS = 1400;
 
 export const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 /**
- * Loading screen over the whole app while the database and saved state load:
- * logo, name and version. Fades out once the app is ready (and MIN_VISIBLE_MS passed).
+ * Pantalla de carga sobre toda la app mientras cargan la base de datos y el estado guardado:
+ * logo, nombre y versión. Se desvanece cuando la app está lista (y pasó MIN_VISIBLE_MS).
  */
 export function LoadingScreen() {
   const { ready } = useAppState();

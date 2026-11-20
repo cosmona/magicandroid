@@ -13,9 +13,9 @@ import { colors } from '@/theme';
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
 /**
- * The app's header + tool tabs, drawn at the top (`tabBarPosition: 'top'`): "Magic Swipe"
- * with the settings button, then a segmented control with one pill per tab (icon from the
- * screen's `tabBarIcon`, label from its `title`). Settings are app-wide, so their sheet lives here.
+ * La cabecera de la app + las pestañas de herramientas, dibujadas arriba (`tabBarPosition: 'top'`):
+ * «Magic Swipe» con el botón de ajustes, luego un control segmentado con una píldora por pestaña (icono del
+ * `tabBarIcon` de la pantalla, etiqueta de su `title`). Los ajustes son de toda la app, así que su hoja vive aquí.
  */
 export function AppTabBar({ state, descriptors, emitter, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
@@ -49,7 +49,7 @@ export function AppTabBar({ state, descriptors, emitter, navigateToTab }: TabBar
       <View style={styles.tabs} accessibilityRole="tablist">
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
-          // Hidden tabs (a beta turned off in Ajustes).
+          // Pestañas ocultas (una beta apagada en Ajustes).
           if ((options as { href?: unknown }).href === null) return null;
           const focused = state.index === index;
           const color = focused ? colors.bg : colors.textMuted;

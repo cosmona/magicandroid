@@ -11,9 +11,9 @@ const clock = (ms: number) => {
 };
 
 /**
- * The turn controller (the same as on the PC), as a strip between the rows of panels: whose turn and its
- * time, the phase or step (with a dot for each one of the turn), ‹ / ▶ next phase / ⏭ pass the turn and
- * the game menu. Before starting, who begins.
+ * El controlador de turnos (igual que en el PC), como una franja entre las filas de paneles: de quién es el
+ * turno y su tiempo, la fase o paso (con un punto por cada uno del turno), ‹ / ▶ siguiente fase / ⏭ pasar el
+ * turno y el menú de la partida. Antes de empezar, quién comienza.
  */
 export function TurnBar({
   game,

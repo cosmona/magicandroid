@@ -7,8 +7,8 @@ import { LanguagePickerModal } from '@/components/LanguagePicker';
 import { colors } from '@/theme';
 
 /**
- * One button for deck and collection rows (their button row has no room for two): asks
- * "Arte" or "Idioma", then opens that picker. `onPick` gets the chosen printing.
+ * Un botón para las filas de mazo y colección (su fila de botones no tiene sitio para dos): pregunta
+ * «Arte» o «Idioma», luego abre ese selector. `onPick` recibe la impresión elegida.
  */
 export function PrintingPicker({
   scryfallId,
@@ -21,7 +21,7 @@ export function PrintingPicker({
   name: string;
   onPick: (card: Card) => void;
   onClose: () => void;
-  /** Deck cards only: "Portada" uses the card as the deck's cover. */
+  /** Solo cartas de mazo: «Portada» usa la carta como portada del mazo. */
   onCover?: () => void;
 }) {
   const [mode, setMode] = useState<'ask' | 'art' | 'language'>('ask');

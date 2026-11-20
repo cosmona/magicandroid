@@ -1,6 +1,6 @@
-// Ajustes → Apariencia: pick a theme and (optionally) tweak each color, exactly like the PC and with
-// the same tokens. The palette is read once at startup (theme.ts), so changes save straight away and
-// apply when the app is reopened (a note and a «Reiniciar» button make that clear).
+// Ajustes → Apariencia: elige un tema y (opcionalmente) ajusta cada color, igual que en el PC y con
+// los mismos tokens. La paleta se lee una vez al arrancar (theme.ts), así que los cambios se guardan al
+// momento y se aplican al reabrir la app (un aviso y un botón «Reiniciar» lo dejan claro).
 import { useState } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -22,7 +22,7 @@ import {
 const HEX = /^#([0-9a-fA-F]{6})$/;
 
 export function AppearanceSettings() {
-  // The appearance being edited (starts from the one in use), saved on every change.
+  // La apariencia que se está editando (parte de la que está en uso), guardada en cada cambio.
   const [appr, setAppr] = useState<Appearance>(appearance);
   const [editing, setEditing] = useState<ColorToken | null>(null);
   const palette = paletteOf(appr);
@@ -141,7 +141,7 @@ function ColorEditor({
     if (valid) onChange(text.trim().toLowerCase());
     onClose();
   };
-  // A few handy colors (from several themes) as quick picks.
+  // Unos colores útiles (de varios temas) como elección rápida.
   const quick = ['#c9a227', '#2ec4b6', '#a78bfa', '#5aa9e6', '#2ecc71', '#e74c3c', '#f1c40f', '#ff7a9c', '#e8c547', '#e0a458', '#ffffff', '#14101c'];
 
   return (
