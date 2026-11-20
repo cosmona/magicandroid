@@ -1,18 +1,18 @@
 import type { DeckCard } from '@/db/database';
 import { formatLabel, SINGLETON_FORMATS } from '@/theme';
 
-/** Result of checking a deck against its format. Nothing here blocks adding cards. */
+/** Resultado de comprobar un mazo contra su formato. Nada de aquí impide añadir cartas. */
 export interface DeckValidation {
-  /** False for "Libre" (no format). */
+  /** False para «Libre» (sin formato). */
   checked: boolean;
   valid: boolean;
-  /** Deck-level problems (size, missing commander…), in display order. */
+  /** Problemas a nivel de mazo (tamaño, falta comandante…), en orden de visualización. */
   issues: string[];
-  /** Problems per card, by oracle id (listed by name in the banner and shown on each card). */
+  /** Problemas por carta, por oracle id (listados por nombre en el banner y mostrados en cada carta). */
   cardIssues: Record<string, string[]>;
-  /** Format needs a commander, so the 👑 toggle should be shown. */
+  /** El formato necesita comandante, así que debe mostrarse el interruptor 👑. */
   usesCommander: boolean;
-  /** Cards still missing legality/identity data (being fetched). */
+  /** Cartas a las que aún les faltan datos de legalidad/identidad (se están obteniendo). */
   pendingData: number;
 }
 
@@ -28,7 +28,7 @@ const NUMBER_WORDS: Record<string, number> = {
   ten: 10,
 };
 
-/** Copies allowed by the card's own text, or null to use the format's limit. */
+/** Copias permitidas por el propio texto de la carta, o null para usar el límite del formato. */
 function textCopyLimit(card: DeckCard): number | null {
   if (/\bBasic\b/.test(card.typeLine)) return Infinity;
   const text = card.oracleText ?? '';
@@ -49,7 +49,7 @@ const parseLegalities = (card: DeckCard): Record<string, string> | null => {
   }
 };
 
-/** Exact size of a commander-style deck: 60 in Oathbreaker and Standard Brawl, else 100. */
+/** Tamaño exacto de un mazo estilo comandante: 60 en Oathbreaker y Standard Brawl, si no 100. */
 export const commanderDeckSize = (format: string | null) =>
   format === 'oathbreaker' || format === 'standardbrawl' ? 60 : 100;
 
@@ -57,7 +57,7 @@ function canBeCommander(card: DeckCard, format: string): boolean {
   const text = card.oracleText ?? '';
   if (format === 'oathbreaker') return /\bPlaneswalker\b/.test(card.typeLine);
   if (/can be your commander/i.test(text)) return true;
-  // Brawl: any legendary creature or planeswalker.
+  // Brawl: cualquier criatura legendaria o planeswalker.
   if (format === 'brawl' || format === 'standardbrawl')
     return /\bLegendary\b/.test(card.typeLine) && /\b(Creature|Planeswalker)\b/.test(card.typeLine);
   const creature = /\bCreature\b/.test(card.typeLine);
@@ -77,8 +77,8 @@ function commanderPairOk(a: DeckCard, b: DeckCard): boolean {
 }
 
 /**
- * Checks a deck against its format: size, copies, legality and, for Commander-style
- * formats, commander choice and color identity. Purely informative.
+ * Comprueba un mazo contra su formato: tamaño, copias, legalidad y, para formatos estilo
+ * Commander, elección de comandante e identidad de color. Puramente informativo.
  */
 export function validateDeck(format: string | null, cards: DeckCard[], sideboard: DeckCard[] = []): DeckValidation {
   const cardIssues: Record<string, string[]> = {};
@@ -93,7 +93,7 @@ export function validateDeck(format: string | null, cards: DeckCard[], sideboard
   const total = cards.reduce((n, c) => n + c.quantity, 0);
   const commanders = cards.filter((c) => c.isCommander);
 
-  // ---- Size ----
+  // ---- Tamaño ----
   const limited = format === 'limited';
   const sideTotal = sideboard.reduce((n, c) => n + c.quantity, 0);
   if (usesCommander) {
@@ -106,7 +106,7 @@ export function validateDeck(format: string | null, cards: DeckCard[], sideboard
     if (sideTotal > 15) issues.push(`El banquillo puede tener como máximo 15 cartas (ahora ${sideTotal}).`);
   }
 
-  // ---- Commander ----
+  // ---- Comandante ----
   let identity: Set<string> | null = null;
   if (usesCommander) {
     const leader = format === 'oathbreaker' ? 'un Oathbreaker (planeswalker)' : 'un comandante';
@@ -132,10 +132,10 @@ export function validateDeck(format: string | null, cards: DeckCard[], sideboard
     }
   }
 
-  // ---- Per card: copies, legality, color identity ----
-  // Limited: whatever you opened, as many copies as you have, no legality.
+  // ---- Por carta: copias, legalidad, identidad de color ----
+  // Limited: lo que abriste, tantas copias como tengas, sin legalidad.
   const formatLimit = usesCommander ? 1 : limited ? Infinity : 4;
-  // In constructed the copy limit counts the sideboard too.
+  // En construido el límite de copias cuenta también el banquillo.
   const sideCopies = new Map(sideboard.map((c) => [c.oracleId, c.quantity]));
   for (const card of cards) {
     const legal = parseLegalities(card);

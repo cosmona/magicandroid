@@ -1,13 +1,13 @@
 import { openDatabaseSync } from 'expo-sqlite';
 import { DEFAULT_THEME, THEMES, type ColorToken, type Palette, type ThemeKey } from '@/themeData';
-/** A bundled asset: `require('…png'/'…svg')` resolves to a numeric asset id in React Native. */
+/** Un asset empaquetado: `require('…png'/'…svg')` resuelve a un id numérico de asset en React Native. */
 export type IconSource = number;
 
 
 export type { ColorToken, Palette, ThemeKey };
 export { THEMES, DEFAULT_THEME };
 
-/** Ajustes → Apariencia: the chosen theme and any colors changed by hand over it. */
+/** Ajustes → Apariencia: el tema elegido y los colores cambiados a mano sobre él. */
 export interface Appearance {
   theme: ThemeKey;
   colors: Partial<Palette>;
@@ -21,12 +21,13 @@ export function normalizeAppearance(a: Partial<Appearance> | undefined): Appeara
   return out;
 }
 
-/** The final palette = the theme's colors with the user's per-color changes on top. */
+/** La paleta final = los colores del tema con los cambios por color del usuario encima. */
 export const paletteOf = (a: Appearance): Palette => ({ ...THEMES[a.theme].colors, ...a.colors });
 
-// The appearance is kept in its own tiny database so it can be read SYNCHRONOUSLY at startup, before
-// any StyleSheet is built (React Native bakes colors into styles when the module loads, so the whole
-// palette must be known up front). Changing it saves here and reloads the app to apply it everywhere.
+// La apariencia se guarda en su propia base de datos pequeña para poder leerla SÍNCRONAMENTE al
+// arrancar, antes de construir ningún StyleSheet (React Native «quema» los colores en los estilos al
+// cargar el módulo, así que hay que conocer toda la paleta de antemano). Cambiarla guarda aquí y
+// recarga la app para aplicarla en todas partes.
 const THEME_DB = 'magicswipe-theme.db';
 const THEME_ROW = 'appearance';
 
@@ -41,12 +42,12 @@ function readAppearanceSync(): Appearance {
     const row = themeDb().getFirstSync<{ value: string }>('SELECT value FROM theme WHERE key = ?', THEME_ROW);
     if (row?.value) return normalizeAppearance(JSON.parse(row.value));
   } catch {
-    // First run, or the database isn't ready yet: fall back to the default theme.
+    // Primera ejecución, o la base de datos aún no está lista: usar el tema por defecto.
   }
   return DEFAULT_APPEARANCE;
 }
 
-/** Save the appearance so the NEXT launch uses it (synchronous; call then reload the app). */
+/** Guarda la apariencia para que la use el PRÓXIMO arranque (síncrono; llámalo y recarga la app). */
 export function saveAppearanceSync(a: Appearance) {
   try {
     themeDb().runSync(
@@ -55,18 +56,18 @@ export function saveAppearanceSync(a: Appearance) {
       JSON.stringify(normalizeAppearance(a)),
     );
   } catch {
-    // Ignore: the appearance just won't persist.
+    // Se ignora: simplemente la apariencia no persistirá.
   }
 }
 
-/** The appearance in use this run (read once, at import). */
+/** La apariencia en uso en esta ejecución (leída una vez, al importar). */
 export const appearance: Appearance = readAppearanceSync();
 export const scheme: 'dark' | 'light' = THEMES[appearance.theme].scheme;
 
-/** The colors in use, resolved from the saved theme + overrides. */
+/** Los colores en uso, resueltos del tema guardado + los cambios manuales. */
 export const colors: Palette = paletteOf(appearance);
 
-/** Groups of colors shown in Ajustes → Apariencia (mirrors the PC). */
+/** Grupos de colores mostrados en Ajustes → Apariencia (replica el PC). */
 export const COLOR_GROUPS: { title: string; hint: string; keys: ColorToken[] }[] = [
   { title: 'Base', hint: 'El fondo, los paneles, los bordes y el texto de toda la app.', keys: ['bg', 'surface', 'surfaceAlt', 'border', 'text', 'textMuted'] },
   { title: 'Acciones y avisos', hint: 'Botones principales y lo que añade, quita, avisa o informa.', keys: ['accent', 'onAccent', 'add', 'discard', 'warn', 'info'] },
@@ -113,13 +114,13 @@ export const COLOR_LABELS: Record<ColorToken, { label: string; hint: string }> =
 };
 
 /**
- * Color code of buttons and notices (the same meaning everywhere):
- * - primary (gold): create / edit / main action of a screen.
- * - info (blue): look things up (card info, stats, synergies, tokens).
- * - owned (green): your collection, "you have it", valid.
- * - warn (yellow): missing cards, things to check, buying.
- * - danger (red): remove, empty, delete, errors.
- * Neutral buttons (navigation, sharing, views) keep the text color.
+ * Código de colores de botones y avisos (el mismo significado en todas partes):
+ * - primary (oro): crear / editar / acción principal de una pantalla.
+ * - info (azul): consultar cosas (info de carta, estadísticas, sinergias, fichas).
+ * - owned (verde): tu colección, «la tienes», válido.
+ * - warn (amarillo): cartas que faltan, cosas que revisar, comprar.
+ * - danger (rojo): quitar, vaciar, borrar, errores.
+ * Los botones neutros (navegación, compartir, vistas) mantienen el color del texto.
  */
 export type Tone = 'primary' | 'info' | 'owned' | 'warn' | 'danger';
 export const TONE_COLORS: Record<Tone, string> = {
@@ -146,13 +147,13 @@ const FORMAT_ICONS = {
 };
 
 export interface FormatOption {
-  /** Scryfall format key (`f:`), null = no restriction. */
+  /** Clave de formato de Scryfall (`f:`), null = sin restricción. */
   key: string | null;
   label: string;
   icon: IconSource;
 }
 
-/** Same legality list as the web app (Data.tsx) plus Standard and Pioneer. */
+/** Misma lista de legalidad que la app web (Data.tsx) más Standard y Pioneer. */
 export const FORMATS: FormatOption[] = [
   { key: null, label: 'Libre', icon: FORMAT_ICONS.generic },
   { key: 'limited', label: 'Limitado (draft / sellado)', icon: FORMAT_ICONS.generic },
@@ -169,7 +170,7 @@ export const FORMATS: FormatOption[] = [
   { key: 'predh', label: 'PreDH', icon: FORMAT_ICONS.predh },
   { key: 'premodern', label: 'Premodern', icon: FORMAT_ICONS.premodern },
   { key: 'vintage', label: 'Vintage', icon: FORMAT_ICONS.vintage },
-  // MTG Arena only
+  // Solo MTG Arena
   { key: 'historic', label: 'Historic (Arena)', icon: FORMAT_ICONS.generic },
   { key: 'timeless', label: 'Timeless (Arena)', icon: FORMAT_ICONS.generic },
   { key: 'alchemy', label: 'Alchemy (Arena)', icon: FORMAT_ICONS.generic },
@@ -177,16 +178,16 @@ export const FORMATS: FormatOption[] = [
   { key: 'standardbrawl', label: 'Standard Brawl (Arena)', icon: FORMAT_ICONS.commander },
 ];
 
-/** Formats Scryfall can't search (`f:`): only for checking decks. */
+/** Formatos que Scryfall no puede buscar (`f:`): solo para validar mazos. */
 export const DECK_ONLY_FORMATS = ['limited'];
 
-/** Formats that only exist in MTG Arena: searching them looks at Arena cards (`game:arena`). */
+/** Formatos que solo existen en MTG Arena: buscarlos mira cartas de Arena (`game:arena`). */
 export const ARENA_FORMATS = ['historic', 'timeless', 'alchemy', 'brawl', 'standardbrawl'];
 
 export const formatOption = (key: string | null) => FORMATS.find((f) => f.key === key) ?? FORMATS[0];
 export const formatLabel = (key: string | null) => formatOption(key).label;
 
-/** Formats where a deck may only hold one copy of each card. */
+/** Formatos donde un mazo solo puede tener una copia de cada carta. */
 export const SINGLETON_FORMATS = [
   'commander',
   'duel',
@@ -197,13 +198,13 @@ export const SINGLETON_FORMATS = [
   'standardbrawl',
 ];
 
-/** "0,45 €" / "12,30 €" / "143 €" (no cents from 100 up). */
+/** «0,45 €» / «12,30 €» / «143 €» (sin céntimos a partir de 100). */
 export function formatEur(n: number): string {
   return n >= 100 ? `${Math.round(n)} €` : `${n.toFixed(2).replace('.', ',')} €`;
 }
 
-/** Reload the JS so a saved appearance takes effect. Works in development; in a release build the
- *  user reopens the app (the caller shows a note). Returns true if a reload was triggered. */
+/** Recarga el JS para que una apariencia guardada surta efecto. Funciona en desarrollo; en una
+ *  release build el usuario reabre la app (quien llama muestra un aviso). Devuelve true si se recargó. */
 export function reloadApp(): boolean {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -213,7 +214,7 @@ export function reloadApp(): boolean {
       return true;
     }
   } catch {
-    // ignore
+    // se ignora
   }
   return false;
 }

@@ -17,60 +17,60 @@ import {
   type DeckCard,
 } from '@/db/database';
 
-/** Name given to a deck auto-created by the first right swipe (like the web's "(Not Saved)"). */
+/** Nombre que recibe un mazo creado automáticamente por el primer swipe a la derecha (como el «(Not Saved)» de la web). */
 export const UNNAMED_DECK = 'Mazo sin nombre';
-// Bumped whenever the Filters shape changes incompatibly; older saved filters are ignored.
+// Se sube cuando la forma de Filters cambia de forma incompatible; los filtros guardados antiguos se ignoran.
 const FILTERS_KEY = 'filters.v4';
 const PREFS_KEY = 'prefs';
 
 export type DeckView = 'list' | 'gallery' | 'big' | 'text';
 
-/** User settings (Ajustes). New fields need a default here; saved prefs are merged over it. */
+/** Ajustes del usuario. Los campos nuevos necesitan un valor por defecto aquí; los prefs guardados se fusionan encima. */
 export type DeckSort = 'cmc' | 'name' | 'added' | 'addedNew' | 'copies';
 
 export interface Prefs {
-  /** Scryfall language code cards are shown in when available ('en' = as returned). */
+  /** Código de idioma de Scryfall en el que se muestran las cartas si está disponible ('en' = como las devuelve). */
   language: string;
-  /** Construir: saved searches (name + filters), synced with the PC. */
+  /** Construir: búsquedas guardadas (nombre + filtros), sincronizadas con el PC. */
   savedSearches?: { name: string; filters: Filters; updatedAt?: number }[];
-  /** Vibrate on add/discard. */
+  /** Vibrar al añadir/descartar. */
   haptics: boolean;
-  /** View the deck sheet opens with. */
+  /** Vista con la que abre la hoja del mazo. */
   deckView: DeckView;
-  /** How the deck sheet groups the cards. */
+  /** Cómo agrupa las cartas la hoja del mazo. */
   deckGroup: DeckGroupBy;
-  /** Colección's view (list, gallery, big, text). */
+  /** Vista de Colección (lista, galería, grande, texto). */
   collectionView?: 'list' | 'gallery' | 'big' | 'text';
-  /** Ajustes → Cartas y listas: the lines of each list view and the icons of each gallery. */
+  /** Ajustes → Cartas y listas: las líneas de cada vista lista y los iconos de cada galería. */
   listLayout?: Partial<Record<LayoutPlace, ListLayout>>;
   galleryLayout?: Partial<Record<LayoutPlace, GalleryLayout>>;
-  /** Order of the cards inside each group of the deck. */
+  /** Orden de las cartas dentro de cada grupo del mazo. */
   deckSort?: DeckSort;
-  /** Second level of the deck's grouping ('none' = no subgroups). */
+  /** Segundo nivel de la agrupación del mazo ('none' = sin subgrupos). */
   deckSubGroup?: DeckGroupBy;
-  /** What you have / miss of each card («Faltan N», «✓», «En X · 1 libre»…). */
+  /** Lo que tienes / te falta de cada carta («Faltan N», «✓», «En X · 1 libre»…). */
   showOwned?: boolean;
-  /** Colors of the rows (owned green, wanted pink…). */
+  /** Colores de las filas (verde si la tienes, rosa si la quieres…). */
   colorCode?: boolean;
-  /** Groups and subgroups folded or open in each list (deck, collection…), remembered. */
+  /** Grupos y subgrupos plegados o abiertos en cada lista (mazo, colección…), recordados. */
   openState?: Record<string, string[]>;
-  /** «Mano» (beta): the camera reads your hand. Off unless turned on in Ajustes. */
+  /** «Mano» (beta): la cámara lee tu mano. Apagado salvo que se active en Ajustes. */
   handBeta?: boolean;
-  /** The «Mano» guide (how to place the camera) was seen. */
+  /** Se vio la guía de «Mano» (cómo colocar la cámara). */
   handGuideSeen?: boolean;
-  /** Construir: the side rail of buttons (La quiero, La tengo, Ficha…) hidden. */
+  /** Construir: el riel lateral de botones (La quiero, La tengo, Ficha…) oculto. */
   swipeRailHidden?: boolean;
-  /** Hide Android's navigation buttons (swipe up from the bottom edge to show them). */
+  /** Ocultar los botones de navegación de Android (desliza desde el borde inferior para mostrarlos). */
   hideNavBar: boolean;
-  /** Deck sheet's action buttons and deck picker hidden (more room for the cards). */
+  /** Botones de acciones y selector de mazo de la hoja del mazo ocultos (más sitio para las cartas). */
   deckToolsHidden: boolean;
-  /** Where prices are shown (Ajustes → Precios). */
+  /** Dónde se muestran los precios (Ajustes → Precios). */
   pricesDeck: boolean;
   pricesDeckCards: boolean;
   pricesShopping: boolean;
   pricesCollection: boolean;
   pricesCardInfo: boolean;
-  /** Tags on cards and decks (the tag pickers always show them). */
+  /** Etiquetas en cartas y mazos (los selectores de etiquetas siempre las muestran). */
   showTags?: boolean;
 }
 
@@ -92,16 +92,16 @@ interface AppState {
   ready: boolean;
   decks: Deck[];
   activeDeck: Deck | null;
-  /** Cards of the active deck. */
+  /** Cartas del mazo activo. */
   activeCards: DeckCard[];
-  /** Sideboard of the active deck (not counted in size, curve or stats). */
+  /** Banquillo del mazo activo (no cuenta en tamaño, curva ni estadísticas). */
   activeSideboard: DeckCard[];
-  /** «Posibles» of the active deck: cards set aside to try; they don't count for anything. */
+  /** «Posibles» del mazo activo: cartas apartadas para probar; no cuentan para nada. */
   activeMaybe: DeckCard[];
   setActiveDeckId: (id: number | null) => void;
-  /** Reload decks + active deck cards from SQLite. Call after any write. */
+  /** Recarga los mazos + las cartas del mazo activo desde SQLite. Llámalo tras cualquier escritura. */
   refresh: (deckId?: number | null) => Promise<void>;
-  /** Returns the active deck, creating an unnamed one if there is none. */
+  /** Devuelve el mazo activo, creando uno sin nombre si no hay ninguno. */
   ensureActiveDeck: () => Promise<Deck>;
   filters: Filters;
   setFilters: (f: Filters) => void;
@@ -111,7 +111,7 @@ interface AppState {
 
 const AppStateContext = createContext<AppState | null>(null);
 
-/** Global state shared by the single-screen layout, persisted in SQLite. */
+/** Estado global compartido por el layout de pantalla única, persistido en SQLite. */
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const db = useSQLiteContext();
   const [ready, setReady] = useState(false);
@@ -163,12 +163,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [db, load],
   );
 
-  // `deckId` lets callers that just created/activated a deck refresh it before state catches up.
+  // `deckId` permite a quien acaba de crear/activar un mazo refrescarlo antes de que el estado se ponga al día.
   const refresh = useCallback((deckId: number | null = activeDeckId) => load(deckId), [load, activeDeckId]);
 
   const activeDeck = decks.find((d) => d.id === activeDeckId) ?? null;
 
-  // Several quick adds without a deck must share the one deck being created.
+  // Varias adiciones rápidas sin mazo deben compartir el único mazo que se está creando.
   const creatingDeck = useRef<Promise<Deck> | null>(null);
   const ensureActiveDeck = useCallback(async (): Promise<Deck> => {
     if (activeDeck) return activeDeck;
@@ -177,7 +177,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setActiveDeckId(id);
       return (await getDeck(db, id)) ?? { id, uid: '', name: UNNAMED_DECK, format: null, cardCount: 0, coverImage: null, updatedAt: Date.now() };
     })().finally(() => {
-      // Once the state has the new deck, `activeDeck` takes over.
+      // Una vez el estado tiene el mazo nuevo, `activeDeck` toma el relevo.
       setTimeout(() => (creatingDeck.current = null), 1000);
     });
     return creatingDeck.current;
@@ -192,8 +192,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   );
 
   const setPrefs = useCallback(
-    // Accepts an updater so two setPrefs in one handler chain (e.g. «agrupar» changing deckGroup and
-    // then clearing the folded set) each build on the previous one instead of clobbering it.
+    // Acepta un updater para que dos setPrefs en el mismo manejador (p. ej. «agrupar» cambiando deckGroup
+    // y luego limpiando el plegado) se construyan uno sobre otro en vez de pisarse.
     (p: Prefs | ((prev: Prefs) => Prefs)) => {
       setPrefsState((prev) => {
         const next = typeof p === 'function' ? p(prev) : p;
