@@ -84,14 +84,14 @@ import { priceTotal, useCardDetails } from '@/hooks/useCardDetails';
 import { notifyWantedChanged, setWanted, useWantedVersion } from '@/hooks/useWanted';
 import { colors, formatEur } from '@/theme';
 
-/** Color of «La quiero» (hearts). */
+/** Color de «La quiero» (corazones). */
 const WANT_COLOR = '#ff7a9c';
 
 type CollectionView = 'list' | 'gallery' | 'big' | 'text';
 const GROUPINGS: GroupBy[] = ['none', 'color', 'type', 'subtype', 'set', 'rarity', 'cost', 'price', 'lang', 'copies', 'deck', 'tag'];
 const GALLERY_COLUMNS = 3;
 
-/** Flat list items: group headers + cards (list view) or rows of 3 cards (gallery). */
+/** Ítems de la lista plana: cabeceras de grupo + cartas (vista lista) o filas de 3 cartas (galería). */
 type Item =
   | { type: 'header'; key: string; group: CardGroup; collapsed: boolean }
   | { type: 'sub'; key: string; subKey: string; group: CardGroup; collapsed: boolean }
@@ -104,16 +104,16 @@ const DEBOUNCE_MS = 450;
 const MAX_RESULTS = 20;
 
 /**
- * "Colección" tab: the cards the user owns, one row per printing (edition + language).
- * The search box filters the collection and, at the same time, searches Scryfall to add
- * new cards (added in the default language from settings when available).
+ * Pestaña «Colección»: las cartas que tiene el usuario, una fila por impresión (edición + idioma).
+ * El buscador filtra la colección y, a la vez, busca en Scryfall para añadir cartas nuevas (añadidas
+ * en el idioma por defecto de los ajustes cuando está disponible).
  */
 const cardKey = (c: CollectionCard) => c.scryfallId;
 
 export function CollectionScreen({ search }: { search?: { q: string; t: string } } = {}) {
   const db = useSQLiteContext();
   const { prefs, setPrefs, ensureActiveDeck, refresh, decks, setActiveDeckId } = useAppState();
-  // A deck seen from the collection (null = all your cards); choosing one makes it the active deck.
+  // Un mazo visto desde la colección (null = todas tus cartas); elegir uno lo hace el mazo activo.
   const [viewDeckId, setViewDeckId] = useState<number | null>(null);
   const [viewDeckCards, setViewDeckCards] = useState<DeckCard[]>([]);
   const [pickingDeck, setPickingDeck] = useState(false);
@@ -131,20 +131,20 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   }, [db, viewDeckId, viewVersion, decks]);
   const place = 'paper';
   const [cards, setCards] = useState<CollectionCard[]>([]);
-  // Copies owned of each card, every printing together.
+  // Copias que tienes de cada carta, todas las impresiones juntas.
   const ownedByOracle = useMemo(() => {
     const m: Record<string, number> = {};
     for (const c of cards) m[c.oracleId] = (m[c.oracleId] ?? 0) + c.quantity;
     return m;
   }, [cards]);
   const [query, setQuery] = useState('');
-  // Opened from elsewhere to look for a card ("Ver en mi colección"): put it in the search box.
+  // Abierto desde otro sitio para buscar una carta («Ver en mi colección»): ponla en el buscador.
   const [searchKey, setSearchKey] = useState('');
   if (search && `${search.q}|${search.t}` !== searchKey) {
     setSearchKey(`${search.q}|${search.t}`);
     setQuery(search.q);
   }
-  // The view (like the deck's: list, gallery, big, text), remembered.
+  // La vista (como la del mazo: lista, galería, grande, texto), recordada.
   const view: CollectionView = prefs.collectionView ?? 'list';
   const setView = useCallback((v: CollectionView) => setPrefs({ ...prefs, collectionView: v }), [prefs, setPrefs]);
   const [remote, setRemote] = useState<{ q: string; cards: Card[]; loading: boolean }>({
@@ -161,12 +161,12 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const [filter, setFilter] = useState<CollectionFilter>(EMPTY_FILTER);
   const [filtering, setFiltering] = useState(false);
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
-  // Second level of the grouping ('none' = no subgroups).
+  // Segundo nivel de la agrupación ('none' = sin subgrupos).
   const [subGroupBy, setSubGroupBy] = useState<GroupBy>('none');
   const [groupMenu, setGroupMenu] = useState(false);
   const [collapsed, setCollapsed] = useRememberedSet('collection');
   const [inDecks, setInDecks] = useState<Set<string>>(new Set());
-  // Which decks use each card, and how many copies (by oracle id).
+  // Qué mazos usan cada carta, y cuántas copias (por oracle id).
   const [usage, setUsage] = useState<Record<string, { deckName: string; quantity: number }[]>>({});
   const loadUsage = useCallback(async () => {
     const rows = await getDeckUsage(db);
@@ -178,7 +178,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
 
   const [wanted, setWantedList] = useState<WantedCard[]>([]);
   const [onlyWanted, setOnlyWanted] = useState(false);
-  // Tags: the card whose tags are being changed, the manager, and the cards shown by tag.
+  // Etiquetas: la carta cuyas etiquetas se están cambiando, el gestor, y las cartas mostradas por etiqueta.
   const [tagCard, setTagCard] = useState<{ oracleId: string; name: string } | null>(null);
   const [managingTags, setManagingTags] = useState(false);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
@@ -192,7 +192,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     await loadUsage();
   }, [db, place, loadUsage]);
 
-  // «La quiero» changed somewhere else (a card, the deck, a sync): reload the list.
+  // «La quiero» cambió en otro sitio (una carta, el mazo, una sync): recarga la lista.
   useEffect(() => {
     let cancelled = false;
     getWanted(db)
@@ -203,11 +203,11 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     };
   }, [db, wantedVersion]);
 
-  // «La quiero»: marked printings (edition + language + artwork); the ones you don't own yet show up
-  // as rows with 0 copies.
+  // «La quiero»: impresiones marcadas (edición + idioma + arte); las que aún no tienes aparecen
+  // como filas con 0 copias.
   const wantedIds = useMemo(() => new Set(wanted.map((w) => w.scryfallId)), [wanted]);
   const listCards = useMemo(() => {
-    // A deck: its cards — the printings you own of each, or the deck's printing (0 copies) if you have none.
+    // Un mazo: sus cartas — las impresiones que tienes de cada una, o la impresión del mazo (0 copias) si no tienes ninguna.
     if (viewDeck) {
       const out: CollectionCard[] = [];
       for (const dc of viewDeckCards) {
@@ -236,13 +236,13 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     return onlyWanted ? all.filter((c) => wantedIds.has(c.scryfallId)) : all;
   }, [cards, wanted, wantedIds, onlyWanted, viewDeck, viewDeckCards]);
 
-  // Set names and dates, for the edition grouping/filter (cached for the app run).
+  // Nombres y fechas de las ediciones, para la agrupación/filtro por edición (cacheados durante la ejecución).
   useEffect(() => {
     getAllSets()
       .then(setSets)
       .catch(() => {});
   }, []);
-  // Reload whenever the tab is shown (cards can be added from the swipe tab with 📦).
+  // Recarga cada vez que se muestra la pestaña (se pueden añadir cartas desde la pestaña de swipe con 📦).
   const { isNew: isSeenNew, markSeen } = useSeen();
   const newCardIsNew = (card: CollectionCard) => isSeenNew('collectioncards', card.addedAt);
   useFocusEffect(
@@ -250,15 +250,15 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
       load();
     }, [load]),
   );
-  // Only when you actually LEAVE the collection: mark its cards as seen (clears «nuevo» next time).
-  // Kept apart from `load` so a reload while you're here doesn't clear the badges under you.
+  // Solo cuando SALES de verdad de la colección: marca sus cartas como vistas (quita «nuevo» la próxima vez).
+  // Separado de `load` para que una recarga mientras estás aquí no borre los badges bajo tus pies.
   useFocusEffect(
     useCallback(() => () => markSeen('collectioncards', Date.now()), [markSeen]),
   );
 
   const q = query.trim();
 
-  // Debounced Scryfall search for the typed name.
+  // Búsqueda en Scryfall con debounce para el nombre escrito.
   useEffect(() => {
     if (q.length < MIN_QUERY) return;
     const timer = setTimeout(() => {
@@ -274,11 +274,11 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const results = remote.q === q ? remote.cards : [];
   const loadingResults = searching && (remote.q !== q || remote.loading);
 
-  // Collection value on Cardmarket (live prices from Scryfall; hidden offline).
+  // Valor de la colección en Cardmarket (precios en vivo de Scryfall; oculto sin conexión).
   const details = useCardDetails(cards.map((c) => c.scryfallId));
   const value = priceTotal(cards, details);
   const showPrices = prefs.pricesCollection;
-  // Grouping/filtering by price only while prices are shown.
+  // Agrupar/filtrar por precio solo mientras se muestran los precios.
   const effectiveGroup: GroupBy = !showPrices && groupBy === 'price' ? 'none' : groupBy;
   const effectiveSub: GroupBy =
     effectiveGroup === 'none' || subGroupBy === effectiveGroup || (!showPrices && subGroupBy === 'price') ? 'none' : subGroupBy;
@@ -349,7 +349,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   );
   const items = useMemo(() => buildItems(view), [buildItems, view]);
 
-  // ---- Several cards selected (long press or «Seleccionar»): a bar at the bottom with what to do.
+  // ---- Varias cartas seleccionadas (pulsación larga o «Seleccionar»): una barra abajo con qué hacer.
   const shownCards = useMemo(() => items.flatMap((it) => (it.type === 'card' ? [it.card] : it.type === 'row' ? it.cards : [])), [items]);
   const sel = useSelection(shownCards, cardKey);
   const [bulkTags, setBulkTags] = useState<string[] | null>(null);
@@ -429,7 +429,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
       return next;
     });
 
-  // Options of the set/language filters: only what the collection has.
+  // Opciones de los filtros de edición/idioma: solo lo que tiene la colección.
   const setCodes = useMemo(
     () =>
       [...new Set(cards.map((c) => c.setCode))].sort((a, b) =>
@@ -445,7 +445,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     [cards],
   );
 
-  /** «La quiero» on / off from a collection row. */
+  /** «La quiero» activar / desactivar desde una fila de la colección. */
   const toggleWant = async (card: CollectionCard) => {
     if (wantedIds.has(card.scryfallId)) {
       await removeWanted(db, card.scryfallId);
@@ -455,7 +455,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     const [printing] = await getCardsByIds([card.scryfallId]).catch(() => []);
     if (printing) await setWanted(db, printing, true);
   };
-  /** A wanted card you just got: into the collection, and off «La quiero». */
+  /** Una carta que querías y acabas de conseguir: a la colección, y fuera de «La quiero». */
   const gotIt = async (card: CollectionCard) => {
     const [printing] = await getCardsByIds([card.scryfallId]).catch(() => []);
     if (!printing) return showToast('No se pudo añadir: comprueba la conexión');
@@ -478,7 +478,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     load();
   };
 
-  // Last removal, undoable for a few seconds.
+  // Última eliminación, deshacible durante unos segundos.
   const [undo, setUndo] = useState<{ label: string; row: Row } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(undoTimer.current), []);
@@ -505,7 +505,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Sí', style: 'destructive', onPress: () => remove(card) },
     ]);
-  // Going below 1 copy removes it: undoable like the trash button.
+  // Bajar de 1 copia la quita: deshacible como el botón de la papelera.
   const change = async (card: CollectionCard, delta: number) => {
     if (card.quantity + delta <= 0) return remove(card);
     await changeCollectionQuantity(db, card.scryfallId, delta, place);
@@ -516,7 +516,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
   const [shareCard, setShareCard] = useState<ShareableCard | null>(null);
   const [printingCard, setPrintingCard] = useState<CollectionCard | null>(null);
 
-  /** Adds this printing to the active deck (creating "Mazo sin nombre" if there's none). */
+  /** Añade esta impresión al mazo activo (creando «Mazo sin nombre» si no hay ninguno). */
   const addToDeck = async (card: CollectionCard) => {
     try {
       const [full] = await getCardsByIds([card.scryfallId]);
@@ -532,7 +532,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     }
   };
 
-  // Ajustes → Cartas y listas: what the list rows and the gallery tiles show.
+  // Ajustes → Cartas y listas: qué muestran las filas de lista y las tarjetas de galería.
   const listLayout = listFor(prefs, 'collection');
   const galleryLayout = galleryFor(prefs, 'collection');
   const infoOf = (card: CollectionCard): CardInfo => {
@@ -555,18 +555,18 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
     };
   };
 
-  // When the title has scrolled away, a small one shows in the sticky row.
+  // Cuando el título se ha ido con el scroll, uno pequeño se muestra en la fila fija.
   const [headerHeight, setHeaderHeight] = useState(0);
   const [pinned, setPinned] = useState(false);
-  // While the view is dragged sideways, a copy of the header + buttons is pinned over the cards.
+  // Mientras se arrastra la vista a los lados, una copia de la cabecera + botones se fija sobre las cartas.
   const [toolbarH, setToolbarH] = useState(0);
   const scrollY = useSharedValue(0);
   const pinCollapse = useAnimatedStyle(() => ({ height: Math.max(0, headerHeight + toolbarH - Math.min(scrollY.get(), headerHeight)) }));
   const pinInner = useAnimatedStyle(() => ({ transform: [{ translateY: -Math.min(scrollY.get(), headerHeight) }] }));
 
-  // The sticky row of buttons and what goes under it (search results) come first in the list.
+  // La fila fija de botones y lo que va debajo (resultados de búsqueda) van primero en la lista.
 
-  // The title and the search scroll away; the row of buttons stays at the top (sticky).
+  // El título y el buscador se van con el scroll; la fila de botones se queda arriba (fija).
   const header = (
     <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
       <View style={[styles.titleRow, { borderBottomWidth: 2, borderBottomColor: colors.collection, backgroundColor: colors.collection + '1a' }]}>
@@ -683,7 +683,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
           <MaterialCommunityIcons name="checkbox-multiple-marked-outline" size={19} color={sel.selecting ? colors.bg : colors.textMuted} />
         </Pressable>
         {effectiveGroup !== 'none' && (
-          // One button: closes every group, or opens them all if any is closed.
+          // Un botón: cierra todos los grupos, o los abre todos si alguno está cerrado.
           <Pressable
             style={styles.toolIcon}
             onPress={() => setCollapsed(collapsed.size ? new Set() : new Set(groups.map((g) => g.key)))}
@@ -713,7 +713,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         </View>
       </View>
       {allTags.length > 0 && (
-        // The tags filter the list; the last chip manages them.
+        // Las etiquetas filtran la lista; el último chip las gestiona.
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagChips}>
           {allTags.map((t) => (
             <TagChip
@@ -906,7 +906,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
               );
             }
             const card = item.card;
-            // Código de colores: wanted and not owned = pink border.
+            // Código de colores: la quieres y no la tienes = borde rosa.
             const tint = prefs.colorCode !== false && card.quantity === 0 && wantedIds.has(card.scryfallId) ? { borderColor: WANT_COLOR } : null;
             const controls = (
                 <CardControlsRow>
@@ -962,7 +962,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                 </CardControlsRow>
             );
             if (v === 'text') {
-              // One line per card: copies, name (⚠ wanted / tags), cost and − ＋.
+              // Una línea por carta: copias, nombre (⚠ la quieres / etiquetas), coste y − ＋.
               const tags = prefs.showTags === false ? [] : (cardTags[card.oracleId] ?? []).map((u) => tagsByUid[u]).filter(Boolean);
               return (
                 <View style={[styles.textRow, tint]}>
@@ -995,7 +995,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
               );
             }
             if (v === 'big') {
-              // The card at full width, its icons over it (Ajustes → Cartas y listas) and its buttons under.
+              // La carta a ancho completo, sus iconos encima (Ajustes → Cartas y listas) y sus botones debajo.
               return (
                 <View style={[styles.bigCard, tint]}>
                   <Pressable onPress={() => setPreview(card)} onLongPress={() => sel.toggle(card)}>
@@ -1052,7 +1052,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
         />
   );
 
-  // The fixed title + buttons drawn over the sliding cards (title collapses with scroll).
+  // El título fijo + botones dibujados sobre las cartas que se deslizan (el título se colapsa con el scroll).
   const pinnedHeader =
     headerHeight + toolbarH > 0 ? (
       <Animated.View style={[styles.viewPin, pinCollapse]}>
