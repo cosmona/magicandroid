@@ -18,7 +18,7 @@ import { colors } from '@/theme';
 
 type Load<T> = { status: 'loading' } | { status: 'error' } | { status: 'done'; data: T };
 
-/** Runs `load` once per `key`; the state says loading / error / done. */
+/** Ejecuta `load` una vez por `key`; el estado dice cargando / error / hecho. */
 function useLoad<T>(key: string, load: () => Promise<T>, enabled = true): Load<T> {
   const [state, setState] = useState<{ key: string; value: Load<T> }>({ key: '', value: { status: 'loading' } });
   useEffect(() => {
@@ -30,22 +30,22 @@ function useLoad<T>(key: string, load: () => Promise<T>, enabled = true): Load<T
     return () => {
       cancelled = true;
     };
-    // `load` is rebuilt every render; `key` says when it changes.
+    // `load` se reconstruye en cada render; `key` dice cuándo cambia.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enabled]);
   return state.key === key ? state.value : { status: 'loading' };
 }
 
 /**
- * The card's synergies, for the card info screen: how Commander decks use it and its
- * commanders (EDHREC), its high-synergy cards if it can lead a deck, and the combos it's in
+ * Las sinergias de la carta, para la pantalla de info de carta: cómo la usan los mazos de Commander y sus
+ * comandantes (EDHREC), sus cartas de más sinergia si puede liderar un mazo, y los combos en los que está
  * (Commander Spellbook).
  */
 export function CardSynergy({ name, canBeCommander }: { name: string; canBeCommander: boolean }) {
   const edhrec = useLoad(`card:${name}`, () => getEdhrecCard(name));
   const commander = useLoad(`cmd:${name}`, () => getEdhrecCommander(name), canBeCommander);
   const combos = useLoad(`combos:${name}`, () => getCardCombos(name, 10));
-  // A card opened from one of the lists, navigable by swiping through THAT list (like the PC).
+  // Una carta abierta desde una de las listas, navegable deslizando por ESA lista (como en el PC).
   const [nav, setNav] = useState<{ ids: string[]; index: number } | null>(null);
   const openList = (ids: string[], index: number) => setNav({ ids, index });
 

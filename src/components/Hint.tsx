@@ -7,9 +7,9 @@ const BUBBLE_WIDTH = 220;
 const SHOW_MS = 1600;
 
 /**
- * Tooltip for icon buttons: keeping the finger on the button (long press) shows its name in a
- * bubble above it for a moment. Attach `ref` to the button, give it `onLongPress`, and render
- * `bubble` anywhere next to it (it's a Modal, so nothing clips it).
+ * Tooltip para botones de icono: mantener el dedo en el botón (pulsación larga) muestra su nombre en una
+ * burbuja encima un momento. Pon `ref` en el botón, dale `onLongPress`, y renderiza `bubble` en cualquier
+ * sitio junto a él (es un Modal, así que nada lo recorta).
  */
 export function useHint(label: string) {
   const ref = useRef<ComponentRef<typeof View>>(null);
@@ -62,8 +62,8 @@ const styles = StyleSheet.create({
 });
 
 /**
- * A Pressable that shows `hint` (also its accessibility label) in a bubble when the finger
- * stays on it. Same props as Pressable otherwise.
+ * Un Pressable que muestra `hint` (también su etiqueta de accesibilidad) en una burbuja cuando el dedo
+ * se queda en él. Por lo demás, las mismas props que Pressable.
  */
 export function HintButton({
   hint,

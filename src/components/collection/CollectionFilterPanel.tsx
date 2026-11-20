@@ -26,19 +26,19 @@ const USAGES: { key: Usage; label: string }[] = [
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
 
 /**
- * Collection filters, applied live as you touch them (the list behind updates).
- * Sets and languages only offer the ones in the collection.
+ * Filtros de la colección, aplicados en vivo según los tocas (la lista de detrás se actualiza).
+ * Las ediciones e idiomas solo ofrecen los que hay en la colección.
  */
 export function CollectionFilterPanel(props: {
   filter: CollectionFilter;
   onChange: (f: CollectionFilter) => void;
-  /** Set codes and languages present in the collection. */
+  /** Códigos de edición e idiomas presentes en la colección. */
   setCodes: string[];
   langs: string[];
   sets: Record<string, MtgSet>;
-  /** Cards shown with the current filter. */
+  /** Cartas mostradas con el filtro actual. */
   shown: number;
-  /** Offer the price range (Ajustes → Precios). */
+  /** Ofrecer el rango de precio (Ajustes → Precios). */
   showPrices: boolean;
 }) {
   const { filter: f, onChange, setCodes, langs, sets, shown, showPrices } = props;
@@ -191,7 +191,7 @@ function Chip({ selected, onPress, children }: { selected: boolean; onPress: () 
   );
 }
 
-/** "Mín – Máx" number inputs; empty = no limit. */
+/** Campos numéricos «Mín – Máx»; vacío = sin límite. */
 function Range(props: {
   min: number | null;
   max: number | null;
@@ -199,10 +199,10 @@ function Range(props: {
   onChange: (min: number | null, max: number | null) => void;
 }) {
   const { min, max, decimals, onChange } = props;
-  // Text as typed ("1," while writing 1,5); the number is parsed on every change.
+  // El texto tal como se escribe («1,» mientras se escribe 1,5); el número se parsea en cada cambio.
   const [minText, setMinText] = useState(min === null ? '' : String(min));
   const [maxText, setMaxText] = useState(max === null ? '' : String(max));
-  // Reset by "Limpiar".
+  // Se reinicia con «Limpiar».
   if (min === null && minText !== '' && parse(minText) !== null) setMinText('');
   if (max === null && maxText !== '' && parse(maxText) !== null) setMaxText('');
 

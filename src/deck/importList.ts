@@ -1,30 +1,30 @@
-// Parses pasted deck lists (pure): MTG Arena, MTGO, Moxfield, Archidekt and plain "4 Name" lists.
+// Parsea listas de mazo pegadas (puro): MTG Arena, MTGO, Moxfield, Archidekt y listas simples «4 Nombre».
 
 export interface ImportLine {
   quantity: number;
-  /** English name as written (may be "Front // Back" or just the front face). */
+  /** Nombre inglés tal como está escrito (puede ser «Front // Back» o solo la cara frontal). */
   name: string;
-  /** Set code and collector number when the list gives them: "(M11) 149". */
+  /** Código de edición y número de coleccionista cuando la lista los da: «(M11) 149». */
   set?: string;
   number?: string;
   commander: boolean;
 }
 
 export interface ParsedList {
-  /** Deck name if the list has one (Arena's "Name …" line). */
+  /** Nombre del mazo si la lista tiene uno (la línea «Name …» de Arena). */
   name: string | null;
   cards: ImportLine[];
-  /** The sideboard (Arena drafts: the rest of the pool). */
+  /** El banquillo (drafts de Arena: el resto del pool). */
   sideboard: ImportLine[];
-  /** Copies left out because they were in the maybeboard / tokens. */
+  /** Copias dejadas fuera porque estaban en el maybeboard / fichas. */
   skipped: number;
-  /** Lines that couldn't be read. */
+  /** Líneas que no se pudieron leer. */
   unreadable: string[];
 }
 
 type Section = 'main' | 'commander' | 'side' | 'skip';
 
-/** Section headers, with or without "//", ":" or a count: "Commander", "SIDEBOARD:", "// Maybeboard (3)". */
+/** Cabeceras de sección, con o sin «//», «:» o un recuento: «Commander», «SIDEBOARD:», «// Maybeboard (3)». */
 function sectionOf(line: string): Section | null {
   const h = line
     .replace(/^\/\/\s*/, '')
@@ -40,13 +40,13 @@ function sectionOf(line: string): Section | null {
   return null;
 }
 
-/** Reads one card line, or null if it isn't one. */
+/** Lee una línea de carta, o null si no lo es. */
 export function parseLine(
   raw: string,
 ): (Omit<ImportLine, 'commander'> & { commanderTag: boolean; sideTag: boolean }) | null {
   let line = raw.trim();
   if (!line) return null;
-  // Archidekt / Moxfield extras: categories "[Ramp]", "^Tag^", foil "*F*", commander "*CMDR*".
+  // Extras de Archidekt / Moxfield: categorías «[Ramp]», «^Tag^», foil «*F*», comandante «*CMDR*».
   const commanderTag = /\*CMDR\*/i.test(line) || /\[[^\]]*\bcommander\b[^\]]*\]/i.test(line);
   const sideTag = /\[[^\]]*\bsideboard\b[^\]]*\]/i.test(line);
   line = line

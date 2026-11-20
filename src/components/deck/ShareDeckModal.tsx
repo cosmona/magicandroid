@@ -27,7 +27,7 @@ import { priceTotal, useCardDetails } from '@/hooks/useCardDetails';
 import { LOGO_MARK, LOGO_MARK_RATIO, MANA_ICONS } from '@/icons';
 import { colors, formatEur, formatLabel } from '@/theme';
 
-/** Order of the card groups in the image. */
+/** Orden de los grupos de cartas en la imagen. */
 const TYPE_ORDER: TypeKey[] = [
   'creature',
   'planeswalker',
@@ -40,16 +40,16 @@ const TYPE_ORDER: TypeKey[] = [
   'other',
 ];
 const COLOR_KEYS = ['W', 'U', 'B', 'R', 'G'] as const;
-/** Width of the saved image in pixels, whatever the phone. */
+/** Ancho de la imagen guardada en píxeles, sea cual sea el móvil. */
 const IMAGE_WIDTH = 1080;
-/** Give up waiting for slow images after this long. */
+/** Deja de esperar a las imágenes lentas tras este tiempo. */
 const IMAGE_TIMEOUT = 6000;
 
 const displayName = (c: DeckCard) => c.printedName ?? c.name;
 
 /**
- * Shares the deck as a picture (cover art, commander or key cards, curve, colors and the list
- * by type), drawn in a hidden-size View and captured with react-native-view-shot, or as text.
+ * Comparte el mazo como imagen (arte de portada, comandante o cartas clave, curva, colores y la lista
+ * por tipo), dibujada en una View de tamaño oculto y capturada con react-native-view-shot, o como texto.
  */
 export function ShareDeckModal({
   deck,
@@ -65,7 +65,7 @@ export function ShareDeckModal({
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const { prefs, activeSideboard } = useAppState();
-  // The deck being shared is always the active one: its sideboard is in the app state.
+  // El mazo que se comparte es siempre el activo: su banquillo está en el estado de la app.
   const sideboard = activeSideboard;
   const shotRef = useRef<ComponentRef<typeof View>>(null);
   const [sharing, setSharing] = useState(false);
@@ -77,7 +77,7 @@ export function ShareDeckModal({
   const stats = deckStats(cards);
 
   const commanders = usesCommander ? cards.filter((c) => c.isCommander) : [];
-  // Commander(s), else the three most expensive (or costliest to cast) non-land cards.
+  // Comandante(s), si no las tres cartas que no son tierra más caras (o más costosas de lanzar).
   const featured = (
     commanders.length
       ? commanders
@@ -94,7 +94,7 @@ export function ShareDeckModal({
       .sort((a, b) => a.cmc - b.cmc || displayName(a).localeCompare(displayName(b))),
   })).filter((g) => g.cards.length > 0);
 
-  // Wait for the remote images before capturing (or give up after a while).
+  // Espera a las imágenes remotas antes de capturar (o se rinde tras un rato).
   const remote = featured.length + (deck.coverImage ? 1 : 0);
   const [loaded, setLoaded] = useState(0);
   const [timedOut, setTimedOut] = useState(false);

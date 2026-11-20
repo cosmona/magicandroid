@@ -64,9 +64,9 @@ interface Props {
 }
 
 /**
- * Search form shown in the filters sheet. Edits a draft and applies it with "Buscar",
- * so the card stack isn't reloaded on every tap. Actions sit at the top so they stay
- * visible whatever the sheet height.
+ * Formulario de búsqueda mostrado en la hoja de filtros. Edita un borrador y lo aplica con «Buscar»,
+ * así la pila de cartas no se recarga en cada toque. Las acciones están arriba para que sigan
+ * visibles sea cual sea la altura de la hoja.
  */
 export function FilterPanel({ applied, onApply }: Props) {
   const [draft, setDraft] = useState<Filters>(applied);
@@ -116,7 +116,7 @@ export function FilterPanel({ applied, onApply }: Props) {
             onSubmit={() => onApply(draft)}
           />
           {rulesQuery(draft.text).translated && (
-            // Spanish is searched in the English rules text: what is really searched.
+            // El español se busca en el texto de reglas en inglés: lo que realmente se busca.
             <Text style={{ color: colors.info, fontSize: 13 }}>
               Se busca en inglés: {rulesQuery(draft.text).terms.map((t) => (t.includes(' ') ? `«${t}»` : t)).join(' · ')}
             </Text>
@@ -254,7 +254,7 @@ export function FilterPanel({ applied, onApply }: Props) {
   );
 }
 
-/** Saved searches (name + filters), kept in Ajustes and synced with the PC. Tap one to search with it. */
+/** Búsquedas guardadas (nombre + filtros), guardadas en Ajustes y sincronizadas con el PC. Toca una para buscar con ella. */
 function SavedSearches({ draft, onApply }: { draft: Filters; onApply: (f: Filters) => void }) {
   const { prefs, setPrefs } = useAppState();
   const saved = prefs.savedSearches ?? [];
@@ -264,7 +264,7 @@ function SavedSearches({ draft, onApply }: { draft: Filters; onApply: (f: Filter
   const save = () => {
     const n = name.trim();
     if (!n) return;
-    // A name that already exists is replaced (to update a saved search).
+    // Un nombre que ya existe se reemplaza (para actualizar una búsqueda guardada).
     setPrefs({ ...prefs, savedSearches: [...saved.filter((x) => x.name !== n), { name: n, filters: draft, updatedAt: Date.now() }] });
     setName('');
   };
@@ -374,7 +374,7 @@ function Segmented<T extends string>(props: {
   );
 }
 
-/** Number picker where "—" (null) means no limit. */
+/** Selector de número donde «—» (null) significa sin límite. */
 function Stepper(props: {
   label: string;
   value: number | null;
@@ -399,7 +399,7 @@ function Stepper(props: {
   );
 }
 
-/** Full keyword catalog (224) in a searchable multi-select; Spanish label + English detail. */
+/** Catálogo completo de palabras clave (224) en un multi-selector con buscador; etiqueta en español + detalle en inglés. */
 function KeywordPicker({ values, onChange }: { values: string[]; onChange: (v: string[]) => void }) {
   const [keywords, setKeywords] = useState<string[]>(COMMON_KEYWORDS);
   useEffect(() => {
