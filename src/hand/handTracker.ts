@@ -1,17 +1,17 @@
-// «Mano» (prototype): which cards of the active deck are in the hand, from the text a camera reads of the
-// fanned hand (only the titles show). Pure: the screen takes the photos and reads their text.
+// «Mano» (prototipo): qué cartas del mazo activo están en la mano, a partir del texto que una cámara lee de
+// la mano en abanico (solo se ven los títulos). Pura: la pantalla hace las fotos y lee su texto.
 
 export interface HandCandidate {
   oracleId: string;
-  /** Name shown to the user (in the card's language). */
+  /** Nombre mostrado al usuario (en el idioma de la carta). */
   label: string;
-  /** Names to recognise (printed name and English name). */
+  /** Nombres a reconocer (nombre impreso y nombre en inglés). */
   names: string[];
-  /** Copies in the deck (no more can be in the hand). */
+  /** Copias en el mazo (no puede haber más en la mano). */
   copies: number;
 }
 
-/** «Ángel de Serra» → «angel de serra» (no accents, letters and spaces only). */
+/** «Ángel de Serra» → «angel de serra» (sin acentos, solo letras y espacios). */
 export const normalize = (s: string) =>
   s
     .normalize('NFD')
@@ -21,7 +21,7 @@ export const normalize = (s: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-/** Edit distance (small strings). */
+/** Distancia de edición (cadenas pequeñas). */
 function distance(a: string, b: string): number {
   const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
   for (let j = 1; j <= b.length; j++) dp[0][j] = j;
@@ -32,25 +32,25 @@ function distance(a: string, b: string): number {
 }
 
 /**
- * How well a line of text read from the photo matches a card name (0 = no). In a fan each title is
- * partly covered by the next card, so the line may be just the start of the name (at least 5 letters);
- * a few misread letters are allowed (1 every 6).
+ * Cómo de bien cuadra una línea de texto leída de la foto con un nombre de carta (0 = no). En un abanico cada
+ * título lo tapa en parte la siguiente carta, así que la línea puede ser solo el principio del nombre (al menos
+ * 5 letras); se permiten unas pocas letras mal leídas (1 de cada 6).
  */
 export function matchScore(line: string, name: string): number {
   if (line.length < 4) return 0;
   if (line === name) return 100;
-  // The read text may carry noise after the name (part of the mana cost, the next card…).
+  // El texto leído puede traer ruido tras el nombre (parte del coste de maná, la siguiente carta…).
   const head = line.slice(0, name.length);
   const prefix = name.slice(0, Math.min(name.length, line.length));
   const len = Math.min(head.length, prefix.length);
   if (len < 5 && len < name.length) return 0;
   const d = distance(head.slice(0, len), prefix.slice(0, len));
   if (d > Math.floor(len / 6)) return 0;
-  // Longer matches win; the whole name, even more.
+  // Las coincidencias más largas ganan; el nombre entero, aún más.
   return len * 2 - d * 3 + (len >= name.length ? 10 : 0);
 }
 
-/** The cards seen in one photo: how many of each (a title read twice = two copies). */
+/** Las cartas vistas en una foto: cuántas de cada (un título leído dos veces = dos copias). */
 export function cardsInText(lines: string[], candidates: HandCandidate[]): Map<string, number> {
   const seen = new Map<string, number>();
   const prepared = candidates.map((c) => ({ c, names: c.names.map(normalize).filter((n) => n.length >= 3) }));
@@ -76,14 +76,14 @@ export interface HandEvent {
   oracleId: string;
   label: string;
   kind: 'drawn' | 'out';
-  /** Added or taken out by hand (a correction). */
+  /** Añadida o quitada a mano (una corrección). */
   manual?: boolean;
 }
 
 export interface HandState {
-  /** Copies of each card in the hand. */
+  /** Copias de cada carta en la mano. */
   hand: Map<string, number>;
-  /** Photos in a row where a card is seen more / fewer times than the hand has. */
+  /** Fotos seguidas donde una carta se ve más / menos veces de las que tiene la mano. */
   more: Map<string, number>;
   fewer: Map<string, number>;
   events: HandEvent[];
@@ -91,11 +91,11 @@ export interface HandState {
 
 export const emptyHand = (): HandState => ({ hand: new Map(), more: new Map(), fewer: new Map(), events: [] });
 
-/** A card enters the hand after this many photos in a row, and leaves after… */
+/** Una carta entra en la mano tras tantas fotos seguidas, y sale tras… */
 export const FRAMES_IN = 2;
 export const FRAMES_OUT = 3;
 
-/** One more photo: updates the hand when a change is seen in enough photos in a row (fingers, moves). */
+/** Una foto más: actualiza la mano cuando se ve un cambio en suficientes fotos seguidas (dedos, movimientos). */
 export function updateHand(state: HandState, seen: Map<string, number>, candidates: HandCandidate[], at: number): HandState {
   const hand = new Map(state.hand);
   const more = new Map<string, number>();
@@ -124,7 +124,7 @@ export function updateHand(state: HandState, seen: Map<string, number>, candidat
   return { hand, more, fewer, events };
 }
 
-/** A correction by hand: one copy more / less. */
+/** Una corrección a mano: una copia más / menos. */
 export function correctHand(state: HandState, oracleId: string, label: string, delta: 1 | -1, at: number): HandState {
   const hand = new Map(state.hand);
   const n = Math.max(0, (hand.get(oracleId) ?? 0) + delta);

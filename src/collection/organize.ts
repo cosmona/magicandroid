@@ -1,4 +1,4 @@
-// Filters and groupings of the collection (pure functions, no React).
+// Filtros y agrupaciones de la colección (funciones puras, sin React).
 import type { CardDetails, MtgSet } from '@/api/scryfall';
 import type { CollectionCard } from '@/db/database';
 
@@ -9,20 +9,20 @@ export type Usage = 'all' | 'inDeck' | 'free';
 export type GroupBy = 'none' | 'color' | 'type' | 'set' | 'rarity' | 'cost' | 'price' | 'lang' | 'subtype' | 'deck' | 'tag' | 'copies' | 'byDeck';
 
 export interface CollectionFilter {
-  /** Card has any of these colors ('C' = colorless). Empty = any. */
+  /** La carta tiene alguno de estos colores ('C' = incoloro). Vacío = cualquiera. */
   colors: ColorKey[];
   types: TypeKey[];
-  /** Mana value range (lands count as 0). */
+  /** Rango de valor de maná (las tierras cuentan como 0). */
   costMin: number | null;
   costMax: number | null;
   rarities: string[];
   sets: string[];
   langs: string[];
-  /** € per copy. Cards without a price never pass a price limit. */
+  /** € por copia. Las cartas sin precio nunca pasan un límite de precio. */
   priceMin: number | null;
   priceMax: number | null;
   usage: Usage;
-  /** Only printings you own 2+ copies of. */
+  /** Solo impresiones de las que tienes 2+ copias. */
   duplicates: boolean;
 }
 
@@ -91,13 +91,13 @@ export const GROUP_LABELS: Record<GroupBy, string> = {
   byDeck: 'Por mazo',
 };
 
-/** Colors in the mana cost (hybrid counts both). Colorless costs → []. */
+/** Colores en el coste de maná (el híbrido cuenta ambos). Costes incoloros → []. */
 export function cardColors(manaCost: string | null): Exclude<ColorKey, 'C'>[] {
   const found = new Set((manaCost ?? '').match(/[WUBRG]/g) ?? []);
   return (['W', 'U', 'B', 'R', 'G'] as const).filter((c) => found.has(c));
 }
 
-/** Mana value from the cost string: numbers add up, X is 0, every other symbol is 1 (front face only). */
+/** Valor de maná de la cadena de coste: los números suman, X es 0, cualquier otro símbolo es 1 (solo cara frontal). */
 export function manaValue(manaCost: string | null): number {
   const front = (manaCost ?? '').split(' // ')[0];
   let total = 0;
@@ -110,7 +110,7 @@ export function manaValue(manaCost: string | null): number {
   return total;
 }
 
-/** Main type for grouping: a creature land is a creature, an artifact land is a land. */
+/** Tipo principal para agrupar: una tierra-criatura es criatura, una tierra-artefacto es tierra. */
 export function mainType(typeLine: string): TypeKey {
   const t = typeLine.split(' // ')[0];
   if (/\bCreature\b/.test(t)) return 'creature';
@@ -128,14 +128,14 @@ const isLand = (c: CollectionCard) => mainType(c.typeLine) === 'land';
 
 export interface OrganizeContext {
   details: Record<string, CardDetails>;
-  /** Oracle ids used in any deck. */
+  /** Oracle ids usados en algún mazo. */
   inDecks: Set<string>;
   sets: Record<string, MtgSet>;
-  /** Tag names of each card (by oracle id), for the «Etiqueta» grouping. */
+  /** Nombres de las etiquetas de cada carta (por oracle id), para la agrupación «Etiqueta». */
   tags?: Record<string, string[]>;
-  /** Language names, for the «Idioma» grouping. */
+  /** Nombres de idioma, para la agrupación «Idioma». */
   langNames?: Record<string, string>;
-  /** Names of the decks that use each card (by oracle id), for «Por mazo». */
+  /** Nombres de los mazos que usan cada carta (por oracle id), para «Por mazo». */
   deckNames?: Record<string, string[]>;
 }
 
@@ -171,12 +171,12 @@ export function applyFilter(cards: CollectionCard[], f: CollectionFilter, ctx: O
 export interface CardGroup {
   key: string;
   title: string;
-  /** Mana symbols to draw next to the title ("{R}", "{W}{U}"…), if any. */
+  /** Símbolos de maná a dibujar junto al título («{R}», «{W}{U}»…), si los hay. */
   symbols?: string;
   cards: CollectionCard[];
-  /** Copies (sum of quantities). */
+  /** Copias (suma de cantidades). */
   copies: number;
-  /** Value in € of the priced copies. */
+  /** Valor en € de las copias con precio. */
   value: number;
 }
 
@@ -196,7 +196,7 @@ const PRICE_BANDS = [
   { key: 'p0', title: 'Menos de 1 €', min: 0 },
 ];
 
-/** Sections for `by` ('none' = one untitled group), each sorted by name. */
+/** Secciones para `by` ('none' = un grupo sin título), cada una ordenada por nombre. */
 export function groupCards(cards: CollectionCard[], by: GroupBy, ctx: OrganizeContext): CardGroup[] {
   const groups = new Map<string, CardGroup>();
   const order: string[] = [];
@@ -289,7 +289,7 @@ export function groupCards(cards: CollectionCard[], by: GroupBy, ctx: OrganizeCo
     }
   }
 
-  // Section order.
+  // Orden de las secciones.
   let keys = [...groups.keys()];
   if (by === 'color') keys = COLOR_GROUP_ORDER.filter((k) => groups.has(k));
   else if (by === 'type') keys = (Object.keys(TYPE_GROUP_LABELS) as TypeKey[]).filter((k) => groups.has(k));
@@ -297,7 +297,7 @@ export function groupCards(cards: CollectionCard[], by: GroupBy, ctx: OrganizeCo
   else if (by === 'cost') keys = ['0', '1', '2', '3', '4', '5', '6', '7', 'land'].filter((k) => groups.has(k));
   else if (by === 'price') keys = [...PRICE_BANDS.map((b) => b.key), 'none'].filter((k) => groups.has(k));
   else if (by === 'set') {
-    // Newest edition first; unknown sets at the end.
+    // La edición más nueva primero; las ediciones desconocidas al final.
     keys.sort((a, b) => (ctx.sets[b]?.releasedAt ?? '').localeCompare(ctx.sets[a]?.releasedAt ?? ''));
   }
   else if (by === 'lang' || by === 'subtype' || by === 'tag') {

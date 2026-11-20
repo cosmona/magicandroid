@@ -16,26 +16,26 @@ import { OwnPill } from '@/components/collection/OwnButton';
 import { InDeckBadge } from '@/components/deck/InDeckBadge';
 import { colors } from '@/theme';
 
-/** What happened to a card the user already swiped. */
+/** Qué pasó con una carta que el usuario ya deslizó. */
 export type Decision = 'added' | 'discarded';
 
 interface Props {
   cards: Card[];
-  /** Position of the current card in `cards`. */
+  /** Posición de la carta actual en `cards`. */
   index: number;
-  /** Decision per card id (cards can be revisited, so any position may have one). */
+  /** Decisión por id de carta (las cartas se pueden revisitar, así que cualquier posición puede tener una). */
   decisions: Record<string, Decision>;
-  /** Scryfall has more pages for this search. */
+  /** Scryfall tiene más páginas para esta búsqueda. */
   hasMore: boolean;
-  /** Ask the queue to load at least this many cards. */
+  /** Pide a la cola que cargue al menos tantas cartas. */
   onNeedMore: (count: number) => void;
-  /** Tap on a thumbnail: move the builder to that card. */
+  /** Tocar una miniatura: lleva el constructor a esa carta. */
   onSelect: (position: number) => void;
 }
 
 const COLUMNS = 4;
 const UPCOMING = 20;
-/** Extra upcoming cards shown each time the list is scrolled to the end. */
+/** Cartas próximas extra que se muestran cada vez que se hace scroll hasta el final de la lista. */
 const STEP = 40;
 const GAP = 6;
 const PADDING = 10;
@@ -47,7 +47,7 @@ const BADGES: Record<Decision, { label: string; color: string }> = {
   discarded: { label: '✕', color: colors.discard },
 };
 
-/** `skipped` = passed with the arrows, no decision. */
+/** `skipped` = pasada con las flechas, sin decisión. */
 type Status = 'current' | 'upcoming' | 'skipped';
 interface Thumb {
   card: Card;
@@ -57,16 +57,15 @@ interface Thumb {
 }
 
 /**
- * Grid of thumbnails: swiped cards (with their decision), the current one highlighted,
- * and the next few. Uses Scryfall's ~15 KB `small` images and a virtualized list of
- * fixed-height rows, opened already scrolled to the current card. Tap = go to that card,
- * long press = see it big.
+ * Rejilla de miniaturas: cartas deslizadas (con su decisión), la actual resaltada, y las siguientes. Usa
+ * las imágenes `small` de ~15 KB de Scryfall y una lista virtualizada de filas de altura fija, abierta ya
+ * desplazada hasta la carta actual. Tocar = ir a esa carta, pulsación larga = verla en grande.
  */
 export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore, onSelect }: Props) {
   const { width } = useWindowDimensions();
   const [preview, setPreview] = useState<Thumb | null>(null);
   const [previewPrinting, setPreviewPrinting] = useState<Card | null>(null);
-  // Upcoming cards shown after the current one; grows as the user scrolls down.
+  // Cartas próximas mostradas tras la actual; crece según el usuario baja.
   const [ahead, setAhead] = useState(UPCOMING);
   const wantedCount = index + 1 + ahead;
 
@@ -85,16 +84,16 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore, onS
   );
 
   const showMore = () => {
-    // Nothing more to reveal: everything loaded is shown and Scryfall has no more pages.
+    // Nada más que revelar: se muestra todo lo cargado y Scryfall no tiene más páginas.
     if (wantedCount >= cards.length && !hasMore) return;
     const next = ahead + STEP;
     setAhead(next);
     onNeedMore(index + 1 + next);
   };
-  // Cards requested but not downloaded yet.
+  // Cartas pedidas pero aún no descargadas.
   const waiting = thumbs.length < wantedCount && hasMore;
 
-  // Chunk into rows ourselves so getItemLayout/initialScrollIndex are exact.
+  // Las troceamos en filas nosotros para que getItemLayout/initialScrollIndex sean exactos.
   const rows = useMemo(() => {
     const out: Thumb[][] = [];
     for (let i = 0; i < thumbs.length; i += COLUMNS) out.push(thumbs.slice(i, i + COLUMNS));
@@ -102,7 +101,7 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore, onS
   }, [thumbs]);
   const currentRow = Math.floor(index / COLUMNS);
 
-  // Warm the cache for the thumbnails right around the current card.
+  // Precalienta la caché de las miniaturas justo alrededor de la carta actual.
   useEffect(() => {
     const urls = cards
       .slice(Math.max(0, index - 8), index + 1 + UPCOMING)
@@ -171,7 +170,7 @@ export function HistorySheet({ cards, index, decisions, hasMore, onNeedMore, onS
             <>
               <Image
                 source={{ uri: previewPrinting?.imageUrl ?? preview.card.imageUrl ?? undefined }}
-                // Shows the cached thumbnail instantly while the full image loads.
+                // Muestra la miniatura cacheada al instante mientras carga la imagen completa.
                 placeholder={preview.card.imageUrl ? { uri: smallImageUrl(preview.card.imageUrl) } : undefined}
                 placeholderContentFit="contain"
                 style={styles.previewImage}

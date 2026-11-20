@@ -30,14 +30,14 @@ import {
 } from '@/sync/sync';
 import { colors } from '@/theme';
 
-/** The last PC synced with (its addresses, port and code), to sync again without scanning. */
+/** El último PC con el que se sincronizó (sus direcciones, puerto y código), para sincronizar otra vez sin escanear. */
 const LAST_PC_KEY = 'sync.lastPc';
 const PING_TIMEOUT_MS = 2500;
 const SYNC_TIMEOUT_MS = 120000;
-/** While the user reviews on the PC, the phone asks every so often whether it's decided. */
+/** Mientras el usuario revisa en el PC, el móvil pregunta cada poco si ya está decidido. */
 const POLL_MS = 1200;
 const POLL_TIMEOUT_MS = 8000;
-/** The review can take a while; after this long without an answer, give up. */
+/** La revisión puede tardar; tras este tiempo sin respuesta, se rinde. */
 const REVIEW_MAX_MS = 30 * 60 * 1000;
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -59,7 +59,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
   }
 }
 
-/** First address of the PC that answers (it may have several networks). */
+/** Primera dirección del PC que responde (puede tener varias redes). */
 async function findPc(t: SyncTarget): Promise<string | null> {
   for (const host of t.hosts) {
     const base = `http://${host}:${t.port}`;
@@ -75,11 +75,11 @@ async function findPc(t: SyncTarget): Promise<string | null> {
 }
 
 /**
- * "Sincronizar con el PC": scan the QR code that Magic Swipe for PC shows (or type its address and code).
- * - Sincronizar: the phone sends its data, the PC lists every difference, the user decides there what
- *   stays, and each device applies its part (the phone keeps asking until then). Before applying,
- *   each one saves a copy of its data that can be restored.
- * - Copiar o mover (advanced): everything from one device to the other.
+ * «Sincronizar con el PC»: escanea el código QR que muestra Magic Swipe para PC (o escribe su dirección y código).
+ * - Sincronizar: el móvil envía sus datos, el PC lista cada diferencia, el usuario decide ahí qué se queda, y
+ *   cada dispositivo aplica su parte (el móvil sigue preguntando hasta entonces). Antes de aplicar, cada uno
+ *   guarda una copia de sus datos que se puede restaurar.
+ * - Copiar o mover (avanzado): todo de un dispositivo al otro.
  */
 export function SyncScreen({ onClose }: { onClose: () => void }) {
   const db = useSQLiteContext();
@@ -92,7 +92,7 @@ export function SyncScreen({ onClose }: { onClose: () => void }) {
   const [code, setCode] = useState('');
   const [direction, setDirection] = useState<SyncDirection>('toPc');
   const [mode, setMode] = useState<SyncMode>('copy');
-  /** Sincronizar (reviewed on the PC) or the advanced copy / move. */
+  /** Sincronizar (revisado en el PC) o el copiar / mover avanzado. */
   const [kind, setKind] = useState<'sync' | 'advanced'>('sync');
   const stopped = useRef(false);
   const [backups, setBackups] = useState<SyncBackup[]>([]);
@@ -101,7 +101,7 @@ export function SyncScreen({ onClose }: { onClose: () => void }) {
     loadBackups();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db]);
-  // The camera reports the same QR many times per second: run only once.
+  // La cámara reporta el mismo QR muchas veces por segundo: ejecuta solo una vez.
   const scanned = useRef(false);
 
   useEffect(() => {
@@ -127,7 +127,7 @@ export function SyncScreen({ onClose }: { onClose: () => void }) {
     return body;
   };
 
-  /** Sincronizar: offer the phone's data, wait for the user's review on the PC, apply the phone's part. */
+  /** Sincronizar: ofrece los datos del móvil, espera la revisión del usuario en el PC, aplica la parte del móvil. */
   const reviewed = async (base: string, token: string): Promise<{ title: string; lines: string[] }> => {
     setStep({ kind: 'working', message: 'Comparando el móvil con el PC…' });
     const mine = await exportSyncData(db, 'Android');
@@ -157,7 +157,7 @@ export function SyncScreen({ onClose }: { onClose: () => void }) {
         try {
           await saveBackup(db, 'Antes de sincronizar con el PC');
           await applyPatch(db, answer.patch);
-          // Show the merged saved searches right away (applyPatch wrote them to the prefs in the DB).
+          // Muestra las búsquedas guardadas fusionadas al momento (applyPatch las escribió en los prefs de la BD).
           if (answer.patch.savedSearches)
             setPrefs((prev) => ({ ...prev, savedSearches: answer.patch.savedSearches as NonNullable<typeof prev.savedSearches> }));
           await post(base, token, { version: SYNC_VERSION, op: 'applied' });
@@ -230,7 +230,7 @@ export function SyncScreen({ onClose }: { onClose: () => void }) {
     }
   };
 
-  /** Mover deletes from the origin: ask first. */
+  /** Mover borra del origen: pregunta primero. */
   const confirmThen = (action: () => void) => {
     if (kind === 'sync' || mode === 'copy') return action();
     Alert.alert(
@@ -468,7 +468,7 @@ export function SyncScreen({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Two-option segmented control. */
+/** Control segmentado de dos opciones. */
 function Choice<T extends string>({
   value,
   onChange,

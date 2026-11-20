@@ -11,15 +11,15 @@ import { colors } from '@/theme';
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 export interface ShareableCard {
-  /** Scryfall id of the printing. */
+  /** Id de Scryfall de la impresión. */
   scryfallId: string;
-  /** Name shown to people (in the card's language). */
+  /** Nombre que se muestra a la gente (en el idioma de la carta). */
   name: string;
-  /** Scryfall `normal` image URL. */
+  /** URL de imagen `normal` de Scryfall. */
   imageUrl: string | null;
 }
 
-/** The printing's page on Scryfall (from its details; falls back to a name search). */
+/** La página de la impresión en Scryfall (de sus datos; recurre a una búsqueda por nombre). */
 async function scryfallLink(card: ShareableCard): Promise<string> {
   const details = await getCardDetails([card.scryfallId]).catch(() => ({}) as Record<string, never>);
   return (
@@ -28,19 +28,19 @@ async function scryfallLink(card: ShareableCard): Promise<string> {
 }
 
 /**
- * The card's large image as a file in the cache. Uses the native download first and, if that
- * fails, fetches the bytes and writes the file itself.
+ * La imagen grande de la carta como archivo en la caché. Usa la descarga nativa primero y, si falla,
+ * obtiene los bytes y escribe el archivo él mismo.
  */
 /**
- * Scryfall's image server rejects (400) Android's generic HTTP client name ("okhttp/…"), as its
- * API does: identify the app like every other Scryfall request.
+ * El servidor de imágenes de Scryfall rechaza (400) el nombre de cliente HTTP genérico de Android
+ * («okhttp/…»), igual que su API: identifica la app como cualquier otra petición a Scryfall.
  */
 const IMAGE_HEADERS = { 'User-Agent': 'MagicSwipe/1.0', Accept: 'image/*' };
 
 async function downloadImage(imageUrl: string, id: string): Promise<File> {
   const url = imageUrl.replace('/normal/', '/large/');
   const file = new File(Paths.cache, `carta-${id}.jpg`);
-  // A real card image is well over 20 KB; anything smaller is a failed earlier download (error page).
+  // Una imagen de carta real pesa bastante más de 20 KB; cualquier cosa menor es una descarga anterior fallida (página de error).
   if (file.exists && file.size > 20_000) return file;
   if (file.exists) file.delete();
   try {
@@ -58,8 +58,8 @@ async function downloadImage(imageUrl: string, id: string): Promise<File> {
 }
 
 /**
- * Share a card: its picture (the large Scryfall image as a file, with the link copied to paste
- * next to it), its Scryfall link as text, or just copy the link.
+ * Compartir una carta: su imagen (la imagen grande de Scryfall como archivo, con el enlace copiado para
+ * pegar junto a ella), su enlace de Scryfall como texto, o solo copiar el enlace.
  */
 export function CardShareSheet({ card, onClose }: { card: ShareableCard; onClose: () => void }) {
   const insets = useSafeAreaInsets();
@@ -72,7 +72,7 @@ export function CardShareSheet({ card, onClose }: { card: ShareableCard; onClose
     try {
       await task();
     } catch (e) {
-      // Say which step failed: "no connection" was misleading when the problem was elsewhere.
+      // Di qué paso falló: «sin conexión» despistaba cuando el problema estaba en otra parte.
       const detail = e instanceof Error ? e.message : String(e);
       console.warn('[CardShareSheet]', detail);
       setNote(`No se pudo compartir: ${detail}`);

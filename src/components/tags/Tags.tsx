@@ -1,6 +1,6 @@
-// Tags the user defines (text, color and icon) to mark cards of the collection, e.g. «Para cambiar»,
-// «Prestada», «Foil». Stored in the database (DB v11) and synced with the PC. The icon is saved with
-// the PC's name («mdiTagOutline») and shown here as its Material Community glyph («tag-outline»).
+// Etiquetas que define el usuario (texto, color e icono) para marcar cartas de la colección, p. ej. «Para
+// cambiar», «Prestada», «Foil». Guardadas en la base de datos (BD v11) y sincronizadas con el PC. El icono se
+// guarda con el nombre del PC («mdiTagOutline») y se muestra aquí como su glifo de Material Community («tag-outline»).
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -11,7 +11,7 @@ import { colors } from '@/theme';
 
 type Glyph = keyof typeof MaterialCommunityIcons.glyphMap;
 
-/** Icons a tag can have (the PC's names). */
+/** Iconos que puede tener una etiqueta (los nombres del PC). */
 export const TAG_ICONS = [
   'mdiTagOutline',
   'mdiStar',
@@ -55,17 +55,17 @@ export const TAG_ICONS = [
   'mdiSnowflake',
 ];
 
-/** Colors offered for a new tag. */
+/** Colores ofrecidos para una etiqueta nueva. */
 export const TAG_COLORS = ['#e74c3c', '#f39c12', '#f1c40f', '#2ecc71', '#2ec4b6', '#3498db', '#9b59b6', '#ff7a9c', '#95a5a6'];
 
-/** «mdiTagOutline» → «tag-outline» (unknown names → the tag glyph). */
+/** «mdiTagOutline» → «tag-outline» (nombres desconocidos → el glifo de etiqueta). */
 export function glyphOf(icon: string): Glyph {
   const name = icon.replace(/^mdi/, '').replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/([A-Z])([A-Z][a-z])/g, '$1-$2').toLowerCase();
   return (name in MaterialCommunityIcons.glyphMap ? name : 'tag-outline') as Glyph;
 }
 
 const listeners = new Set<() => void>();
-/** Tells every screen showing tags to reload them (after a change or a sync). */
+/** Avisa a cada pantalla que muestra etiquetas de que las recargue (tras un cambio o una sync). */
 export function notifyTagsChanged() {
   for (const l of listeners) l();
 }
@@ -81,7 +81,7 @@ function useTagsVersion(): number {
   return version;
 }
 
-/** Every tag, kept up to date. */
+/** Todas las etiquetas, mantenidas al día. */
 export function useTags(): Tag[] {
   const db = useSQLiteContext();
   const version = useTagsVersion();
@@ -94,7 +94,7 @@ export function useTags(): Tag[] {
   return tags;
 }
 
-/** Tag uids of each of these cards (by oracle id), kept up to date. */
+/** Uids de etiqueta de cada una de estas cartas (por oracle id), mantenidos al día. */
 export function useCardTags(oracleIds: string[]): Record<string, string[]> {
   const db = useSQLiteContext();
   const version = useTagsVersion();
@@ -113,7 +113,7 @@ export function useCardTags(oracleIds: string[]): Record<string, string[]> {
   return map;
 }
 
-/** Tag uids of every deck (by deck uid), kept up to date. */
+/** Uids de etiqueta de cada mazo (por uid de mazo), mantenidos al día. */
 export function useDeckTags(): Record<string, string[]> {
   const db = useSQLiteContext();
   const version = useTagsVersion();
@@ -126,7 +126,7 @@ export function useDeckTags(): Record<string, string[]> {
   return map;
 }
 
-/** Dark or white text, whichever reads better on the tag's color. */
+/** Texto oscuro o blanco, el que se lea mejor sobre el color de la etiqueta. */
 export function tagTextColor(hex: string): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);
   if (!m) return '#fff';
@@ -136,8 +136,8 @@ export function tagTextColor(hex: string): string {
 }
 
 /**
- * A tag: its icon and text in its color (outlined when `selected` is false). `small` for lists;
- * `iconOnly` shows just the icon in a colored dot (deck bar, deck tiles).
+ * Una etiqueta: su icono y texto en su color (con contorno cuando `selected` es false). `small` para listas;
+ * `iconOnly` muestra solo el icono en un punto de color (barra del mazo, tarjetas de mazo).
  */
 export function TagChip({
   tag,
@@ -173,7 +173,7 @@ export function TagChip({
   );
 }
 
-/** Bottom sheet for one deck: every tag to put on or take off, and «Gestionar etiquetas». */
+/** Hoja inferior para un mazo: cada etiqueta que poner o quitar, y «Gestionar etiquetas». */
 export function DeckTagsSheet({ deckUid, name, onClose }: { deckUid: string | null; name?: string; onClose: () => void }) {
   const db = useSQLiteContext();
   const tags = useTags();
@@ -207,7 +207,7 @@ export function DeckTagsSheet({ deckUid, name, onClose }: { deckUid: string | nu
   );
 }
 
-/** Bottom sheet for one card: every tag to put on or take off, and «Gestionar etiquetas». */
+/** Hoja inferior para una carta: cada etiqueta que poner o quitar, y «Gestionar etiquetas». */
 export function CardTagsSheet({ oracleId, name, onClose }: { oracleId: string | null; name?: string; onClose: () => void }) {
   const db = useSQLiteContext();
   const tags = useTags();
@@ -240,7 +240,7 @@ export function CardTagsSheet({ oracleId, name, onClose }: { oracleId: string | 
   );
 }
 
-/** Tags for several cards at once: on = all of them have it; a tap puts it on all (or takes it off all). */
+/** Etiquetas para varias cartas a la vez: activa = todas la tienen; un toque la pone en todas (o la quita de todas). */
 export function BulkTagsSheet({ oracleIds, onClose }: { oracleIds: string[] | null; onClose: () => void }) {
   const db = useSQLiteContext();
   const tags = useTags();
@@ -273,7 +273,7 @@ export function BulkTagsSheet({ oracleIds, onClose }: { oracleIds: string[] | nu
   );
 }
 
-/** Create, edit and delete tags: text, color and icon. */
+/** Crear, editar y borrar etiquetas: texto, color e icono. */
 export function TagsManagerSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const db = useSQLiteContext();
   const tags = useTags();
