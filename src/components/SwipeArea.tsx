@@ -22,14 +22,14 @@ import { addCardToDeck, addCardToMaybe, addToCollection, changeMaybeQuantity, ch
 import { useCardQueue } from '@/hooks/useCardQueue';
 import { colors } from '@/theme';
 
-/** The side rail closes by itself after this long without touching it. */
+/** El riel lateral se cierra solo tras este tiempo sin tocarlo. */
 const RAIL_AUTO_HIDE_MS = 4000;
 
-/** Card stack in the middle of the screen (the web's Deck view): right = add, left = discard. */
+/** Pila de cartas en el centro de la pantalla (la vista Deck de la web): derecha = añadir, izquierda = descartar. */
 export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const db = useSQLiteContext();
   const { ready, filters, ensureActiveDeck, refresh, prefs, activeDeck, activeCards, activeMaybe } = useAppState();
-  // «Solo en mi colección»: your cards (Scryfall data of each printing, cached) with the filters applied on the phone.
+  // «Solo en mi colección»: tus cartas (datos de Scryfall de cada impresión, cacheados) con los filtros aplicados en el móvil.
   const queue = useCardQueue(filters, ready, prefs.language, async (f) => {
     const rows = await getCollection(db, 'paper');
     const all = await getCardsByIds([...new Set(rows.filter((r) => r.quantity > 0).map((r) => r.scryfallId))]);
@@ -41,18 +41,18 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     if (!prefs.haptics) return;
     Haptics.impactAsync(kind === 'add' ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);
   };
-  // Decision for every swiped card of this search (shown on the card and in the history).
+  // Decisión de cada carta deslizada de esta búsqueda (mostrada en la carta y en el historial).
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [historyOpen, setHistoryOpen] = useState(false);
   const [showBack, setShowBack] = useState(false);
-  // The card area's size (the card's own size follows from it and from the rail being shown).
+  // El tamaño del área de la carta (el tamaño de la carta se deriva de él y de si el riel está visible).
   const [area, setArea] = useState({ width: 0, height: 0 });
   const cardRef = useRef<SwipeCardHandle>(null);
   const [picker, setPicker] = useState<'language' | 'art' | null>(null);
-  // The card's own screens: its sheet (tap on the card), «Ficha completa» and «Sinergias».
+  // Las pantallas propias de la carta: su ficha (tocar la carta), «Ficha completa» y «Sinergias».
   const [open, setOpen] = useState<'sheet' | 'info' | 'synergy' | null>(null);
 
-  // Decisions refer to the current search: reset them on a new one.
+  // Las decisiones se refieren a la búsqueda actual: se reinician en una nueva.
   const [historyFilters, setHistoryFilters] = useState(filters);
   if (historyFilters !== filters) {
     setHistoryFilters(filters);
@@ -67,7 +67,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
       return next;
     });
 
-  // Long press on ✓: the card flies right but goes to the deck's «Posibles» instead.
+  // Pulsación larga en ✓: la carta vuela a la derecha pero va a «Posibles» del mazo en su lugar.
   const toMaybe = useRef(false);
 
   const onSwiped = async (dir: SwipeDirection) => {
@@ -85,7 +85,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
       refresh(deck.id);
     } else if (dir === 'right') {
       const deck = await ensureActiveDeck();
-      // Always added: format rules are checked inside the deck, not here.
+      // Siempre se añade: las reglas de formato se comprueban dentro del mazo, no aquí.
       const quantity = await addCardToDeck(db, deck.id, card);
       buzz('add');
       decide(card.id, 'added');
@@ -97,7 +97,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     }
   };
 
-  /** − / ＋ of the deck and «Posibles» for the card on screen (without swiping it). */
+  /** − / ＋ del mazo y «Posibles» para la carta en pantalla (sin deslizarla). */
   const changeCopies = async (where: 'deck' | 'maybe', delta: 1 | -1) => {
     const shown = queue.current;
     if (!shown) return;
@@ -112,7 +112,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     refresh(deck.id);
   };
 
-  // Copies of the card on screen you own (in the collection), and − / ＋ for it right here.
+  // Copias de la carta en pantalla que tienes (en la colección), y − / ＋ para ella aquí mismo.
   const [owned, setOwned] = useState(0);
   const [ownedBump, setOwnedBump] = useState(0);
   const ownedOracle = queue.current?.oracleId;
@@ -138,15 +138,15 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     setOwnedBump((n) => n + 1);
   };
 
-  // Arrows: move through the cards without adding or discarding.
+  // Flechas: pasa por las cartas sin añadir ni descartar.
   const browse = (step: 1 | -1) => () => {
     setShowBack(false);
     if (step === 1) queue.next();
     else queue.back();
   };
 
-  // The side rail: hidden until you swipe left from the right edge (or tap its tab); it closes by
-  // itself after a while, with a swipe to the right, or when one of its buttons is used.
+  // El riel lateral: oculto hasta que deslizas a la izquierda desde el borde derecho (o tocas su pestaña); se
+  // cierra solo tras un rato, con un deslizamiento a la derecha, o cuando se usa uno de sus botones.
   const [railOpen, setRailOpen] = useState(false);
   const [railTouch, setRailTouch] = useState(0);
   const [slide] = useState(() => new Animated.Value(1));
@@ -158,7 +158,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   }, [railOpen, railTouch, slide]);
   const [edgePan] = useState(() =>
     PanResponder.create({
-      // Only a horizontal drag to the left from the edge (a tap goes to the tab).
+      // Solo un arrastre horizontal a la izquierda desde el borde (un toque va a la pestaña).
       onMoveShouldSetPanResponder: (_, g) => g.dx < -8 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderRelease: (_, g) => {
         if (g.dx < -24) setRailOpen(true);
@@ -173,7 +173,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
       },
     }),
   );
-  /** A rail button: does its thing and closes the rail. */
+  /** Un botón del riel: hace lo suyo y cierra el riel. */
   const railAction = (fn: () => void) => () => {
     fn();
     setRailOpen(false);
@@ -183,12 +183,12 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
     const { width, height } = e.nativeEvent.layout;
     setArea({ width, height });
   };
-  // Room on the right for the side rail of buttons (when shown).
+  // Sitio a la derecha para el riel lateral de botones (cuando se muestra).
   const cardWidth = area.width ? Math.min(area.width - 32, (area.height - 10) / CARD_RATIO) : 0;
   const cardSize = { width: cardWidth, height: cardWidth * CARD_RATIO };
 
   const card = queue.current;
-  // The card in the active deck, its price and whether the deck's format allows it.
+  // La carta en el mazo activo, su precio y si el formato del mazo la permite.
   const inDeck = card ? (activeCards.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0) : 0;
   const inMaybe = card ? (activeMaybe.find((c) => c.oracleId === card.oracleId)?.quantity ?? 0) : 0;
   const legality = card && activeDeck?.format ? card.legalities?.[activeDeck.format] : undefined;
@@ -237,7 +237,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
           </View>
         )}
         {card && (
-          // The tab near the right edge: swipe it left (or tap it) to bring the buttons.
+          // La pestaña cerca del borde derecho: deslízala a la izquierda (o tócala) para traer los botones.
           <View style={styles.edge} {...edgePan.panHandlers}>
             {!railOpen && (
               <HintButton hint="Mostrar los botones (o desliza desde el borde)" onPress={() => setRailOpen(true)} style={styles.railTab} hitSlop={8}>
@@ -247,7 +247,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
           </View>
         )}
         {card && (
-          // Everything about the card at a thumb's reach, over its right edge.
+          // Todo sobre la carta al alcance del pulgar, sobre su borde derecho.
           <Animated.View
             pointerEvents={railOpen ? 'auto' : 'none'}
             style={[
@@ -276,7 +276,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
         )}
       </View>
       {card && (
-        // What matters of this card, in one line: where you are, the deck, the price, the rules; language and art.
+        // Lo que importa de esta carta, en una línea: dónde estás, el mazo, el precio, las reglas; idioma y arte.
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.strip}>
           <Stepper
             icon="cards-playing"
@@ -383,7 +383,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   );
 }
 
-/** − [icon label N] ＋, like the PC's deck buttons: the copies of the card on screen in the deck or «Posibles». */
+/** − [icono etiqueta N] ＋, como los botones de mazo del PC: las copias de la carta en pantalla en el mazo o «Posibles». */
 function Stepper(props: {
   icon: 'cards-playing' | 'help-circle-outline' | 'bookshelf';
   label: string;
@@ -422,7 +422,7 @@ function Stepper(props: {
   );
 }
 
-/** A small round button of the bottom row (previous / next / «Posibles»). */
+/** Un botón redondo pequeño de la fila inferior (anterior / siguiente / «Posibles»). */
 function SmallRound(props: {
   icon: 'chevron-left' | 'chevron-right';
   hint: string;
@@ -451,7 +451,7 @@ function RoundButton(props: {
   symbol: string;
   color: string;
   onPress: () => void;
-  /** Long press: a second action (✓ → «Posibles»). */
+  /** Pulsación larga: una segunda acción (✓ → «Posibles»). */
   onLongPress?: () => void;
   small?: boolean;
   disabled?: boolean;
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 14, paddingVertical: 8 },
   rail: { position: 'absolute', right: 6, top: 0, bottom: 0, justifyContent: 'center', gap: 8 },
   railItem: { alignItems: 'center', gap: 2 },
-  // Away from the screen edge: Android's «back» gesture starts there.
+  // Lejos del borde de la pantalla: el gesto «atrás» de Android empieza ahí.
   edge: { position: 'absolute', right: 18, top: '35%', height: 120, width: 34, justifyContent: 'center', alignItems: 'flex-end' },
   railTab: {
     width: 26,

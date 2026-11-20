@@ -34,8 +34,8 @@ const LEGAL_LABEL: Record<string, string> = { legal: 'Legal', not_legal: 'No leg
 const LEGAL_COLOR: Record<string, string> = { legal: colors.add, not_legal: colors.textMuted, banned: colors.discard, restricted: colors.undo };
 
 /**
- * One card of the sheet: everything about it (`card` is the printing or its Scryfall id; `onPrinting`
- * keeps a language / art change, otherwise it only changes what's shown).
+ * Una carta de la ficha: todo sobre ella (`card` es la impresión o su id de Scryfall; `onPrinting`
+ * conserva un cambio de idioma / arte, si no solo cambia lo que se muestra).
  */
 function CardPage({
   card: initial,
@@ -48,7 +48,7 @@ function CardPage({
   onPrinting?: (card: Card) => void;
   exact?: boolean;
   extra?: ReactNode;
-  /** The page on screen tells the header its card's name. */
+  /** La página en pantalla le dice a la cabecera el nombre de su carta. */
   onTitle?: (title: string | null) => void;
 }) {
   const db = useSQLiteContext();
@@ -56,14 +56,14 @@ function CardPage({
   const { prefs, decks, activeDeck, activeCards, activeMaybe, ensureActiveDeck, setActiveDeckId, refresh } = useAppState();
   const [deckPicker, setDeckPicker] = useState<false | 'main' | 'maybe'>(false);
   const initialId = typeof initial === 'string' ? initial : initial.id;
-  // The card loaded for an id, and a printing picked here (language / art), each for the card it belongs to.
+  // La carta cargada para un id, y una impresión elegida aquí (idioma / arte), cada una para la carta a la que pertenece.
   const key = `${initialId}|${prefs.language}|${exact}`;
   const [loaded, setLoaded] = useState<{ key: string; card: Card } | null>(null);
   const [picked, setPicked] = useState<{ key: string; card: Card } | null>(null);
   const [failedKey, setFailedKey] = useState<string | null>(null);
   const base = typeof initial !== 'string' ? initial : loaded?.key === key ? loaded.card : null;
   const card = picked?.key === initialId ? picked.card : base;
-  // The set's symbol (Scryfall SVG), shown before the edition.
+  // El símbolo de la edición (SVG de Scryfall), mostrado antes de la edición.
   const [setIcon, setSetIcon] = useState<string | null>(null);
   const cardSet = card?.set;
   useEffect(() => {
@@ -82,7 +82,7 @@ function CardPage({
   const [usage, setUsage] = useState<{ deckName: string; quantity: number }[]>([]);
   const [note, setNote] = useState<string | null>(null);
 
-  // Load the card when only its id is known (in the preferred language unless `exact`).
+  // Carga la carta cuando solo se conoce su id (en el idioma preferido salvo que sea `exact`).
   useEffect(() => {
     if (typeof initial !== 'string') return;
     let cancelled = false;
@@ -151,8 +151,8 @@ function CardPage({
     await changeMaybeQuantity(db, activeDeck.id, card.oracleId, -1);
     await refresh(activeDeck.id);
   };
-  // Add a copy to a chosen deck (main or «Posibles») without leaving the sheet; if it's not the
-  // active deck, ask whether to switch to it.
+  // Añade una copia a un mazo elegido (principal o «Posibles») sin salir de la ficha; si no es el
+  // mazo activo, pregunta si cambiar a él.
   const addTo = async (id: number, name: string, where: 'main' | 'maybe') => {
     if (!card) return;
     if (where === 'main') await addCardToDeck(db, id, card);
@@ -395,12 +395,12 @@ function CardPage({
 }
 
 /**
- * The enlarged card, full screen (like the PC's card sheet): header with its tags, the big image (tap
- * to see it alone; ⟲ turns double-faced cards), language / other arts / Cardmarket / share, the name
- * and printing, «La tengo» / «La quiero», the active deck and «Posibles» with − / ＋, which of your
- * decks have it, its text, data and legality, and «Ficha completa». With `nav.cardAt`, dragging
- * sideways moves through the list: the next (or previous) card comes in under the finger with all its
- * data, and settles in when let go past a third of the screen (or with a flick).
+ * La carta ampliada, a pantalla completa (como la ficha de carta del PC): cabecera con sus etiquetas, la
+ * imagen grande (tocar para verla sola; ⟲ gira las cartas de doble cara), idioma / otras artes / Cardmarket /
+ * compartir, el nombre y la impresión, «La tengo» / «La quiero», el mazo activo y «Posibles» con − / ＋, cuáles
+ * de tus mazos la tienen, su texto, datos y legalidad, y «Ficha completa». Con `nav.cardAt`, arrastrar a los
+ * lados pasa por la lista: la siguiente (o anterior) carta entra bajo el dedo con todos sus datos, y se asienta
+ * al soltar pasado un tercio de la pantalla (o con un golpe seco).
  */
 export function CardSheet({
   card,
@@ -415,15 +415,15 @@ export function CardSheet({
   card: Card | string;
   onClose: () => void;
   onPrinting?: (card: Card) => void;
-  /** Show this printing as it is (else in the preferred language when the id is given). */
+  /** Muestra esta impresión tal cual (si no, en el idioma preferido cuando se da el id). */
   exact?: boolean;
-  /** Where it was opened from (shown in the header). */
+  /** Desde dónde se abrió (se muestra en la cabecera). */
   subtitle?: string;
-  /** A subtle colour code for the header (deck = colors.deck, collection = colors.collection…). */
+  /** Un código de color sutil para la cabecera (mazo = colors.deck, colección = colors.collection…). */
   tint?: string;
-  /** More things for this card (the deck's buttons and validation). */
+  /** Más cosas para esta carta (los botones del mazo y la validación). */
   extra?: ReactNode;
-  /** ‹ › through the list it was opened from; `cardAt` gives the neighbours for the swipe. */
+  /** ‹ › por la lista desde la que se abrió; `cardAt` da los vecinos para el swipe. */
   nav?: { index: number; total: number; onMove: (step: number) => void; cardAt?: (index: number) => Card | string | null | undefined };
 }) {
   const insets = useSafeAreaInsets();
@@ -434,7 +434,7 @@ export function CardSheet({
   const next = nav?.cardAt && nav && index < nav.total - 1 ? nav.cardAt(index + 1) : null;
   const keyOf = (c: Card | string) => (typeof c === 'string' ? c : c.id);
 
-  // The row of pages sits at -index × width; dragging moves it from there.
+  // La fila de páginas está en -index × width; arrastrar la mueve desde ahí.
   const x = useSharedValue(-index * width);
   const start = useSharedValue(0);
   useEffect(() => {
@@ -451,7 +451,7 @@ export function CardSheet({
     },
     onUpdate: (e) => {
       let dx = e.translationX;
-      // Nothing that way: it only gives a little.
+      // Nada por ese lado: solo cede un poco.
       if ((dx > 0 && !hasPrev) || (dx < 0 && !hasNext)) dx *= 0.2;
       x.set(start.get() + dx);
     },
@@ -469,7 +469,7 @@ export function CardSheet({
   });
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
 
-  // Each page keeps its key (its card) when it moves from the side to the middle: already loaded.
+  // Cada página mantiene su key (su carta) cuando pasa del lado al centro: ya cargada.
   const pages = [
     prev ? { card: prev, at: index - 1 } : null,
     { card, at: index },
@@ -554,7 +554,7 @@ function Pill({ icon, label, color, onPress }: { icon: Glyph; label?: string; co
   );
 }
 
-/** «− | ＋ Label N»: one copy less / more. */
+/** «− | ＋ Etiqueta N»: una copia menos / más. */
 function StepButton({
   label,
   icon,
@@ -570,7 +570,7 @@ function StepButton({
   count: number;
   onAdd: () => void;
   onSub: () => void;
-  /** Opens a deck chooser (the chosen deck becomes active). */
+  /** Abre un selector de mazo (el mazo elegido pasa a ser el activo). */
   onPickDeck?: () => void;
 }) {
   return (
