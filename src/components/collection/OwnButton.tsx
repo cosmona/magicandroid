@@ -16,9 +16,10 @@ async function resolve(ref: CardRef): Promise<Card | null> {
 }
 
 /**
- * "La tengo" pill for any card view: shows how many copies (any printing) you own; tapping it
- * adds one copy of this printing, and once you have some a "−" on its left removes one. `card` can be the printing, its
- * Scryfall id or its English name; `oracleId`, when known, avoids looking the card up just to count.
+ * Pill «La tengo» para cualquier vista de carta: muestra cuántas copias (de cualquier impresión) tienes;
+ * tocarla añade una copia de esta impresión, y en cuanto tienes alguna un «−» a su izquierda quita una. `card`
+ * puede ser la impresión, su id de Scryfall o su nombre inglés; `oracleId`, cuando se conoce, evita buscar la
+ * carta solo para contar.
  */
 export function OwnPill({
   card,
@@ -27,14 +28,14 @@ export function OwnPill({
 }: {
   card: CardRef;
   oracleId?: string;
-  /** After adding or removing: the new total of copies. */
+  /** Tras añadir o quitar: el nuevo total de copias. */
   onAdded?: (total: number) => void;
 }) {
   const db = useSQLiteContext();
   const place = 'paper';
   const refKey = typeof card === 'string' ? card : 'id' in card ? card.id : `name:${card.name}`;
   const knownOracle = oracleId ?? (typeof card !== 'string' && 'id' in card ? card.oracleId : undefined);
-  // Copies of THIS printing (edition + language + artwork) and of the card in any printing.
+  // Copias de ESTA impresión (edición + idioma + arte) y de la carta en cualquier impresión.
   const [owned, setOwned] = useState<{ key: string; oracleId: string; count: number; total: number } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -50,14 +51,14 @@ export function OwnPill({
     return () => {
       cancelled = true;
     };
-    // Keyed by identity: callers may pass a fresh `{ name }` on every render.
+    // Indexado por identidad: quien llama puede pasar un `{ name }` nuevo en cada render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db, refKey, knownOracle, place]);
 
   const count = owned?.key === refKey ? owned.count : 0;
   const others = owned?.key === refKey ? owned.total - owned.count : 0;
 
-  /** +1 adds this printing; −1 (only shown when you have this one) removes one of this printing. */
+  /** +1 añade esta impresión; −1 (solo se muestra cuando tienes esta) quita una de esta impresión. */
   const change = async (delta: 1 | -1) => {
     setBusy(true);
     try {
@@ -73,7 +74,7 @@ export function OwnPill({
       setOwned({ key: refKey, oracleId: printing.oracleId, count: mine, total });
       onAdded?.(total);
     } catch {
-      // Stays as it was; the user can tap again.
+      // Se queda como estaba; el usuario puede tocar otra vez.
     } finally {
       setBusy(false);
     }
@@ -128,8 +129,8 @@ export function OwnPill({
 const WANT_COLOR = '#ff7a9c';
 
 /**
- * «La quiero» toggle (heart) for THIS printing (edition + language + artwork): each printing is marked
- * on its own. When another printing of the card is wanted it says so.
+ * Interruptor «La quiero» (corazón) para ESTA impresión (edición + idioma + arte): cada impresión se marca
+ * por su cuenta. Cuando se quiere otra impresión de la carta, lo indica.
  */
 export function WantPill({ card, oracleId }: { card: CardRef; oracleId?: string }) {
   const db = useSQLiteContext();
@@ -196,9 +197,9 @@ export function WantPill({ card, oracleId }: { card: CardRef; oracleId?: string 
 }
 
 /**
- * Round "La tengo" button of the swipe view (next to the history): its badge says how many
- * copies you own; tapping it opens a small panel to add (+) or remove (−) copies of the card
- * on screen and to jump to it in the collection.
+ * Botón redondo «La tengo» de la vista de swipe (junto al historial): su insignia dice cuántas copias tienes;
+ * tocarlo abre un panel pequeño para añadir (+) o quitar (−) copias de la carta en pantalla y para saltar a
+ * ella en la colección.
  */
 export function OwnRoundButton({ card, size = 44 }: { card: Card; size?: number }) {
   const db = useSQLiteContext();

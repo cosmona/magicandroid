@@ -35,19 +35,19 @@ import type { DeckCard } from '@/db/database';
 import { colors } from '@/theme';
 
 type Tab = 'combos' | 'recommend';
-/** How the recommendations are shown. */
+/** Cómo se muestran las recomendaciones. */
 type RecView = 'list' | 'gallery' | 'swipe';
 type Load<T> = { key: string; status: 'loading' | 'error' | 'done'; data?: T };
 
 const ALMOST_PAGE = 15;
 const RECOMMEND_COUNT = 40;
-/** Swiping is quick, so it goes deeper into the list. */
+/** El swipe es rápido, así que profundiza más en la lista. */
 const SWIPE_COUNT = 100;
 const front = (name: string) => name.split(' // ')[0].toLowerCase();
 
 /**
- * Full-screen synergies of the active deck: its combos and the ones it's one card away from
- * (Commander Spellbook), and the cards EDHREC recommends for its commander, addable with ＋.
+ * Sinergias a pantalla completa del mazo activo: sus combos y los que están a una carta (Commander Spellbook),
+ * y las cartas que EDHREC recomienda para su comandante, añadibles con ＋.
  */
 export function DeckSynergyScreen({
   cards,
@@ -57,7 +57,7 @@ export function DeckSynergyScreen({
 }: {
   cards: DeckCard[];
   usesCommander: boolean;
-  /** Adds a printing (already in the preferred language) to the deck. */
+  /** Añade una impresión (ya en el idioma preferido) al mazo. */
   onAdd: (card: Card) => Promise<void>;
   onClose: () => void;
 }) {
@@ -75,8 +75,8 @@ export function DeckSynergyScreen({
   const inDeck = useMemo(() => new Set(cards.map((c) => front(c.name))), [cards]);
 
   // ---- Combos (Commander Spellbook) ----
-  // The deck as it was when the screen opened: adding a combo piece from here marks it as added
-  // instead of reloading (and re-scrolling) the whole list.
+  // El mazo tal como estaba al abrir la pantalla: añadir una pieza de combo desde aquí la marca como añadida
+  // en vez de recargar (y re-desplazar) toda la lista.
   const [comboQuery] = useState(() => ({ main, commanders, key: [...commanders, '|', ...main].join('\n') }));
   const comboKey = comboQuery.key;
   const [combos, setCombos] = useState<Load<DeckCombos>>({ key: '', status: 'loading' });
@@ -93,7 +93,7 @@ export function DeckSynergyScreen({
   const comboState = combos.key === comboKey ? combos : { status: 'loading' as const, data: undefined };
   const [almostShown, setAlmostShown] = useState(ALMOST_PAGE);
 
-  // ---- Recommendations (EDHREC, for the first commander) ----
+  // ---- Recomendaciones (EDHREC, para el primer comandante) ----
   const leader = commanders[0];
   const [rec, setRec] = useState<Load<EdhrecCommander | null>>({ key: '', status: 'loading' });
   useEffect(() => {
@@ -113,10 +113,10 @@ export function DeckSynergyScreen({
   );
   const recommended = notInDeck.slice(0, RECOMMEND_COUNT);
 
-  // Added from here during this visit (the deck list updates behind).
+  // Añadidas desde aquí durante esta visita (la lista del mazo se actualiza detrás).
   const [adding, setAdding] = useState<string | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
-  /** `keepLanguage`: the printing was picked by hand, don't switch it to the preferred language. */
+  /** `keepLanguage`: la impresión se eligió a mano, no la cambies al idioma preferido. */
   const add = async (id: string, known?: Card, keepLanguage = false) => {
     setAdding(id);
     try {
@@ -134,7 +134,7 @@ export function DeckSynergyScreen({
     }
   };
 
-  // Combo pieces added from here, by name (Commander Spellbook gives English names).
+  // Piezas de combo añadidas desde aquí, por nombre (Commander Spellbook da nombres en inglés).
   const [addedNames, setAddedNames] = useState<Set<string>>(new Set());
   const [addingName, setAddingName] = useState<string | null>(null);
   const addByName = async (name: string) => {
@@ -148,13 +148,13 @@ export function DeckSynergyScreen({
         setAddedNames((prev) => new Set(prev).add(name));
       }
     } catch {
-      // Stays with its ＋ so it can be tried again.
+      // Se queda con su ＋ para poder intentarlo de nuevo.
     } finally {
       setAddingName(null);
     }
   };
 
-  // Images: the cards of the combos on screen, or the recommended ones.
+  // Imágenes: las cartas de los combos en pantalla, o las recomendadas.
   const almostList = comboState.data?.almost.slice(0, almostShown) ?? [];
   const comboNames = [
     ...(comboState.data?.included ?? []).flatMap((c) => c.cards),
@@ -368,8 +368,8 @@ export function DeckSynergyScreen({
 }
 
 /**
- * The recommendations as a hand of cards: right adds the card to the deck, left skips it.
- * The list is fixed when this view opens, so adding cards doesn't reshuffle it.
+ * Las recomendaciones como una mano de cartas: derecha añade la carta al mazo, izquierda la salta.
+ * La lista se fija al abrir esta vista, así que añadir cartas no la rebaraja.
  */
 function RecommendSwipe({
   entries,
@@ -399,12 +399,12 @@ function RecommendSwipe({
   const [size, setSize] = useState({ width: 0, height: 0 });
   const cardRef = useRef<SwipeCardHandle>(null);
 
-  // Cards Scryfall couldn't find are skipped.
+  // Las cartas que Scryfall no pudo encontrar se saltan.
   const deck = cards ? list.filter((e) => cards.has(e.id)) : [];
   const entry = deck[pos];
   const card = entry && cards?.get(entry.id);
   const next = deck[pos + 1] && cards?.get(deck[pos + 1].id);
-  // Languages picked by hand with the 🌐 pill, by EDHREC id.
+  // Idiomas elegidos a mano con la pill 🌐, por id de EDHREC.
   const [picked, setPicked] = useState<Record<string, Card>>({});
 
   const onSwiped = (dir: SwipeDirection) => {
