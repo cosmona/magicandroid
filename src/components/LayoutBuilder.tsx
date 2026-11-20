@@ -1,6 +1,6 @@
-// Ajustes → Cartas y listas: what the lists and the galleries of the deck and the collection show
-// (like the PC's builder). Lists: lines of data, tap a datum to move or remove it, «＋» to add.
-// Galleries: a sample card with its 3 × 4 grid; tap a cell and pick the icons that go there.
+// Ajustes → Cartas y listas: qué muestran las listas y las galerías del mazo y la colección
+// (como el constructor del PC). Listas: líneas de datos, toca un dato para moverlo o quitarlo, «＋» para añadir.
+// Galerías: una carta de muestra con su rejilla 3 × 4; toca una celda y elige los iconos que van ahí.
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
@@ -31,7 +31,7 @@ import {
 import { colors } from '@/theme';
 
 const SAMPLE_IMAGE = 'https://cards.scryfall.io/normal/front/f/f/ff8d4998-f70c-410e-9fb9-f4a61c8cfb13.jpg';
-/** A card with every datum, for the previews. */
+/** Una carta con todos los datos, para las vistas previas. */
 const SAMPLE: CardInfo = {
   name: 'Elvish Archdruid',
   printedName: 'Archidruida élfico',
@@ -113,7 +113,7 @@ function Segment<T extends string>({ options, value, onChange }: { options: { ke
   );
 }
 
-// ---------------- Lists ----------------
+// ---------------- Listas ----------------
 
 function ListEditor({ place, layout, onChange, onReset }: { place: LayoutPlace; layout: ListLayout; onChange: (l: ListLayout) => void; onReset: () => void }) {
   const [picked, setPicked] = useState<{ line: number; index: number } | null>(null);
@@ -190,7 +190,7 @@ function ListEditor({ place, layout, onChange, onReset }: { place: LayoutPlace; 
           style={s.round}
           disabled={layout.length <= 1}
           onPress={() => {
-            // The data of the last line go to the one before.
+            // Los datos de la última línea pasan a la anterior.
             const next = copy();
             const last = next.pop()!;
             next[next.length - 1].push(...last);
@@ -248,7 +248,7 @@ function Tool({ icon, label, onPress, disabled, danger }: { icon: 'chevron-left'
   );
 }
 
-// ---------------- Galleries ----------------
+// ---------------- Galerías ----------------
 
 function GalleryEditor({ place, layout, onChange, onReset }: { place: LayoutPlace; layout: GalleryLayout; onChange: (g: GalleryLayout) => void; onReset: () => void }) {
   const [cellIndex, setCellIndex] = useState<number | null>(null);
@@ -256,7 +256,7 @@ function GalleryEditor({ place, layout, onChange, onReset }: { place: LayoutPlac
   const toggle = (key: string) => {
     if (cellIndex === null) return;
     const next = layout.map((c) => c.filter((k) => k !== key));
-    // In this cell already: taken away; else moved here (an icon is in one place only).
+    // Ya está en esta celda: se quita; si no, se mueve aquí (un icono está en un solo sitio).
     if (!layout[cellIndex].includes(key)) next[cellIndex] = [...next[cellIndex], key];
     onChange(next);
   };

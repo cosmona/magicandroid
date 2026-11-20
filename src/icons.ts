@@ -1,13 +1,13 @@
-// Icons reused from the web app (frontmagic/src/Media), copied to assets/mtg/.
-// SVGs are black: render them with expo-image `tintColor` on the dark theme.
+// Iconos reutilizados de la app web (frontmagic/src/Media), copiados a assets/mtg/.
+// Los SVG son negros: renderízalos con el `tintColor` de expo-image sobre el tema oscuro.
 import type { IconSource } from '@/theme';
 import type { Color, Rarity } from '@/api/scryfall';
 
-/** App logo with a transparent background (assets/logo-mark.png, 480×416), for dark UI. */
+/** Logo de la app con fondo transparente (assets/logo-mark.png, 480×416), para UI oscura. */
 export const LOGO_MARK: IconSource = require('../assets/logo-mark.png');
 export const LOGO_MARK_RATIO = 480 / 416;
 
-/** Simple mana symbols (color filter and filter status bar). */
+/** Símbolos de maná simples (filtro de color y barra de estado de filtros). */
 export const MANA_ICONS: Record<Color, IconSource> = {
   R: require('../assets/mtg/mana/red.png'),
   B: require('../assets/mtg/mana/black.png'),
@@ -16,7 +16,7 @@ export const MANA_ICONS: Record<Color, IconSource> = {
   U: require('../assets/mtg/mana/blue.png'),
 };
 
-/** Same order as the web app's color filter. */
+/** Mismo orden que el filtro de color de la app web. */
 export const COLOR_ORDER: Color[] = ['R', 'B', 'G', 'W', 'U'];
 
 export const RARITY_ICONS: Record<Rarity, IconSource> = {
@@ -68,7 +68,7 @@ export const TYPE_LABELS: Record<string, string> = {
   Sorcery: 'Conjuro',
 };
 
-/** Main card types offered as filter chips (Scryfall catalog names). */
+/** Tipos de carta principales ofrecidos como chips de filtro (nombres del catálogo de Scryfall). */
 export const MAIN_TYPES = [
   'Creature',
   'Instant',
@@ -81,7 +81,7 @@ export const MAIN_TYPES = [
   'Kindred',
 ];
 
-/** Spanish names for keyword abilities; anything missing is shown in English. */
+/** Nombres en español de las habilidades de palabra clave; lo que falte se muestra en inglés. */
 export const KEYWORD_LABELS: Record<string, string> = {
   Flying: 'Vuela',
   Trample: 'Arrollar',
@@ -137,7 +137,7 @@ export const KEYWORD_LABELS: Record<string, string> = {
   Food: 'Comida',
 };
 
-/** Quick-pick keyword chips shown directly in the filter panel. */
+/** Chips de palabra clave de acceso rápido mostrados directamente en el panel de filtros. */
 export const COMMON_KEYWORDS = [
   'Flying',
   'Trample',

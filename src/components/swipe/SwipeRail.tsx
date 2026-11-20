@@ -1,5 +1,5 @@
-// Pieces of the swipe screen: the round buttons of the side rail («La quiero», ficha, sinergias…)
-// and the full-screen synergies of the card on screen.
+// Piezas de la pantalla de swipe: los botones redondos del riel lateral («La quiero», ficha, sinergias…)
+// y las sinergias a pantalla completa de la carta en pantalla.
 import { useState, type ComponentProps } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -14,7 +14,7 @@ import { colors } from '@/theme';
 type Glyph = ComponentProps<typeof MaterialCommunityIcons>['name'];
 export const WANT_COLOR = '#ff7a9c';
 
-/** A round button of the side rail: icon, optional tiny label under it, a hint on long press. */
+/** Un botón redondo del riel lateral: icono, etiqueta pequeña opcional debajo, una ayuda con pulsación larga. */
 export function RailButton({
   icon,
   hint,
@@ -29,7 +29,7 @@ export function RailButton({
   label?: string;
   color?: string;
   active?: boolean;
-  /** Smaller (secondary: language, art). */
+  /** Más pequeño (secundario: idioma, arte). */
   small?: boolean;
   onPress: () => void;
 }) {
@@ -48,7 +48,7 @@ export function RailButton({
   );
 }
 
-/** «La quiero» for this printing as a rail button (filled heart when wanted; dashed if another printing is). */
+/** «La quiero» para esta impresión como botón del riel (corazón relleno si la quieres; punteado si lo es otra impresión). */
 export function WantRailButton({ card }: { card: Card }) {
   const db = useSQLiteContext();
   const wanted = useWantedPrintings(db, [card.id]).has(card.id);
@@ -74,11 +74,11 @@ export function WantRailButton({ card }: { card: Card }) {
   );
 }
 
-/** Whether a card can lead a Commander deck (for EDHREC's commander page). */
+/** Si una carta puede liderar un mazo de Commander (para la página de comandante de EDHREC). */
 const canBeCommander = (c: Card) =>
   (/legendary/i.test(c.typeLine ?? '') && /creature/i.test(c.typeLine ?? '')) || /can be your commander/i.test(c.oracleText ?? '');
 
-/** The card's synergies (EDHREC and combos), full screen; its cards open big inside. */
+/** Las sinergias de la carta (EDHREC y combos), a pantalla completa; sus cartas abren en grande dentro. */
 export function SynergySheet({ card, onClose }: { card: Card | null; onClose: () => void }) {
   return (
     <Modal visible={!!card} animationType="slide" onRequestClose={onClose}>

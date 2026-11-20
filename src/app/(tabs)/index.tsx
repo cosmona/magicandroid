@@ -11,10 +11,10 @@ import { markSeen } from '@/hooks/useSeen';
 import { colors } from '@/theme';
 
 /**
- * "Construir" tab — the app opens here: cards in your hands.
- * Filter bar → card stack → active deck bar (the app header and tabs are above, in `AppTabBar`).
- * Filters and the deck open in bottom sheets (RN Modal) over this screen, which stays
- * mounted so the card stack keeps its position.
+ * Pestaña «Construir» — la app abre aquí: cartas en la mano.
+ * Barra de filtros → pila de cartas → barra del mazo activo (la cabecera y las pestañas están arriba, en `AppTabBar`).
+ * Los filtros y el mazo abren en hojas inferiores (Modal de RN) sobre esta pantalla, que se queda
+ * montada para que la pila de cartas conserve su posición.
  */
 export default function MainScreen() {
   const { filters, setFilters, activeDeck } = useAppState();
@@ -29,7 +29,7 @@ export default function MainScreen() {
     toastTimer.current = setTimeout(() => setToast(null), 1800);
   };
 
-  // The deck sheet while the bar is dragged (0 closed … 1 open; -1 not dragged).
+  // La hoja del mazo mientras se arrastra la barra (0 cerrada … 1 abierta; -1 sin arrastrar).
   return (
     <View style={styles.screen}>
       <TopBar onOpenFilters={() => setFiltersOpen(true)} />

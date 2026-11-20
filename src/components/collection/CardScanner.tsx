@@ -21,15 +21,15 @@ type Step =
 interface Props {
   visible: boolean;
   onClose: () => void;
-  /** After adding a card (to refresh the list and show a toast). */
+  /** Tras añadir una carta (para refrescar la lista y mostrar un aviso). */
   onAdded: (message: string) => void;
-  /** "Buscar a mano": close and search this text in the collection screen. */
+  /** «Buscar a mano»: cerrar y buscar este texto en la pantalla de colección. */
   onSearch: (text: string) => void;
 }
 
 /**
- * 📷 Full-screen scanner: photograph a card, read it on the device (ML Kit) and find it
- * on Scryfall. After adding it goes straight back to the camera, to scan a pile quickly.
+ * 📷 Escáner a pantalla completa: fotografía una carta, léela en el dispositivo (ML Kit) y encuéntrala
+ * en Scryfall. Tras añadirla vuelve directo a la cámara, para escanear un montón rápido.
  */
 export function CardScanner({ visible, onClose, onAdded, onSearch }: Props) {
   return (
@@ -182,7 +182,7 @@ function Scanner({ onClose, onAdded, onSearch }: Omit<Props, 'visible'>) {
 
 function FoundPanel(props: { card: Card; onChange: (card: Card) => void; onAdd: (copies: number) => void; onRetry: () => void }) {
   const { card } = props;
-  // Copies to add (a new scan starts again at 1: this panel is made again).
+  // Copias a añadir (un nuevo escaneo empieza otra vez en 1: este panel se vuelve a crear).
   const [copies, setCopies] = useState(1);
   return (
     <View style={styles.panel}>

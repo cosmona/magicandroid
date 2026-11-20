@@ -6,9 +6,9 @@ import { printCardSheet } from '@/print/printSheet';
 import { colors } from '@/theme';
 
 /**
- * «Imprimir (PDF)» of a deck or its tokens (as on the PC): the cards at real size (9 per A4 page, to cut)
- * or small like a contact sheet (16 per page, with names); every copy or one of each (tokens: how many of
- * each), both faces and cut lines. The PDF opens the share menu (save, send or print).
+ * «Imprimir (PDF)» de un mazo o sus fichas (como en el PC): las cartas a tamaño real (9 por página A4, para
+ * recortar) o pequeñas tipo hoja de contactos (16 por página, con nombres); cada copia o una de cada (fichas:
+ * cuántas de cada), ambas caras y líneas de corte. El PDF abre el menú de compartir (guardar, enviar o imprimir).
  */
 export function PrintSheet({
   title,
@@ -22,7 +22,7 @@ export function PrintSheet({
   cards: PrintCard[];
   onClose: () => void;
   tokens?: boolean;
-  /** The deck's Banquillo and Posibles (printed only if chosen). */
+  /** El Banquillo y los Posibles del mazo (se imprimen solo si se eligen). */
   side?: PrintCard[];
   maybe?: PrintCard[];
 }) {
@@ -35,7 +35,7 @@ export function PrintSheet({
   const [withMaybe, setWithMaybe] = useState(false);
   const [skip, setSkip] = useState<Set<string>>(new Set());
   const [choosing, setChoosing] = useState(false);
-  // Every card that can be printed, with its zone.
+  // Cada carta que se puede imprimir, con su zona.
   const entries = [
     ...cards.map((c, i) => ({ key: `main:${i}`, zone: '', c })),
     ...(withSide ? side.map((c, i) => ({ key: `side:${i}`, zone: 'Banquillo', c })) : []),

@@ -42,7 +42,7 @@ const get = (obj: unknown, path: string): unknown =>
 
 const isEmpty = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
 
-/** Legendary creatures (and cards that say so) can lead a Commander deck: show their EDHREC commander page. */
+/** Las criaturas legendarias (y las cartas que lo dicen) pueden liderar un mazo de Commander: muestra su página de comandante de EDHREC. */
 const canBeCommander = (card: RawCard) => {
   const faces = (card.card_faces as RawCard[] | undefined) ?? [];
   const type = String(card.type_line ?? faces[0]?.type_line ?? '');
@@ -56,8 +56,8 @@ const formatDate = (s: string) => {
 };
 
 /**
- * Full-screen page with everything Scryfall knows about a printing, grouped and explained
- * field by field (image fields left out). Opens over the deck sheet, hence a Modal.
+ * Página a pantalla completa con todo lo que Scryfall sabe de una impresión, agrupado y explicado
+ * campo a campo (los campos de imagen se omiten). Abre sobre la hoja del mazo, de ahí el Modal.
  */
 export function CardInfoScreen({ id, onClose }: { id: string; onClose: () => void }) {
   const insets = useSafeAreaInsets();
@@ -66,7 +66,7 @@ export function CardInfoScreen({ id, onClose }: { id: string; onClose: () => voi
   const [rulings, setRulings] = useState<Ruling[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
-  // The printing shown: starts as `id`, the 🌐 pill switches it to another language.
+  // La impresión mostrada: empieza como `id`, la pill 🌐 la cambia a otro idioma.
   const [shownId, setShownId] = useState(id);
 
   useEffect(() => {
@@ -229,7 +229,7 @@ export function CardInfoScreen({ id, onClose }: { id: string; onClose: () => voi
   );
 }
 
-/** Every block of this screen folds by tapping its title. */
+/** Cada bloque de esta pantalla se pliega tocando su título. */
 function Section(props: { title: string; icon: IconName; children: ReactNode }) {
   return <BaseSection collapsible {...props} />;
 }
@@ -399,7 +399,7 @@ function Links({ card }: { card: RawCard }) {
   );
 }
 
-/** Any field Scryfall adds that this screen doesn't know yet, shown raw. */
+/** Cualquier campo que Scryfall añada y que esta pantalla aún no conoce, mostrado en crudo. */
 function Others({ card }: { card: RawCard }) {
   const rest = Object.entries(card).filter(([k, v]) => !HANDLED_KEYS.has(k) && !isEmpty(v));
   if (!rest.length) return null;

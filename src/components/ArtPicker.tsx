@@ -7,8 +7,8 @@ import { CARD_RATIO } from '@/components/SwipeCard';
 import { colors } from '@/theme';
 
 /**
- * "🎨 Arte ▾" pill above the card. Opens every artwork Scryfall has for this card
- * (loaded on demand, cached) as thumbnails and swaps the card for the chosen printing.
+ * Pill «🎨 Arte ▾» sobre la carta. Abre todos los artes que Scryfall tiene para esta carta
+ * (cargados bajo demanda, cacheados) como miniaturas y cambia la carta por la impresión elegida.
  */
 export function ArtPicker({ card, onChange }: { card: Card; onChange: (card: Card) => void }) {
   const [open, setOpen] = useState(false);
@@ -34,8 +34,8 @@ export function ArtPicker({ card, onChange }: { card: Card; onChange: (card: Car
 }
 
 /**
- * The artworks of a card in a popup grid; `card` is the printing on screen or just its
- * Scryfall id (deck and collection rows), loaded first. Calls `onPick` with the chosen printing.
+ * Los artes de una carta en una rejilla emergente; `card` es la impresión en pantalla o solo su
+ * id de Scryfall (filas de mazo y colección), cargada primero. Llama a `onPick` con la impresión elegida.
  */
 export function ArtPickerModal({
   card,
