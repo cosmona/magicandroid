@@ -17,7 +17,7 @@ import { colors } from '@/theme';
 export type SwipeDirection = 'left' | 'right' | 'up';
 
 export interface SwipeCardHandle {
-  /** Animate the card out as if swiped (used by the on-screen buttons). */
+  /** Anima la carta hacia fuera como si se deslizara (lo usan los botones en pantalla). */
   swipe: (dir: SwipeDirection) => void;
 }
 
@@ -25,7 +25,7 @@ interface Props {
   card: Card;
   showBack: boolean;
   onSwiped: (dir: SwipeDirection) => void;
-  /** A tap on the card (without dragging it). */
+  /** Un toque en la carta (sin arrastrarla). */
   onTap?: () => void;
   ref?: Ref<SwipeCardHandle>;
 }
@@ -34,10 +34,10 @@ export const CARD_RATIO = 680 / 488; // height / width of a Magic card image
 const FLING_VELOCITY = 800;
 
 /**
- * Top card of the stack. Drag right = add to deck, left = discard, up = «Posibles»; a tap opens it.
- * Gesture callbacks run on the UI thread (Reanimated worklets); the result is
- * sent back to React with `scheduleOnRN`. Render with `key={card.id}` so each
- * new card starts with fresh shared values.
+ * Carta de arriba de la pila. Arrastrar a la derecha = añadir al mazo, izquierda = descartar, arriba =
+ * «Posibles»; un toque la abre. Los callbacks de gestos corren en el hilo de UI (worklets de Reanimated);
+ * el resultado se devuelve a React con `scheduleOnRN`. Renderiza con `key={card.id}` para que cada carta
+ * nueva empiece con shared values frescos.
  */
 export function SwipeCard({ card, showBack, onSwiped, onTap, ref }: Props) {
   const { width, height } = useWindowDimensions();
@@ -47,7 +47,7 @@ export function SwipeCard({ card, showBack, onSwiped, onTap, ref }: Props) {
   const y = useSharedValue(0);
   const gone = useSharedValue(false);
 
-  // Shared values use .get()/.set() (not .value) to stay compatible with the React Compiler.
+  // Los shared values usan .get()/.set() (no .value) para seguir siendo compatibles con el React Compiler.
   const flyOut = (dir: SwipeDirection) => {
     'worklet';
     if (gone.get()) return;
@@ -78,7 +78,7 @@ export function SwipeCard({ card, showBack, onSwiped, onTap, ref }: Props) {
     onDeactivate: (e) => {
       const right = e.translationX > threshold || (e.velocityX > FLING_VELOCITY && e.translationX > 0);
       const left = e.translationX < -threshold || (e.velocityX < -FLING_VELOCITY && e.translationX < 0);
-      // Up (mostly vertical): «Posibles».
+      // Arriba (sobre todo vertical): «Posibles».
       const up =
         Math.abs(e.translationY) > Math.abs(e.translationX) &&
         (e.translationY < -upThreshold || (e.velocityY < -FLING_VELOCITY && e.translationY < 0));
@@ -119,7 +119,7 @@ export function SwipeCard({ card, showBack, onSwiped, onTap, ref }: Props) {
         <Pressable style={StyleSheet.absoluteFill} onPress={onTap} disabled={!onTap} accessibilityLabel="Ver la ficha de la carta">
         <Image
           source={{ uri: uri ?? undefined }}
-          // ~15 KB thumbnail shows almost instantly while the full image loads.
+          // La miniatura de ~15 KB se muestra casi al instante mientras carga la imagen completa.
           placeholder={uri ? { uri: smallImageUrl(uri) } : undefined}
           placeholderContentFit="contain"
           style={styles.image}

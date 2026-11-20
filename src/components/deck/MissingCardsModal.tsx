@@ -8,20 +8,20 @@ import { colors, formatEur } from '@/theme';
 
 export interface MissingCard {
   card: DeckCard;
-  /** Copies the deck needs beyond the ones in the collection. */
+  /** Copias que necesita el mazo más allá de las que hay en la colección. */
   count: number;
 }
 
 const CARDMARKET = 'https://www.cardmarket.com/es/Magic';
-/** Search page of one card (Cardmarket finds it by its English name). */
+/** Página de búsqueda de una carta (Cardmarket la encuentra por su nombre inglés). */
 const searchUrl = (name: string) => `${CARDMARKET}/Products/Search?searchString=${encodeURIComponent(name)}`;
-/** Wants lists: "Añadir lista de mazo" takes a pasted "2 Card name" list. */
+/** Listas de deseados: «Añadir lista de mazo» acepta una lista pegada «2 Nombre de carta». */
 const WANTS_URL = `${CARDMARKET}/Wants`;
 
 /**
- * The deck's cards missing from the collection, to buy them on Cardmarket: copy them as a
- * deck list (pasted into a Cardmarket wants list, the Shopping Wizard buys them all at once)
- * or open each card's search.
+ * Las cartas del mazo que faltan en la colección, para comprarlas en Cardmarket: cópialas como lista de
+ * mazo (pegada en una lista de deseados de Cardmarket, el Shopping Wizard las compra todas de golpe)
+ * o abre la búsqueda de cada carta.
  */
 export function MissingCardsModal({
   missing,
@@ -30,9 +30,9 @@ export function MissingCardsModal({
   onClose,
 }: {
   missing: MissingCard[];
-  /** Live prices + Cardmarket links, by Scryfall id. */
+  /** Precios en vivo + enlaces de Cardmarket, por id de Scryfall. */
   details: Record<string, CardDetails>;
-  /** Show the total and per-card prices (Ajustes → Precios). */
+  /** Muestra el total y los precios por carta (Ajustes → Precios). */
   showPrices: boolean;
   onClose: () => void;
 }) {
@@ -45,12 +45,12 @@ export function MissingCardsModal({
     if (eur == null) unpriced += m.count;
     else cost += eur * m.count;
   }
-  // Scryfall's link goes straight to the card's product page; a search is the fallback.
+  // El enlace de Scryfall va directo a la página de producto de la carta; una búsqueda es el respaldo.
   const open = (m: MissingCard) =>
     Linking.openURL(details[m.card.scryfallId]?.cardmarketUrl ?? searchUrl(m.card.name.split(' // ')[0]));
 
   const copy = async () => {
-    // Double-faced names ("A // B"): Cardmarket's list import wants the front face.
+    // Nombres de doble cara («A // B»): la importación de listas de Cardmarket quiere la cara frontal.
     await Clipboard.setStringAsync(missing.map((m) => `${m.count} ${m.card.name.split(' // ')[0]}`).join('\n'));
     setCopied(true);
   };

@@ -1,6 +1,6 @@
-// What the lists and galleries of the deck and the collection show of each card, chosen in
-// Ajustes → Cartas y listas (like the PC): the list rows' lines (each with its data, left to right)
-// and where each icon goes on the gallery cards (a 3 × 4 grid over the picture).
+// Qué muestran de cada carta las listas y galerías del mazo y la colección, elegido en
+// Ajustes → Cartas y listas (como el PC): las líneas de las filas de lista (cada una con sus datos, de
+// izquierda a derecha) y dónde va cada icono en las cartas de galería (una rejilla 3 × 4 sobre la imagen).
 import { Fragment, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
@@ -19,7 +19,7 @@ export const LAYOUT_PLACES: { key: LayoutPlace; label: string }[] = [
 ];
 const WANT = '#ff7a9c';
 
-/** Everything a row or a tile may show of a card (what it doesn't have is left out). */
+/** Todo lo que una fila o una tarjeta puede mostrar de una carta (lo que no tiene se omite). */
 export interface CardInfo {
   name: string;
   printedName?: string | null;
@@ -35,21 +35,21 @@ export interface CardInfo {
   legalities?: Record<string, string> | null;
   deckFormat?: string | null;
   tags?: Tag[];
-  /** Copies in the deck (deck) or of this printing (collection). */
+  /** Copias en el mazo (mazo) o de esta impresión (colección). */
   quantity?: number;
   commander?: boolean;
-  /** Copies you own of the card (all printings). */
+  /** Copias que tienes de la carta (todas las impresiones). */
   owned?: number;
   wanted?: boolean;
-  /** Copies in «Posibles». */
+  /** Copias en «Posibles». */
   maybe?: number;
   issues?: string[];
-  /** The decks using it (collection), and how many copies are left free. */
+  /** Los mazos que la usan (colección), y cuántas copias quedan libres. */
   decks?: { name: string; quantity: number }[];
   free?: number;
 }
 
-// ======================= List rows =======================
+// ======================= Filas de lista =======================
 
 export interface FieldDef {
   key: string;
@@ -154,7 +154,7 @@ export function listFor(prefs: { listLayout?: Partial<Record<LayoutPlace, ListLa
   return (prefs.listLayout?.[place] ?? DEFAULT_LIST[place]).map((line) => line.filter((k) => ok.has(k)));
 }
 
-/** The lines of a row (empty ones left out), each wrapping. */
+/** Las líneas de una fila (las vacías se omiten), cada una ajustándose. */
 export function RowLines({ layout, info }: { layout: ListLayout; info: CardInfo }) {
   return (
     <>
@@ -174,7 +174,7 @@ export function RowLines({ layout, info }: { layout: ListLayout; info: CardInfo 
   );
 }
 
-// ======================= Gallery tiles =======================
+// ======================= Tarjetas de galería =======================
 
 export const GRID_COLS = 3;
 export const GRID_ROWS = 4;
@@ -263,7 +263,7 @@ export function galleryFor(prefs: { galleryLayout?: Partial<Record<LayoutPlace, 
 }
 
 const JUSTIFY = ['flex-start', 'center', 'flex-end'] as const;
-/** The icons over a gallery card (absolute, over the picture; touches go through). */
+/** Los iconos sobre una carta de galería (absolutos, sobre la imagen; los toques pasan a través). */
 export function TileIcons({ layout, info }: { layout: GalleryLayout; info: CardInfo }) {
   return (
     <View pointerEvents="none" style={s.grid}>

@@ -11,7 +11,7 @@ import { cardsInText, correctHand, emptyHand, updateHand, type HandCandidate, ty
 import { colors } from '@/theme';
 
 type TextExtractor = typeof import('expo-text-extractor');
-// On-device text recognition (ML Kit): only in the APK, not in Expo Go.
+// Reconocimiento de texto en el dispositivo (ML Kit): solo en el APK, no en Expo Go.
 let extractor: TextExtractor | null = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -21,18 +21,18 @@ try {
   extractor = null;
 }
 
-/** Pause between photos (ms). */
+/** Pausa entre fotos (ms). */
 const GAP_MS = 500;
 const now = () => Date.now();
 const clockOf = (t: number) => new Date(t).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 /**
- * «Mano» (prototype): the phone on a stand looks at your hand of cards in a fan (only the titles need to
- * show). It takes a photo every moment, reads the titles and compares them with the cards of the active
- * deck: what appears is «robada», what disappears «sale». Tap a card in the hand to correct it.
+ * «Mano» (prototipo): el móvil en un soporte mira tu mano de cartas en abanico (solo hace falta que se vean
+ * los títulos). Hace una foto cada poco, lee los títulos y los compara con las cartas del mazo activo: lo que
+ * aparece es «robada», lo que desaparece «sale». Toca una carta de la mano para corregirla.
  */
 export function HandTrackerScreen() {
-  // Only while this tab is shown (the camera is let go when you leave it).
+  // Solo mientras se muestra esta pestaña (la cámara se suelta al salir de ella).
   const [focused, setFocused] = useState(false);
   useFocusEffect(
     useCallback(() => {
@@ -41,7 +41,7 @@ export function HandTrackerScreen() {
     }, []),
   );
   const { activeDeck, activeCards, prefs, setPrefs } = useAppState();
-  // The guide (how to place the camera): the first time, and with «?».
+  // La guía (cómo colocar la cámara): la primera vez, y con «?».
   const [guideOpen, setGuideOpen] = useState(false);
   const showGuide = guideOpen || (focused && !prefs.handGuideSeen);
   const closeGuide = () => {
@@ -59,7 +59,7 @@ export function HandTrackerScreen() {
   const [photos, setPhotos] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  // The deck's cards (not the commander: it isn't in the hand).
+  // Las cartas del mazo (no el comandante: no está en la mano).
   const candidates = useMemo<HandCandidate[]>(
     () =>
       activeCards
@@ -72,7 +72,7 @@ export function HandTrackerScreen() {
     candidatesRef.current = candidates;
   }, [candidates]);
 
-  // The loop: photo → text → cards seen → hand (while running and the tab is shown).
+  // El bucle: foto → texto → cartas vistas → mano (mientras corre y se muestra la pestaña).
   useEffect(() => {
     if (!running || !focused || !extractor) return;
     let stop = false;
@@ -85,7 +85,7 @@ export function HandTrackerScreen() {
             try {
               new File(pic.uri).delete();
             } catch {
-              /* a temporary file anyway */
+              /* un archivo temporal de todas formas */
             }
             if (stop) break;
             setLastLines(lines);

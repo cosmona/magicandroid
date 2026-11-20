@@ -44,8 +44,8 @@ Deck
 Swords to Plowshares`;
 
 /**
- * Paste a deck list (MTG Arena, MTGO, Moxfield, Archidekt or plain "4 Name" lines) and turn it
- * into a new deck (`target="deck"`) or add it to the collection (`target="collection"`).
+ * Pega una lista de mazo (MTG Arena, MTGO, Moxfield, Archidekt o líneas simples «4 Nombre») y conviértela
+ * en un mazo nuevo (`target="deck"`) o añádela a la colección (`target="collection"`).
  */
 export function ImportListModal({ target, onClose }: { target: 'deck' | 'collection'; onClose: () => void }) {
   const db = useSQLiteContext();
@@ -53,12 +53,12 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
   const { prefs, refresh, setActiveDeckId } = useAppState();
   const [text, setText] = useState('');
   const [deckName, setDeckName] = useState('');
-  // Moxfield: the link, what came from it (format and «Quizás») and how it went.
+  // Moxfield: el enlace, lo que vino de él (formato y «Quizás») y cómo fue.
   const [mox, setMox] = useState('');
   const [fromMox, setFromMox] = useState<MoxfieldDeck | null>(null);
   const [moxState, setMoxState] = useState<{ busy?: boolean; error?: string }>({});
 
-  /** Brings a public Moxfield deck: its list goes into the box below, ready to import. */
+  /** Trae un mazo público de Moxfield: su lista va al cuadro de abajo, lista para importar. */
   const fetchMoxfield = async (link = mox) => {
     const id = moxfieldId(link);
     if (!id) return setMoxState({ error: 'Pega el enlace del mazo, por ejemplo https://moxfield.com/decks/AbC123…' });
@@ -91,7 +91,7 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
       setMoxState({ error: 'No se pudo conectar con Moxfield. Comprueba la conexión.' });
     }
   };
-  /** A Moxfield link pasted in the list box (instead of its own field): bring that deck. */
+  /** Un enlace de Moxfield pegado en el cuadro de la lista (en vez de su propio campo): trae ese mazo. */
   const onListText = (value: string) => {
     const link = value.trim();
     if (target === 'deck' && !/\s/.test(link) && /moxfield\.com\/decks\//i.test(link)) {
@@ -109,9 +109,9 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
   const copies = parsed.cards.reduce((n, c) => n + c.quantity, 0);
   const hasCommander = parsed.cards.some((c) => c.commander);
   const sideCopies = parsed.sideboard.reduce((n, c) => n + c.quantity, 0);
-  // ~40 cards without a commander: a draft / sealed deck (Arena exports the rest of the pool as sideboard).
+  // ~40 cartas sin comandante: un mazo de draft / sealed (Arena exporta el resto del pool como banquillo).
   const looksLimited = !hasCommander && copies >= 38 && copies <= 45;
-  // The sideboard only goes into decks; the collection gets the main list.
+  // El banquillo solo va a los mazos; la colección recibe la lista principal.
   const withSide = target === 'deck';
 
   const paste = async () => {
@@ -125,7 +125,7 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
       const lines = withSide ? [...parsed.cards, ...parsed.sideboard] : parsed.cards;
       const found = await resolveCardList(lines);
 
-      // In the preferred language when asked (one lookup per different card; slow for big lists).
+      // En el idioma preferido cuando se pide (una consulta por carta distinta; lento para listas grandes).
       const localized = new Map<string, Card>();
       if (translate && prefs.language !== 'en') {
         const unique = [...new Map(found.filter((c): c is Card => !!c).map((c) => [c.id, c])).values()];
@@ -142,7 +142,7 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
       let deckId: number | null = null;
       if (target === 'deck') {
         const name = deckName.trim() || parsed.name || 'Mazo importado';
-        // From Moxfield: its format when the app has it.
+        // De Moxfield: su formato cuando la app lo tiene.
         const moxFormat = fromMox?.format && FORMATS.some((f) => f.key === fromMox.format) ? fromMox.format : null;
         deckId = await createDeck(db, name, moxFormat ?? (hasCommander ? 'commander' : looksLimited ? 'limited' : null));
       }
@@ -164,7 +164,7 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
         }
         imported += line.quantity;
       }
-      // Moxfield's «Quizás» (maybeboard) goes to Posibles.
+      // El «Quizás» (maybeboard) de Moxfield va a Posibles.
       if (deckId !== null && fromMox?.maybe.length) {
         setStep({ kind: 'working', message: 'Añadiendo «Quizás» a Posibles…' });
         const maybeLines = fromMox.maybe.map((m) => ({ ...m, commander: false }));
@@ -229,7 +229,7 @@ export function ImportListModal({ target, onClose }: { target: 'deck' | 'collect
             keyboardShouldPersistTaps="handled"
           >
             {target === 'deck' && (
-              // A public Moxfield deck straight from its link.
+              // Un mazo público de Moxfield directo desde su enlace.
               <View style={styles.box}>
                 <Text style={styles.boxTitle}>Desde Moxfield</Text>
                 <TextInput

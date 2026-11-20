@@ -11,9 +11,9 @@ import { colors, formatEur, formatLabel } from '@/theme';
 import { validateDeck } from '@/validation';
 
 /**
- * Cover + name + "format · N cartas · ✓ válido" line of the active deck. Shared by the
- * closed `DeckBar` and the open deck sheet so the header looks the same in both. The third
- * line is the deck's price on Cardmarket (live from Scryfall; hidden offline).
+ * Portada + nombre + línea «formato · N cartas · ✓ válido» del mazo activo. Compartida por el
+ * `DeckBar` cerrado y la hoja del mazo abierta para que la cabecera se vea igual en ambos. La tercera
+ * línea es el precio del mazo en Cardmarket (en vivo de Scryfall; oculto sin conexión).
  */
 export function DeckSummary({
   right,
@@ -22,12 +22,12 @@ export function DeckSummary({
   compact = false,
   onTags,
 }: {
-  /** Deck sheet: its tags with a button to change them (the closed bar shows only their icons). */
+  /** Hoja del mazo: sus etiquetas con un botón para cambiarlas (la barra cerrada muestra solo sus iconos). */
   onTags?: () => void;
   right?: ReactNode;
-  /** Closed deck bar: cover at half size. It grows / shrinks when switching (sheet ⇄ bar). */
+  /** Barra de mazo cerrada: portada a mitad de tamaño. Crece / encoge al cambiar (hoja ⇄ barra). */
   compact?: boolean;
-  /** Tapping the cover (or its arrow) toggles the deck picker; without it the arrow is just a hint. */
+  /** Tocar la portada (o su flecha) alterna el selector de mazo; sin él la flecha es solo una pista. */
   onPressCover?: () => void;
   pickerOpen?: boolean;
 }) {
@@ -37,8 +37,8 @@ export function DeckSummary({
   const validation = validateDeck(activeDeck?.format ?? null, activeCards, activeSideboard);
   const details = useCardDetails(activeCards.map((c) => c.scryfallId));
   const price = priceTotal(activeCards, details);
-  // Starts at the other size and animates to its own: the bar's cover shrinks as the sheet
-  // closes, the sheet's grows as it opens.
+  // Empieza en el otro tamaño y anima al suyo: la portada de la barra encoge según se cierra la hoja,
+  // la de la hoja crece según se abre.
   const target = compact ? DECK_COVER_SIZE / 2 : DECK_COVER_SIZE;
   const coverSize = useSharedValue(compact ? DECK_COVER_SIZE : DECK_COVER_SIZE / 2);
   useEffect(() => {
@@ -117,7 +117,7 @@ export function DeckSummary({
   );
 }
 
-/** Cover size; the deck sheet lines things up under the name with it. */
+/** Tamaño de la portada; la hoja del mazo alinea las cosas bajo el nombre con él. */
 export const DECK_COVER_SIZE = 76;
 
 const styles = StyleSheet.create({

@@ -1,7 +1,7 @@
-// What each Scryfall card field means, in Spanish, for the card info screen.
-// https://scryfall.com/docs/api/cards — image fields (image_uris, image_status…) are left out on purpose.
+// Qué significa cada campo de carta de Scryfall, en español, para la pantalla de info de carta.
+// https://scryfall.com/docs/api/cards — los campos de imagen (image_uris, image_status…) se omiten a propósito.
 
-/** How a value is shown. */
+/** Cómo se muestra un valor. */
 export type FieldKind =
   | 'text'
   | 'multiline'
@@ -18,12 +18,12 @@ export type FieldKind =
   | 'code';
 
 export interface FieldDef {
-  /** Path in the card object; "a.b" for nested values. */
+  /** Ruta en el objeto de carta; «a.b» para valores anidados. */
   key: string;
   label: string;
   help: string;
   kind?: FieldKind;
-  /** Translates raw values (also each item of a list). */
+  /** Traduce los valores en crudo (también cada elemento de una lista). */
   values?: Record<string, string>;
 }
 
@@ -135,7 +135,7 @@ export const LEGALITY_STATUS: Record<string, string> = {
   restricted: 'Restringida',
 };
 
-/** Format keys of `legalities`, in display order. */
+/** Claves de formato de `legalities`, en orden de visualización. */
 export const LEGALITY_FORMATS: Record<string, string> = {
   standard: 'Estándar',
   future: 'Futuro Estándar',
@@ -161,7 +161,7 @@ export const LEGALITY_FORMATS: Record<string, string> = {
   alchemy: 'Alchemy (Arena)',
 };
 
-/** Fields shared by the card and each of its faces. */
+/** Campos compartidos por la carta y cada una de sus caras. */
 export const RULES_FIELDS: FieldDef[] = [
   {
     key: 'name',
@@ -532,7 +532,7 @@ export const SECTIONS: SectionDef[] = [
   },
 ];
 
-/** Links (`scryfall_uri`, `related_uris.*`, `purchase_uris.*`) with what you'll find there. */
+/** Enlaces (`scryfall_uri`, `related_uris.*`, `purchase_uris.*`) con lo que encontrarás ahí. */
 export const LINKS: Record<string, { label: string; help: string }> = {
   scryfall_uri: { label: 'Scryfall', help: 'La ficha de la carta en Scryfall.' },
   'related_uris.gatherer': { label: 'Gatherer', help: 'La base de datos oficial de Wizards.' },
@@ -544,7 +544,7 @@ export const LINKS: Record<string, { label: string; help: string }> = {
   'purchase_uris.cardhoarder': { label: 'Cardhoarder', help: 'Comprarla para Magic Online.' },
 };
 
-/** Top-level keys shown elsewhere on the screen, or deliberately left out (images, API URLs). */
+/** Claves de nivel superior mostradas en otra parte de la pantalla, u omitidas a propósito (imágenes, URLs de la API). */
 export const HANDLED_KEYS = new Set([
   ...SECTIONS.flatMap((s) => s.fields.map((f) => f.key.split('.')[0])),
   'legalities',
@@ -554,12 +554,12 @@ export const HANDLED_KEYS = new Set([
   'purchase_uris',
   'scryfall_uri',
   'artist_ids',
-  // Images in other sizes and their status: left out.
+  // Imágenes en otros tamaños y su estado: omitidas.
   'image_uris',
   'image_status',
   'highres_image',
   'image_updated_at',
-  // API plumbing.
+  // Fontanería de la API.
   'object',
   'uri',
   'set_id',
