@@ -117,7 +117,7 @@ export function SwipeArea({ onToast }: { onToast: (msg: string) => void }) {
   const [ownedBump, setOwnedBump] = useState(0);
   const ownedOracle = queue.current?.oracleId;
   useEffect(() => {
-    if (!ownedOracle) return setOwned(0);
+    if (!ownedOracle) return;
     let cancelled = false;
     getOwnedCounts(db, [ownedOracle], 'paper')
       .then((counts) => !cancelled && setOwned(counts[ownedOracle] ?? 0))
