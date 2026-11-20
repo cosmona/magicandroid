@@ -11,9 +11,9 @@ import { CARD_RATIO } from '@/components/SwipeCard';
 import { ManaCost } from '@/components/ManaCost';
 import { colors } from '@/theme';
 
-/** "45 %" */
+/** «45 %» */
 export const pct = (n: number) => `${Math.round(n * 100)} %`;
-/** "1,2 mil" / "46 mil" / "320" */
+/** «1,2 mil» / «46 mil» / «320» */
 export const count = (n: number) =>
   n >= 1_000_000
     ? `${(n / 1_000_000).toFixed(1).replace('.', ',')} M`
@@ -22,8 +22,8 @@ export const count = (n: number) =>
       : String(n);
 
 /**
- * Small images for cards known by Scryfall id or by English name, fetched in one batch
- * (Scryfall /cards/collection). Starts empty; missing cards just have no image.
+ * Imágenes pequeñas para cartas conocidas por id de Scryfall o por nombre inglés, obtenidas en un lote
+ * (Scryfall /cards/collection). Empieza vacío; las cartas que falten simplemente no tienen imagen.
  */
 export function useCardImages(keys: string[], by: 'id' | 'name'): Record<string, string> {
   const key = [...new Set(keys)].join('|');
@@ -53,13 +53,13 @@ export function useCardImages(keys: string[], by: 'id' | 'name'): Record<string,
   return images;
 }
 
-/** Scryfall image URL of another size ("small" thumbnails → "large" for the big view). */
+/** URL de imagen de Scryfall de otro tamaño (miniaturas «small» → «large» para la vista grande). */
 const resize = (url: string, size: 'normal' | 'large') => url.replace(/\/(small|normal|large)\//, `/${size}/`);
 
 /**
- * One combo: its cards (missing ones marked), what it does, mana to start it, steps on demand.
- * Tapping a card shows it big. With `onAdd`, missing cards get a ＋ (on the tile and in the big
- * view) that adds them to the deck; `added` / `adding` are the names already added / in progress.
+ * Un combo: sus cartas (las que faltan marcadas), qué hace, maná para arrancarlo, pasos bajo demanda.
+ * Tocar una carta la muestra en grande. Con `onAdd`, las cartas que faltan reciben un ＋ (en la tarjeta y en
+ * la vista grande) que las añade al mazo; `added` / `adding` son los nombres ya añadidos / en curso.
  */
 export function ComboView({
   combo,
@@ -71,7 +71,7 @@ export function ComboView({
 }: {
   combo: Combo;
   images: Record<string, string>;
-  /** Cards of the combo that aren't in the deck. */
+  /** Cartas del combo que no están en el mazo. */
   missing?: string[];
   onAdd?: (name: string) => void;
   added?: Set<string>;
@@ -79,7 +79,7 @@ export function ComboView({
 }) {
   const [open, setOpen] = useState(false);
   const [big, setBig] = useState<string | null>(null);
-  // The big card in another language, picked with the 🌐 pill (only changes what's shown).
+  // La carta grande en otro idioma, elegida con la pill 🌐 (solo cambia lo que se muestra).
   const [bigPrinting, setBigPrinting] = useState<Card | null>(null);
   const openBig = (name: string | null) => {
     setBig(name);
@@ -210,7 +210,7 @@ export function ComboView({
   );
 }
 
-/** A card from an EDHREC list with its main number (synergy or how many decks play it). */
+/** Una carta de una lista de EDHREC con su número principal (sinergia o cuántos mazos la juegan). */
 export function EntryRow({
   entry,
   image,
@@ -220,10 +220,10 @@ export function EntryRow({
 }: {
   entry: EdhrecEntry;
   image?: string;
-  /** synergy: "+27 % de sinergia"; inclusion: "en el 45 % de sus mazos". */
+  /** synergy: «+27 % de sinergia»; inclusion: «en el 45 % de sus mazos». */
   metric: 'synergy' | 'inclusion';
   right?: ReactNode;
-  /** Tapping the card (image + name): usually opens it big. */
+  /** Tocar la carta (imagen + nombre): normalmente la abre en grande. */
   onPress?: () => void;
 }) {
   const inclusion = entry.potentialDecks ? entry.numDecks / entry.potentialDecks : 0;

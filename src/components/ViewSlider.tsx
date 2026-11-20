@@ -1,9 +1,9 @@
-// A horizontal pager for the deck's and collection's views (list, gallery, big, text). Swiping the
-// list sideways brings the next (or previous) view in under the finger, with its real content; on
-// letting go past a third of the screen (or with a flick) it settles there, otherwise it goes back.
-// The neighbour view is only mounted while a sideways drag is in progress, so normally there is just
-// one list on screen. Vertical scrolling and long-press card drags still work (this gesture only
-// claims clearly-horizontal moves).
+// Un paginador horizontal para las vistas del mazo y la colección (lista, galería, grande, texto).
+// Deslizar la lista a los lados trae la siguiente (o anterior) vista bajo el dedo, con su contenido real;
+// al soltar pasado un tercio de la pantalla (o con un golpe seco) se asienta ahí, si no vuelve. La vista
+// vecina solo se monta mientras hay un arrastre lateral en curso, así que normalmente solo hay una lista en
+// pantalla. El scroll vertical y los arrastres de carta por pulsación larga siguen funcionando (este gesto
+// solo reclama los movimientos claramente horizontales).
 import { useEffect, useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
@@ -24,20 +24,20 @@ export function ViewSlider({
   index: number;
   count: number;
   onChange: (index: number) => void;
-  /** The real content of view `i` (an index into the list of views). */
+  /** El contenido real de la vista `i` (un índice en la lista de vistas). */
   renderView: (index: number) => ReactNode;
-  /** True while a sideways drag is happening (to pin a fixed header over the sliding cards). */
+  /** True mientras hay un arrastre lateral (para fijar una cabecera sobre las cartas que se deslizan). */
   onDrag?: (active: boolean) => void;
-  /** A fixed header drawn over the sliding cards; it only shows while dragging (no lag). */
+  /** Una cabecera fija dibujada sobre las cartas que se deslizan; solo se muestra mientras se arrastra (sin retardo). */
   pinned?: ReactNode;
 }) {
   const { width } = useWindowDimensions();
   const x = useSharedValue(0);
-  // The neighbour mounted during a drag, tied to the view it was started from (so it drops by itself
-  // once the view changes, without resetting state inside an effect).
+  // La vecina montada durante un arrastre, atada a la vista desde la que empezó (así se descarta sola
+  // cuando cambia la vista, sin reiniciar estado dentro de un efecto).
   const [drag, setDrag] = useState<{ at: number; dir: -1 | 1 } | null>(null);
 
-  // Back to the resting position whenever the view actually changes.
+  // Vuelve a la posición de reposo cada vez que la vista cambia de verdad.
   useEffect(() => {
     x.set(0);
   }, [index, x]);
@@ -82,8 +82,8 @@ export function ViewSlider({
   });
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
-  // The pinned header shows the instant the cards start moving, and hides when they settle (driven by
-  // the gesture on the UI thread, so there is no lag).
+  // La cabecera fija se muestra en cuanto las cartas empiezan a moverse, y se oculta cuando se asientan
+  // (gobernada por el gesto en el hilo de UI, así que no hay retardo).
   const pinStyle = useAnimatedStyle(() => ({ opacity: Math.abs(x.get()) > 0.5 ? 1 : 0 }));
   const showNeighbour = drag && drag.at === index && index + drag.dir >= 0 && index + drag.dir < count;
 

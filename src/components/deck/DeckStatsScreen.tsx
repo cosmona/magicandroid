@@ -49,7 +49,7 @@ const COLOR_NAMES: Record<ManaColor, string> = {
   G: 'Verde',
   C: 'Incoloro',
 };
-/** Bar colors: the usual Magic colors, readable on the dark surface. Each row also has its icon + name. */
+/** Colores de las barras: los colores habituales de Magic, legibles sobre la superficie oscura. Cada fila también tiene su icono + nombre. */
 const BAR_COLORS: Record<ManaColor, string> = {
   W: '#e8dcae',
   U: '#4a95dc',
@@ -64,7 +64,7 @@ const OTHER_COLOR = '#7b8fe0';
 const fmt = (n: number, digits = 0) => n.toFixed(digits).replace('.', ',');
 const pctText = (n: number) => `${Math.round(n * 100)} %`;
 
-/** Full-screen analysis of the active deck: statistics (curve, colors, types) and a sample hand. */
+/** Análisis a pantalla completa del mazo activo: estadísticas (curva, colores, tipos) y una mano de prueba. */
 export function DeckStatsScreen({
   cards,
   usesCommander,
@@ -125,7 +125,7 @@ export function DeckStatsScreen({
   );
 }
 
-// ---------------------------------------------------------------- Statistics
+// ---------------------------------------------------------------- Estadísticas
 
 function StatsView({ stats, children }: { stats: DeckStats; children: ReactNode }) {
   const [lo, hi] = stats.landRange;
@@ -291,8 +291,8 @@ type LandStep =
   | { kind: 'error' };
 
 /**
- * "Recomendar maná" (like Arena): adds the basic lands the deck is missing, in the preferred
- * language, split by colors so each color gets sources in proportion to its mana symbols.
+ * «Recomendar maná» (como Arena): añade las tierras básicas que le faltan al mazo, en el idioma
+ * preferido, repartidas por colores para que cada color reciba fuentes en proporción a sus símbolos de maná.
  */
 function LandRecommender({
   cards,
@@ -336,7 +336,7 @@ function LandRecommender({
     }
   };
 
-  // Back to exactly the cards before adding (the basics may have merged into existing rows).
+  // Vuelve exactamente a las cartas de antes de añadir (las básicas pueden haberse fusionado con filas existentes).
   const undo = async (snapshot: DeckSnapshot) => {
     if (!activeDeck) return;
     await db.runAsync('DELETE FROM deck_cards WHERE deck_id = ?', activeDeck.id);
@@ -458,14 +458,14 @@ function ColorIcon({ color }: { color: ManaColor }) {
   return <Image source={MANA_ICONS[color]} style={styles.manaIcon} contentFit="contain" />;
 }
 
-// ---------------------------------------------------------------- Sample hand
+// ---------------------------------------------------------------- Mano de prueba
 
 interface Game {
-  /** Shuffled library; the hand is the first `drawn` cards. */
+  /** Biblioteca barajada; la mano son las primeras `drawn` cartas. */
   order: LibraryCard[];
   drawn: number;
   mulligans: number;
-  /** Keys of the hand cards chosen to go to the bottom (London mulligan). */
+  /** Claves de las cartas de la mano elegidas para ir al fondo (mulligan de Londres). */
   bottom: string[];
 }
 
@@ -489,7 +489,7 @@ function SampleHand({
   const library = useMemo(() => buildLibrary(cards, usesCommander), [cards, usesCommander]);
   const [game, setGame] = useState<Game>(() => deal(library, 0));
   const [preview, setPreview] = useState<DeckCard | null>(null);
-  // The previewed card in another language (only what's shown).
+  // La carta en vista previa en otro idioma (solo lo que se muestra).
   const [previewPrinting, setPreviewPrinting] = useState<Card | null>(null);
 
   const hand = game.order.slice(0, game.drawn);
@@ -501,7 +501,7 @@ function SampleHand({
   const libraryLands = library.filter((c) => mainType(c.card.typeLine) === 'land').length;
   const odds = landOdds(library.length, libraryLands, HAND_SIZE, 2, 4);
 
-  // After a mulligan, tapping the opening cards picks the ones to bottom (until the first draw).
+  // Tras un mulligan, tocar las cartas iniciales elige las que van al fondo (hasta el primer robo).
   const tapCard = (c: LibraryCard, index: number) => {
     const picking =
       game.mulligans > 0 && game.drawn === HAND_SIZE && index < HAND_SIZE && (choosing || game.bottom.includes(c.key));
@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  // Tall enough for its number even when it's a single card.
+  // Lo bastante alta para su número incluso cuando es una sola carta.
   curveSegment: { width: '100%', minHeight: 16, alignItems: 'center', justifyContent: 'center' },
   segmentCount: { color: colors.bg, fontSize: 10, fontWeight: '900' },
   curveTop: { borderTopLeftRadius: 4, borderTopRightRadius: 4 },

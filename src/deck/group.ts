@@ -1,4 +1,4 @@
-// Groups of a deck's cards for the deck sheet (pure, no React).
+// Grupos de las cartas de un mazo para la hoja del mazo (puro, sin React).
 import { cardColors, mainType, TYPE_GROUP_LABELS, type TypeKey } from '@/collection/organize';
 import type { DeckCard } from '@/db/database';
 import { CURVE_MAX, curveCost } from '@/deck/stats';
@@ -22,7 +22,7 @@ export interface DeckGroup {
   key: string;
   label: string;
   cards: DeckCard[];
-  /** Copies in the group. */
+  /** Copias en el grupo. */
   count: number;
 }
 
@@ -53,15 +53,15 @@ const RARITY_NAMES: Record<string, string> = {
 const isLand = (c: DeckCard) => mainType(c.typeLine) === 'land';
 
 /**
- * What some groupings need that the deck card doesn't have: its edition, copies in the collection,
- * price and tags. Without it those cards go to a «Sin datos» group.
+ * Lo que algunas agrupaciones necesitan y la carta de mazo no tiene: su edición, copias en la colección,
+ * precio y etiquetas. Sin ello esas cartas van a un grupo «Sin datos».
  */
 export interface DeckGroupContext {
-  /** Edition of the printing: code, name and release date (for the order). */
+  /** Edición de la impresión: código, nombre y fecha de salida (para el orden). */
   setOf?: (c: DeckCard) => { code: string; name: string; releasedAt: string } | undefined;
   owned?: (c: DeckCard) => number | undefined;
   price?: (c: DeckCard) => number | null | undefined;
-  /** Tag names of the card. */
+  /** Nombres de las etiquetas de la carta. */
   tags?: (c: DeckCard) => string[];
 }
 
@@ -73,7 +73,7 @@ const PRICE_BANDS = [
   { key: 'p0', label: 'Menos de 1 €', min: 0 },
 ];
 
-/** Key + label of the groups a card goes in (several only for tags). */
+/** Clave + etiqueta de los grupos en los que va una carta (varios solo para etiquetas). */
 function groupsOf(card: DeckCard, by: DeckGroupBy, ctx: DeckGroupContext): { key: string; label: string; order?: string }[] {
   switch (by) {
     case 'set': {
@@ -105,7 +105,7 @@ function groupsOf(card: DeckCard, by: DeckGroupBy, ctx: DeckGroupContext): { key
   }
 }
 
-/** Key + label of the group a card goes in. */
+/** Clave + etiqueta del grupo en el que va una carta. */
 function groupOf(card: DeckCard, by: DeckGroupBy): { key: string; label: string } {
   switch (by) {
     case 'type': {
@@ -142,8 +142,8 @@ function orderOf(key: string, by: DeckGroupBy): number {
 }
 
 /**
- * The deck's cards in groups, in a fixed order, keeping each group's cards in the incoming
- * order. Commanders (when the format uses them) always go first in their own group.
+ * Las cartas del mazo en grupos, en un orden fijo, manteniendo las cartas de cada grupo en el orden de
+ * entrada. Los comandantes (cuando el formato los usa) van siempre primero en su propio grupo.
  */
 export function groupDeck(cards: DeckCard[], by: DeckGroupBy, usesCommander: boolean, ctx: DeckGroupContext = {}): DeckGroup[] {
   const groups = new Map<string, DeckGroup>();
@@ -160,7 +160,7 @@ export function groupDeck(cards: DeckCard[], by: DeckGroupBy, usesCommander: boo
     }
   }
   const sorted = [...groups.values()].sort((a, b) => {
-    // «Sin datos / Sin precio / Sin etiqueta» always last.
+    // «Sin datos / Sin precio / Sin etiqueta» siempre al final.
     if (a.key === '~' || b.key === '~') return a.key === '~' ? 1 : -1;
     if (by === 'set') return (sortKey.get(b.key) ?? '').localeCompare(sortKey.get(a.key) ?? '');
     if (by === 'subtype' || by === 'tag') return a.label.localeCompare(b.label, 'es');

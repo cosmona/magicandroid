@@ -1,41 +1,41 @@
-// Printable sheets of cards (a «contact sheet»): the card images at their real size (63 × 88 mm), nine per
-// A4 page, with optional cut lines, a header and the names under each card. Pure: it only builds the HTML;
-// the desktop saves it as PDF (`savePdf`).
+// Hojas imprimibles de cartas (una «hoja de contactos»): las imágenes de las cartas a su tamaño real
+// (63 × 88 mm), nueve por página A4, con líneas de corte opcionales, una cabecera y los nombres bajo cada
+// carta. Pura: solo construye el HTML; el escritorio lo guarda como PDF (`savePdf`).
 
 export interface PrintCard {
   name: string;
-  /** Image URL (Scryfall `normal` / `large`). */
+  /** URL de la imagen (Scryfall `normal` / `large`). */
   image: string | null;
-  /** Back face, for double-faced cards (printed after the front). */
+  /** Cara trasera, para cartas de doble cara (se imprime tras la frontal). */
   back?: string | null;
-  /** Copies to print. */
+  /** Copias a imprimir. */
   copies: number;
-  /** A basic land (they can be left out). */
+  /** Una tierra básica (se pueden dejar fuera). */
   basic?: boolean;
 }
 
 export interface SheetOptions {
   title: string;
-  /** Every copy (4 × Rayo) or one of each. */
+  /** Cada copia (4 × Rayo) o una de cada. */
   allCopies: boolean;
-  /** Both faces of double-faced cards. */
+  /** Ambas caras de las cartas de doble cara. */
   backs: boolean;
-  /** Real size (63 × 88 mm, 9 per page) or small (a contact sheet: 4 × 4 per page, 16 per page). */
+  /** Tamaño real (63 × 88 mm, 9 por página) o pequeño (una hoja de contactos: 4 × 4 por página, 16 por página). */
   size: 'real' | 'small';
-  /** Thin lines between the cards to cut them. */
+  /** Líneas finas entre las cartas para recortarlas. */
   cutLines: boolean;
-  /** Each card's name under it (small sheets). */
+  /** El nombre de cada carta debajo (hojas pequeñas). */
   names: boolean;
 }
 
-/** A basic land, from its type line (English or Spanish). */
+/** Una tierra básica, por su línea de tipo (inglés o español). */
 export const isBasicLand = (typeLine: string) => /basic|básic/i.test(typeLine) && /land|tierra/i.test(typeLine);
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
-/** The biggest image Scryfall has for a `normal` URL. */
+/** La imagen más grande que Scryfall tiene para una URL `normal`. */
 const big = (url: string) => url.replace('/normal/', '/large/').replace('/small/', '/large/');
 
-/** How many images the sheet will have. */
+/** Cuántas imágenes tendrá la hoja. */
 export function sheetCount(cards: PrintCard[], o: Pick<SheetOptions, 'allCopies' | 'backs'>): number {
   return cards.reduce((n, c) => n + (o.allCopies ? Math.max(1, c.copies) : 1) * (o.backs && c.back ? 2 : 1), 0);
 }

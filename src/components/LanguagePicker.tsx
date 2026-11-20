@@ -14,7 +14,7 @@ import { colors } from '@/theme';
 
 export const languageName = (lang: string) => LANGUAGE_NAMES[lang] ?? lang.toUpperCase();
 
-/** A card to look up: the printing itself, its Scryfall id, or just its English name. */
+/** Una carta a consultar: la propia impresión, su id de Scryfall, o solo su nombre inglés. */
 export type CardRef = Card | string | { name: string };
 
 async function resolveRef(ref: CardRef): Promise<Card | null> {
@@ -24,8 +24,8 @@ async function resolveRef(ref: CardRef): Promise<Card | null> {
 }
 
 /**
- * "🌐 Español ▾" pill for any enlarged card (card info, combos, sample hand, deck preview…):
- * opens the card's languages and hands the chosen printing to `onPick`.
+ * Pill «🌐 Español ▾» para cualquier carta ampliada (info de carta, combos, mano de prueba, vista previa del
+ * mazo…): abre los idiomas de la carta y entrega la impresión elegida a `onPick`.
  */
 export function LanguagePill({ card, lang, onPick, compact }: { card: CardRef; lang?: string; onPick: (card: Card) => void; compact?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -57,8 +57,8 @@ export function LanguagePill({ card, lang, onPick, compact }: { card: CardRef; l
 }
 
 /**
- * "🌐 English ▾" pill above the card. Opens the languages Scryfall has for this card
- * (loaded on demand, cached) and swaps the card for the chosen printing.
+ * Pill «🌐 English ▾» sobre la carta. Abre los idiomas que Scryfall tiene para esta carta
+ * (cargados bajo demanda, cacheados) y cambia la carta por la impresión elegida.
  */
 export function LanguagePicker({ card, onChange }: { card: Card; onChange: (card: Card) => void }) {
   const [open, setOpen] = useState(false);
@@ -84,9 +84,9 @@ export function LanguagePicker({ card, onChange }: { card: Card; onChange: (card
 }
 
 /**
- * The languages a card exists in, as a popup list; `card` is the printing on screen, its Scryfall
- * id (deck and collection rows) or its English name (combos), loaded first. Calls `onPick` with
- * the chosen printing.
+ * Los idiomas en los que existe una carta, como lista emergente; `card` es la impresión en pantalla, su id
+ * de Scryfall (filas de mazo y colección) o su nombre inglés (combos), cargada primero. Llama a `onPick`
+ * con la impresión elegida.
  */
 export function LanguagePickerModal({
   card,
@@ -113,13 +113,13 @@ export function LanguagePickerModal({
       const list = await getCardLanguages(current);
       if (cancelled) return;
       setOptions(list);
-      // Warm the cache so the chosen language appears instantly.
+      // Precalienta la caché para que el idioma elegido aparezca al instante.
       Image.prefetch(list.map((c) => c.imageUrl).filter((u): u is string => !!u));
     })().catch(() => !cancelled && setError(true));
     return () => {
       cancelled = true;
     };
-    // Keyed by identity, not object: callers may pass a fresh `{ name }` on every render.
+    // Indexado por identidad, no por objeto: quien llama puede pasar un `{ name }` nuevo en cada render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refKey, attempt]);
 

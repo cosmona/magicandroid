@@ -1,10 +1,10 @@
-// MTG Arena helpers (pure): which cards exist there and the deck list its importer reads.
+// Utilidades de MTG Arena (puras): qué cartas existen ahí y la lista de mazo que lee su importador.
 import type { DeckCard } from '@/db/database';
 
 /**
- * Whether the card exists in MTG Arena, from its stored Scryfall legalities: every Arena card
- * has a Timeless / Historic / Brawl status other than "not_legal" (banned still means it exists).
- * Unknown legalities count as yes.
+ * Si la carta existe en MTG Arena, por sus legalidades de Scryfall guardadas: cada carta de Arena tiene
+ * un estado de Timeless / Historic / Brawl distinto de «not_legal» (banned sigue significando que existe).
+ * Las legalidades desconocidas cuentan como sí.
  */
 export function onArena(card: Pick<DeckCard, 'legalities'>): boolean {
   if (!card.legalities) return true;
@@ -17,8 +17,8 @@ export function onArena(card: Pick<DeckCard, 'legalities'>): boolean {
 }
 
 /**
- * The name Arena's importer expects: split cards keep both halves ("Fire // Ice"); double-faced,
- * adventure and other two-part cards use the front face only.
+ * El nombre que espera el importador de Arena: las cartas divididas mantienen ambas mitades («Fire // Ice»);
+ * las de doble cara, aventura y otras de dos partes usan solo la cara frontal.
  */
 export function arenaName(card: Pick<DeckCard, 'name' | 'typeLine'>): string {
   if (!card.name.includes(' // ')) return card.name;
@@ -28,9 +28,9 @@ export function arenaName(card: Pick<DeckCard, 'name' | 'typeLine'>): string {
 }
 
 /**
- * Deck list in MTG Arena's import format ("Commander" section for Brawl-style decks, then
- * "Deck" and "Sideboard", one "N Name" per line, English names). Cards that aren't on Arena are left out and
- * returned in `skipped` (Arena would refuse the whole import).
+ * Lista de mazo en el formato de importación de MTG Arena (sección «Commander» para mazos estilo Brawl, luego
+ * «Deck» y «Sideboard», un «N Nombre» por línea, nombres en inglés). Las cartas que no están en Arena se dejan
+ * fuera y se devuelven en `skipped` (Arena rechazaría toda la importación).
  */
 export function arenaDeckList(
   cards: DeckCard[],
