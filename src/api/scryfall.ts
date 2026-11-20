@@ -1,6 +1,6 @@
-// Client for the Scryfall API (https://scryfall.com/docs/api).
-// Scryfall requires a User-Agent + Accept header and asks clients to keep
-// requests ~100 ms apart, so every request goes through `scryfallFetch`.
+// Cliente de la API de Scryfall (https://scryfall.com/docs/api).
+// Scryfall exige una cabecera User-Agent + Accept y pide a los clientes que dejen
+// ~100 ms entre peticiones, así que cada petición pasa por `scryfallFetch`.
 
 import { rulesQuery } from '@/api/rulesGlossary';
 import { ARENA_FORMATS, DECK_ONLY_FORMATS } from '@/theme';
@@ -14,38 +14,38 @@ export type Rarity = 'common' | 'uncommon' | 'rare' | 'mythic';
 export type SortOrder = 'edhrec' | 'name' | 'released' | 'cmc' | 'usd';
 export type SortDir = 'auto' | 'asc' | 'desc';
 /**
- * How the selected colors are matched:
- * - identity: playable in a deck of these colors (color identity ⊆ selection, colorless included)
- * - exact: exactly these colors
- * - include: has at least these colors
+ * Cómo se cruzan los colores seleccionados:
+ * - identity: jugable en un mazo de estos colores (identidad de color ⊆ selección, incoloro incluido)
+ * - exact: exactamente estos colores
+ * - include: tiene al menos estos colores
  */
 export type ColorMode = 'identity' | 'exact' | 'include';
 
 export interface Filters {
-  /** Part of the name (Spanish or English). */
+  /** Parte del nombre (español o inglés). */
   name: string;
-  /** Rules text (Scryfall searches the English oracle text). */
+  /** Texto de reglas (Scryfall busca en el texto oracle en inglés). */
   text: string;
   colors: Color[];
   colorless: boolean;
   colorMode: ColorMode;
-  /** Main card types (Scryfall catalog values), OR-combined. */
+  /** Tipos de carta principales (valores del catálogo de Scryfall), combinados con OR. */
   types: string[];
   legendary: boolean;
-  /** Free subtype words in English (e.g. "elf wizard"), all must match. */
+  /** Palabras libres de subtipo en inglés (p. ej. «elf wizard»), todas deben cruzar. */
   subtype: string;
   cmcMin: number | null;
   cmcMax: number | null;
   rarities: Rarity[];
-  /** Keyword abilities (Scryfall catalog values), all must match. */
+  /** Habilidades de palabra clave (valores del catálogo de Scryfall), todas deben cruzar. */
   keywords: string[];
-  /** Scryfall format key (`f:`), null = any. */
+  /** Clave de formato de Scryfall (`f:`), null = cualquiera. */
   format: string | null;
-  /** Set code (`e:`), null = any. */
+  /** Código de edición (`e:`), null = cualquiera. */
   set: string | null;
-  /** Only cards that exist in MTG Arena (`game:arena` instead of `game:paper`). */
+  /** Solo cartas que existen en MTG Arena (`game:arena` en vez de `game:paper`). */
   arena: boolean;
-  /** Only the cards in your collection (searched on the phone, not on Scryfall). */
+  /** Solo las cartas de tu colección (buscadas en el móvil, no en Scryfall). */
   onlyCollection?: boolean;
   order: SortOrder;
   dir: SortDir;
@@ -72,13 +72,13 @@ export const DEFAULT_FILTERS: Filters = {
   dir: 'auto',
 };
 
-/** Card as used by the app (flattened from Scryfall's card object). */
+/** Carta tal como la usa la app (aplanada del objeto de carta de Scryfall). */
 export interface Card {
   id: string;
-  /** Same for every printing/language of a card: used to count copies in a deck. */
+  /** Igual para cada impresión/idioma de una carta: se usa para contar copias en un mazo. */
   oracleId: string;
   name: string;
-  /** Localized name (e.g. Spanish) when the printing isn't English. */
+  /** Nombre localizado (p. ej. en español) cuando la impresión no es inglesa. */
   printedName: string | null;
   typeLine: string;
   manaCost: string;
@@ -86,20 +86,20 @@ export interface Card {
   rarity: string;
   oracleText: string;
   imageUrl: string | null;
-  /** Back face image for double-faced cards. */
+  /** Imagen de la cara trasera de las cartas de doble cara. */
   backImageUrl: string | null;
-  /** Scryfall language code of this printing (en, es, fr, de, it, pt, ja, ko, ru, zhs, zht…). */
+  /** Código de idioma de Scryfall de esta impresión (en, es, fr, de, it, pt, ja, ko, ru, zhs, zht…). */
   lang: string;
   set: string;
   collectorNumber?: string;
-  /** Color identity letters, e.g. ['W', 'U']; [] = colorless. */
+  /** Letras de la identidad de color, p. ej. ['W', 'U']; [] = incoloro. */
   colorIdentity: string[];
-  /** Scryfall format key → 'legal' | 'not_legal' | 'banned' | 'restricted'. */
+  /** Clave de formato de Scryfall → 'legal' | 'not_legal' | 'banned' | 'restricted'. */
   legalities: Record<string, string>;
-  /** Same for every printing that reuses an artwork (alternate arts have their own). */
+  /** Igual para cada impresión que reutiliza un arte (los artes alternativos tienen el suyo). */
   illustrationId?: string;
   setName?: string;
-  /** 'YYYY-MM-DD' */
+  /** 'AAAA-MM-DD' */
   releasedAt?: string;
 }
 
@@ -122,8 +122,8 @@ async function scryfallFetch(url: string, init?: { method: 'POST'; body: string 
 const clean = (s: string) => s.replace(/"/g, '').trim();
 
 /**
- * The rules-text search split in terms: each word on its own (all of them, in any order:
- * «cost less» finds «costs {1} less»), and "quoted words" as an exact phrase.
+ * La búsqueda por texto de reglas partida en términos: cada palabra por su cuenta (todas, en
+ * cualquier orden: «cost less» encuentra «costs {1} less»), y «palabras entre comillas» como frase exacta.
  */
 export function textTerms(text: string): string[] {
   const out: string[] = [];
@@ -134,7 +134,7 @@ export function textTerms(text: string): string[] {
   return out;
 }
 
-/** Lowercase without accents ("Relámpago" → "relampago"). */
+/** Minúsculas sin acentos («Relámpago» → «relampago»). */
 export const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 const anyOf = (terms: string[]) => (terms.length === 1 ? terms[0] : `(${terms.join(' or ')})`);
@@ -156,22 +156,22 @@ function colorTerm(f: Filters): string | null {
 }
 
 /**
- * Translates the filters into a Scryfall search query (https://scryfall.com/docs/syntax).
- * Results come in English; `anyLanguage` also matches foreign printed names (used as a
- * fallback when a name search finds nothing, e.g. a Spanish name).
+ * Traduce los filtros a una consulta de búsqueda de Scryfall (https://scryfall.com/docs/syntax).
+ * Los resultados vienen en inglés; `anyLanguage` también cruza con nombres impresos extranjeros (se usa
+ * como respaldo cuando una búsqueda por nombre no encuentra nada, p. ej. un nombre en español).
  */
 export function buildQuery(f: Filters, anyLanguage = false): string {
-  // Arena-only formats (Historic, Alchemy…) are about Arena cards, some of which aren't on paper.
+  // Los formatos solo de Arena (Historic, Alchemy…) son de cartas de Arena, algunas de las cuales no están en papel.
   const arena = f.arena || (!!f.format && ARENA_FORMATS.includes(f.format));
   const parts: (string | null)[] = [arena ? 'game:arena' : 'game:paper'];
-  // One unquoted `name:` per word: unquoted terms ignore accents on the card side
-  // ("relampago" finds "Relámpago", a quoted "relampago" doesn't), but accents in the
-  // query itself never match, so strip them too.
+  // Un `name:` sin comillas por palabra: los términos sin comillas ignoran los acentos del lado de la carta
+  // («relampago» encuentra «Relámpago», un «relampago» entrecomillado no), pero los acentos de la propia
+  // consulta nunca cruzan, así que quítalos también.
   const nameWords = fold(clean(f.name))
     .split(/[^\p{L}\p{N}'-]+/u)
     .filter(Boolean);
   for (const word of nameWords) parts.push(`name:${word}`);
-  // Word by word ("quoted" = exact phrase); Spanish is translated to the English rules wording.
+  // Palabra por palabra («entre comillas» = frase exacta); el español se traduce al texto de reglas en inglés.
   for (const t of rulesQuery(f.text).terms) parts.push(`o:"${clean(t)}"`);
   parts.push(colorTerm(f));
   if (f.types.length) parts.push(anyOf(f.types.map((t) => `t:${t.toLowerCase()}`)));
@@ -190,7 +190,7 @@ export function buildQuery(f: Filters, anyLanguage = false): string {
   return parts.filter(Boolean).join(' ');
 }
 
-/** Number of filters that differ from the defaults (ignoring sort), for the status bar badge. */
+/** Número de filtros que difieren de los valores por defecto (ignorando el orden), para la insignia de la barra de estado. */
 export function activeFilterCount(f: Filters): number {
   const ignore: (keyof Filters)[] = ['order', 'dir', 'colorMode'];
   return (Object.keys(DEFAULT_FILTERS) as (keyof Filters)[]).filter(
@@ -198,7 +198,7 @@ export function activeFilterCount(f: Filters): number {
   ).length;
 }
 
-// Minimal shape of the Scryfall fields we read.
+// Forma mínima de los campos de Scryfall que leemos.
 interface ScryfallFace {
   oracle_id?: string;
   oracle_text?: string;
@@ -272,12 +272,12 @@ const searchUrl = (filters: Filters, anyLanguage: boolean) =>
   `${BASE_URL}/cards/search?` +
   new URLSearchParams({ q: buildQuery(filters, anyLanguage), order: filters.order, dir: filters.dir }).toString();
 
-/** Fetch the first page for `filters`, or a follow-up page via its `nextPage` URL. */
+/** Pide la primera página para `filters`, o una página siguiente vía su URL `nextPage`. */
 export async function searchCards(filters: Filters, nextPage?: string): Promise<SearchPage> {
   if (nextPage) return fetchPage(nextPage);
   const page = await fetchPage(searchUrl(filters, false));
-  // A name typed in another language (e.g. "relámpago") only matches foreign printings:
-  // if no English name contains the words, search every language instead.
+  // Un nombre escrito en otro idioma (p. ej. «relámpago») solo cruza con impresiones extranjeras:
+  // si ningún nombre en inglés contiene las palabras, busca en todos los idiomas.
   const words = fold(filters.name)
     .split(/[^\p{L}\p{N}'-]+/u)
     .filter(Boolean);
@@ -286,7 +286,7 @@ export async function searchCards(filters: Filters, nextPage?: string): Promise<
   return page;
 }
 
-/** Cards by Scryfall id, 75 per request (POST /cards/collection). Unknown ids are skipped. */
+/** Cartas por id de Scryfall, 75 por petición (POST /cards/collection). Los ids desconocidos se saltan. */
 export async function getCardsByIds(ids: string[]): Promise<Card[]> {
   const out: Card[] = [];
   for (let i = 0; i < ids.length; i += 75) {
@@ -300,7 +300,7 @@ export async function getCardsByIds(ids: string[]): Promise<Card[]> {
   return out;
 }
 
-/** Cards by exact English name (front face for double-faced ones), 75 per request. Unknown names are skipped. */
+/** Cartas por nombre inglés exacto (cara frontal para las de doble cara), 75 por petición. Los nombres desconocidos se saltan. */
 export async function getCardsByNames(names: string[]): Promise<Card[]> {
   const out: Card[] = [];
   for (let i = 0; i < names.length; i += 75) {
@@ -314,7 +314,7 @@ export async function getCardsByNames(names: string[]): Promise<Card[]> {
   return out;
 }
 
-/** A card of a pasted list: name, and set + collector number when the list gives them. */
+/** Una carta de una lista pegada: nombre, y edición + número de coleccionista cuando la lista los da. */
 export interface ListEntry {
   name: string;
   set?: string;
@@ -337,9 +337,9 @@ async function collectionCards(identifiers: object[]): Promise<Card[]> {
 const nameKey = (name: string) => name.split(' // ')[0].trim().toLowerCase();
 
 /**
- * Finds the cards of a pasted list, keeping its order: the exact printing when set + collector
- * number are given (Arena's own set codes don't always exist in Scryfall, so those fall back),
- * else by English name. null = not found.
+ * Encuentra las cartas de una lista pegada, manteniendo su orden: la impresión exacta cuando se dan
+ * edición + número de coleccionista (los códigos de edición propios de Arena no siempre existen en
+ * Scryfall, así que esos recurren al respaldo), si no por nombre inglés. null = no encontrada.
  */
 export async function resolveCardList(entries: ListEntry[]): Promise<(Card | null)[]> {
   const out: (Card | null)[] = entries.map(() => null);
@@ -350,8 +350,8 @@ export async function resolveCardList(entries: ListEntry[]): Promise<(Card | nul
     const byPrint = new Map(found.map((c) => [`${c.set}/${c.collectorNumber}`, c]));
     for (const { e, i } of printed) {
       const card = byPrint.get(`${e.set}/${e.number}`);
-      // Trusted even if the name differs: lists exported in another language (Arena in Spanish)
-      // give the localized name with the set + number.
+      // Se fía aunque el nombre difiera: las listas exportadas en otro idioma (Arena en español)
+      // dan el nombre localizado con la edición + número.
       if (card) out[i] = card;
     }
   }
@@ -369,7 +369,7 @@ export async function resolveCardList(entries: ListEntry[]): Promise<(Card | nul
     });
   }
 
-  // Names in another language (Spanish…): exact printed-name search, in the list's set first.
+  // Nombres en otro idioma (español…): búsqueda por nombre impreso exacto, en la edición de la lista primero.
   const localized = new Map<string, Card | null>();
   for (const [i, e] of entries.entries()) {
     if (out[i]) continue;
@@ -389,7 +389,7 @@ async function findByPrintedName(name: string, set?: string): Promise<Card | nul
   return null;
 }
 
-/** One card from a Scryfall endpoint that returns a single card; null on 404. */
+/** Una carta de un endpoint de Scryfall que devuelve una sola carta; null en 404. */
 async function getSingleCard(path: string): Promise<Card | null> {
   const res = await scryfallFetch(`${BASE_URL}${path}`);
   if (res.status === 404) return null;
@@ -397,18 +397,18 @@ async function getSingleCard(path: string): Promise<Card | null> {
   return toCard(await res.json());
 }
 
-/** A printing by set code + collector number, optionally in a language (`/cards/:set/:number/:lang`). */
+/** Una impresión por código de edición + número de coleccionista, opcionalmente en un idioma (`/cards/:set/:number/:lang`). */
 export const getCardBySetNumber = (set: string, number: string, lang?: string) =>
   getSingleCard(
     `/cards/${encodeURIComponent(set.toLowerCase())}/${encodeURIComponent(number)}` +
       (lang ? `/${encodeURIComponent(lang)}` : ''),
   );
 
-/** Best match for a possibly misspelled English name (`/cards/named?fuzzy=`). */
+/** Mejor coincidencia para un nombre inglés posiblemente mal escrito (`/cards/named?fuzzy=`). */
 export const getCardByFuzzyName = (name: string) =>
   getSingleCard(`/cards/named?${new URLSearchParams({ fuzzy: name }).toString()}`);
 
-/** `card` printed in `set` (in `lang` if there is one), or null. */
+/** `card` impresa en `set` (en `lang` si hay uno), o null. */
 export async function getCardInSet(card: Card, set: string, lang?: string): Promise<Card | null> {
   const q = `oracleid:${card.oracleId} e:${set.toLowerCase()}`;
   if (lang) {
@@ -418,7 +418,7 @@ export async function getCardInSet(card: Card, set: string, lang?: string): Prom
   return (await fetchPage(printsUrl(q))).cards[0] ?? null;
 }
 
-/** Spanish-facing names of Scryfall language codes. */
+/** Nombres de cara al usuario (en español) de los códigos de idioma de Scryfall. */
 export const LANGUAGE_NAMES: Record<string, string> = {
   en: 'English',
   es: 'Español',
@@ -442,9 +442,9 @@ export const LANGUAGE_NAMES: Record<string, string> = {
 const languageCache = new Map<string, Promise<Card[]>>();
 
 /**
- * One printing per language available for `card` (Scryfall `oracleid:` + `lang:any`).
- * Prefers the same set as `card`, otherwise the most recent printing in that language.
- * Cached per card for the app's lifetime.
+ * Una impresión por idioma disponible para `card` (Scryfall `oracleid:` + `lang:any`).
+ * Prefiere la misma edición que `card`, si no la impresión más reciente en ese idioma.
+ * Cacheado por carta durante la vida de la app.
  */
 export function getCardLanguages(card: Card): Promise<Card[]> {
   const key = `${card.oracleId}|${card.set}`;
@@ -474,7 +474,7 @@ export function getCardLanguages(card: Card): Promise<Card[]> {
   return promise;
 }
 
-/** Languages offered as the default card language in settings. */
+/** Idiomas ofrecidos como idioma de carta por defecto en los ajustes. */
 export const MAIN_LANGUAGES = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'ru', 'zhs', 'zht'];
 
 const localizedCache = new Map<string, Promise<Card | null>>();
@@ -484,8 +484,8 @@ const printsUrl = (q: string) =>
   new URLSearchParams({ q, unique: 'prints', include_multilingual: 'true', order: 'released' }).toString();
 
 /**
- * `card` printed in `lang`, or null if Scryfall has none. Tries the same set first
- * (a one-result query) and only then any set, to keep responses small. Cached.
+ * `card` impresa en `lang`, o null si Scryfall no tiene ninguna. Prueba la misma edición primero
+ * (una consulta de un resultado) y solo entonces cualquier edición, para mantener respuestas pequeñas. Cacheado.
  */
 export function getCardInLanguage(card: Card, lang: string): Promise<Card | null> {
   if (card.lang === lang) return Promise.resolve(card);
@@ -507,9 +507,9 @@ export function getCardInLanguage(card: Card, lang: string): Promise<Card | null
 const artsCache = new Map<string, Promise<Card[]>>();
 
 /**
- * One printing per artwork of `card` (Scryfall `unique=art`), newest first, the current
- * one first. Prefers printings in the card's language; artworks never printed in it come
- * in English. Cached.
+ * Una impresión por arte de `card` (Scryfall `unique=art`), la más nueva primero, la actual
+ * la primera. Prefiere impresiones en el idioma de la carta; los artes nunca impresos en él vienen
+ * en inglés. Cacheado.
  */
 export function getCardArts(card: Card): Promise<Card[]> {
   const key = `${card.oracleId}|${card.lang}`;
@@ -541,7 +541,7 @@ export function getCardArts(card: Card): Promise<Card[]> {
   return promise.then((arts) => [card, ...arts.filter((c) => (c.illustrationId ?? c.id) !== current)]);
 }
 
-/** Memoizes a fetch for the app's lifetime; a failed attempt can be retried. */
+/** Memoiza un fetch durante la vida de la app; un intento fallido se puede reintentar. */
 function cached<T>(load: () => Promise<T>): () => Promise<T> {
   let promise: Promise<T> | null = null;
   return () => {
@@ -559,7 +559,7 @@ async function getJson(path: string) {
   return res.json();
 }
 
-/** Keyword abilities for the keyword filter, alphabetically. */
+/** Habilidades de palabra clave para el filtro de palabra clave, alfabéticamente. */
 export const getKeywords = cached(async (): Promise<string[]> => {
   const body = await getJson('/catalog/keyword-abilities');
   return (body.data as string[]).sort((a, b) => a.localeCompare(b));
@@ -572,7 +572,7 @@ export interface MtgSet {
   iconUrl: string;
 }
 
-// Only sets that contain normal playable cards (no tokens, promos, memorabilia...).
+// Solo ediciones que contienen cartas jugables normales (sin fichas, promos, memorabilia...).
 const PLAYABLE_SET_TYPES = new Set([
   'core',
   'expansion',
@@ -601,12 +601,12 @@ const toSet = (s: RawSet): MtgSet => ({
 });
 const getSetCatalog = cached(async (): Promise<RawSet[]> => (await getJson('/sets')).data as RawSet[]);
 
-/** Every set (promos, tokens… included) by code: names and dates for the collection. */
+/** Cada edición (promos, fichas… incluidas) por código: nombres y fechas para la colección. */
 export const getAllSets = cached(async (): Promise<Record<string, MtgSet>> =>
   Object.fromEntries((await getSetCatalog()).map((s) => [s.code, toSet(s)])),
 );
 
-/** Paper sets for the set filter, newest first. */
+/** Ediciones en papel para el filtro de edición, la más nueva primero. */
 export const getSets = cached(async (): Promise<MtgSet[]> => {
   return (await getSetCatalog())
     .filter((s) => !s.digital && PLAYABLE_SET_TYPES.has(s.set_type))
@@ -614,29 +614,29 @@ export const getSets = cached(async (): Promise<MtgSet[]> => {
     .sort((a, b) => b.releasedAt.localeCompare(a.releasedAt));
 });
 
-/** Scryfall CDN: the `art_crop` version of a `normal` image URL (illustration only). */
+/** CDN de Scryfall: la versión `art_crop` de una URL de imagen `normal` (solo la ilustración). */
 export const artCropUrl = (imageUrl: string) => imageUrl.replace('/normal/', '/art_crop/');
 
-/** Scryfall CDN: ~15 KB thumbnail (146×204) of a `normal` image URL (~105 KB). */
+/** CDN de Scryfall: miniatura de ~15 KB (146×204) de una URL de imagen `normal` (~105 KB). */
 export const smallImageUrl = (imageUrl: string) => imageUrl.replace('/normal/', '/small/');
 
 export const displayName = (c: { name: string; printedName: string | null }) => c.printedName ?? c.name;
 
-// ---------- Prices, stats and tokens of saved cards ----------
+// ---------- Precios, estadísticas y fichas de las cartas guardadas ----------
 
-/** Live data of a printing that isn't stored locally (prices change daily). */
+/** Datos en vivo de una impresión que no se guarda localmente (los precios cambian a diario). */
 export interface CardDetails {
-  /** Cardmarket trend price in €, non-foil (foil if that's the only one); null = unknown. */
+  /** Precio de tendencia de Cardmarket en €, no-foil (foil si es el único); null = desconocido. */
   eur: number | null;
-  /** The card's product page on Cardmarket (Spanish site). */
+  /** La página de producto de la carta en Cardmarket (sitio en español). */
   cardmarketUrl: string | null;
-  /** The printing's page on scryfall.com (without tracking parameters). */
+  /** La página de la impresión en scryfall.com (sin parámetros de seguimiento). */
   scryfallUrl: string | null;
   power?: string;
   toughness?: string;
   loyalty?: string;
   defense?: string;
-  /** Tokens/emblems the card makes (`all_parts` with component "token"). */
+  /** Fichas/emblemas que crea la carta (`all_parts` con componente «token»). */
   tokens: { id: string; name: string; typeLine: string }[];
 }
 
@@ -679,8 +679,8 @@ async function postCollection(identifiers: object[]): Promise<ScryfallDetailsCar
 
 async function loadDetails(ids: string[]): Promise<Record<string, CardDetails>> {
   const cards = await postCollection(ids.map((id) => ({ id })));
-  // Scryfall only prices English printings (and a few others): price the rest with the
-  // English printing of the same set + number.
+  // Scryfall solo pone precio a las impresiones inglesas (y algunas más): valora el resto con la
+  // impresión inglesa de la misma edición + número.
   const unpriced = cards.filter((c) => priceOf(c) === null && c.lang !== 'en');
   const english = new Map<string, ScryfallDetailsCard>();
   if (unpriced.length) {
@@ -701,7 +701,7 @@ async function loadDetails(ids: string[]): Promise<Record<string, CardDetails>> 
       toughness: c.toughness ?? face.toughness,
       loyalty: c.loyalty ?? face.loyalty,
       defense: c.defense ?? face.defense,
-      // Non-English printings come without `all_parts`: the English one has them.
+      // Las impresiones no inglesas vienen sin `all_parts`: la inglesa las tiene.
       tokens: (c.all_parts ?? en?.all_parts ?? [])
         .filter((p) => p.component === 'token' && p.id !== c.id)
         .map((p) => ({ id: p.id, name: p.name, typeLine: p.type_line })),
@@ -712,7 +712,7 @@ async function loadDetails(ids: string[]): Promise<Record<string, CardDetails>> 
 
 const detailsCache = new Map<string, Promise<CardDetails | null>>();
 
-/** Prices, stats and tokens for these printings; fetched once per app run and shared. */
+/** Precios, estadísticas y fichas de estas impresiones; se piden una vez por ejecución y se comparten. */
 export async function getCardDetails(ids: string[]): Promise<Record<string, CardDetails>> {
   const missing = [...new Set(ids)].filter((id) => !detailsCache.has(id));
   if (missing.length) {
@@ -736,7 +736,7 @@ export async function getCardDetails(ids: string[]): Promise<Record<string, Card
   return out;
 }
 
-/** Mana/tap symbols ("{2}", "{W/U}", "{T}") → SVG URL. */
+/** Símbolos de maná/girar («{2}», «{W/U}», «{T}») → URL de SVG. */
 export const getSymbols = cached(async (): Promise<Record<string, string>> => {
   const body = await getJson('/symbology');
   const out: Record<string, string> = {};
@@ -744,9 +744,9 @@ export const getSymbols = cached(async (): Promise<Record<string, string>> => {
   return out;
 });
 
-// ---------- Full card data (card info screen) ----------
+// ---------- Datos completos de la carta (pantalla de info de carta) ----------
 
-/** The complete Scryfall card object, as returned (`/cards/:id`). */
+/** El objeto de carta completo de Scryfall, tal cual lo devuelve (`/cards/:id`). */
 export type RawCard = Record<string, unknown>;
 
 export async function getRawCard(id: string): Promise<RawCard> {
@@ -759,7 +759,7 @@ export interface Ruling {
   comment: string;
 }
 
-/** Official rulings/clarifications of a card (its `rulings_uri`). */
+/** Rulings/aclaraciones oficiales de una carta (su `rulings_uri`). */
 export async function getRulings(rulingsUri: string): Promise<Ruling[]> {
   const res = await scryfallFetch(rulingsUri);
   if (!res.ok) throw new Error(`Error ${res.status} de Scryfall`);
