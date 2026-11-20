@@ -57,6 +57,7 @@ import { PrintingPicker } from '@/components/PrintingPicker';
 import { CardShareSheet, type ShareableCard } from '@/components/CardShareSheet';
 import { ImportListModal } from '@/components/ImportListModal';
 import { CardControlsRow, CardIconButton, QuantityStepper, UndoBar } from '@/components/CardControls';
+import { useSeen } from '@/hooks/useSeen';
 import { useAppState } from '@/context/AppState';
 import {
   addToCollection,
@@ -242,10 +243,17 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
       .catch(() => {});
   }, []);
   // Reload whenever the tab is shown (cards can be added from the swipe tab with 📦).
+  const { isNew: isSeenNew, markSeen } = useSeen();
+  const newCardIsNew = (card: CollectionCard) => isSeenNew('collectioncards', card.addedAt);
   useFocusEffect(
     useCallback(() => {
       load();
     }, [load]),
+  );
+  // Only when you actually LEAVE the collection: mark its cards as seen (clears «nuevo» next time).
+  // Kept apart from `load` so a reload while you're here doesn't clear the badges under you.
+  useFocusEffect(
+    useCallback(() => () => markSeen('collectioncards', Date.now()), [markSeen]),
   );
 
   const q = query.trim();
@@ -886,6 +894,11 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                         />
                       )}
                       <TileIcons layout={galleryLayout} info={infoOf(card)} />
+                      {newCardIsNew(card) && (
+                        <View style={[styles.newTag, styles.newTagAbs]} pointerEvents="none">
+                          <Text style={styles.newTagText}>nuevo</Text>
+                        </View>
+                      )}
                       {sel.selecting && <SelectOverlay on={sel.isSelected(card)} onPress={() => sel.toggle(card)} />}
                     </Pressable>
                   ))}
@@ -959,6 +972,7 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                     <Text style={styles.textName} numberOfLines={1}>
                       {displayName(card)}
                       {wantedIds.has(card.scryfallId) ? <Text style={{ color: WANT_COLOR }}> ♥</Text> : null}
+                      {newCardIsNew(card) ? <Text style={{ color: colors.accent, fontWeight: '800' }}> · nuevo</Text> : null}
                     </Text>
                     {tags.length > 0 && (
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
@@ -1018,9 +1032,16 @@ export function CollectionScreen({ search }: { search?: { q: string; t: string }
                     )}
                   </Pressable>
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={styles.name} numberOfLines={1}>
-                      {displayName(card)}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.name, { flexShrink: 1 }]} numberOfLines={1}>
+                        {displayName(card)}
+                      </Text>
+                      {newCardIsNew(card) && (
+                        <View style={styles.newTag}>
+                          <Text style={styles.newTagText}>nuevo</Text>
+                        </View>
+                      )}
+                    </View>
                     <RowLines layout={listLayout} info={infoOf(card)} />
                   </View>
                 </View>
@@ -1286,6 +1307,9 @@ const styles = StyleSheet.create({
   viewOptionSelected: { backgroundColor: colors.accent },
   viewOptionText: { color: colors.text, fontWeight: '800' },
   empty: { color: colors.textMuted, textAlign: 'center', padding: 32, lineHeight: 20 },
+  newTag: { backgroundColor: colors.accent, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
+  newTagAbs: { position: 'absolute', top: 4, right: 4, zIndex: 2 },
+  newTagText: { color: colors.onAccent, fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
   row: {
     gap: 10,
     marginHorizontal: 10,

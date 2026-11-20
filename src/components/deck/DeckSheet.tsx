@@ -111,7 +111,9 @@ export function DeckSheet() {
   // «La quiero» of the exact printing each deck card has.
   const wantedIds = useWantedPrintings(db, activeCards.map((c) => c.scryfallId));
   // The view is saved in the preferences, so closing and reopening the deck keeps the one you were on.
-  const { markSeen: markDeckSeen } = useSeen();
+  const { markSeen: markDeckSeen, isNew: isSeenNew } = useSeen();
+  const newCardsKey = activeDeck ? `deckcards:${activeDeck.uid}` : '';
+  const cardIsNew = (c: (typeof activeCards)[number]) => isSeenNew(newCardsKey, c.addedAt);
   const seenDeckUid = activeDeck?.uid;
   const seenDeckAt = activeDeck?.updatedAt;
   useEffect(() => {
@@ -832,6 +834,7 @@ export function DeckSheet() {
                         info={infoOf(item)}
                         layout={galleryLayout}
                         card={item}
+                        isNewCard={cardIsNew(item)}
                         invalid={!!validation.cardIssues[item.oracleId]}
                         crown={validation.usesCommander}
                         onPress={() => actions.preview(item)}
@@ -847,6 +850,7 @@ export function DeckSheet() {
                 {m === 'text' ? (
                   <TextRow
                     card={item}
+                    isNewCard={cardIsNew(item)}
                     issues={validation.cardIssues[item.oracleId]}
                     owned={owned ? (owned[item.oracleId] ?? 0) : undefined}
                     tags={prefs.showTags === false ? [] : (deckTags[item.oracleId] ?? []).map((u) => allTags.find((t) => t.uid === u)).filter((t) => !!t)}
@@ -857,6 +861,7 @@ export function DeckSheet() {
                 ) : m === 'big' ? (
                   <BigCard
                     card={item}
+                    isNewCard={cardIsNew(item)}
                     actions={actions}
                     issues={validation.cardIssues[item.oracleId]}
                     crown={validation.usesCommander}
@@ -871,6 +876,7 @@ export function DeckSheet() {
                     info={infoOf(item)}
                     layout={listLayout}
                     card={item}
+                    isNewCard={cardIsNew(item)}
                     actions={actions}
                     issues={validation.cardIssues[item.oracleId]}
                     crown={validation.usesCommander}
@@ -1234,6 +1240,8 @@ interface CardProps {
   layout?: ListLayout;
   /** Marked as «La quiero». */
   wanted?: boolean;
+  /** Added since the last time you opened this deck (shows a «nuevo» badge). */
+  isNewCard?: boolean;
 }
 
 /**
@@ -1411,6 +1419,7 @@ function TextRowInner({
   onPress,
   onAdd,
   onSub,
+  isNewCard,
   showOwned = true,
 }: {
   showOwned?: boolean;
@@ -1421,6 +1430,7 @@ function TextRowInner({
   onPress: () => void;
   onAdd: () => void;
   onSub: () => void;
+  isNewCard?: boolean;
 }) {
   const missing = owned === undefined ? null : Math.max(0, card.quantity - owned);
   return (
@@ -1430,6 +1440,7 @@ function TextRowInner({
         <Text style={styles.textName} numberOfLines={1}>
           {displayName(card)}
           {issues ? <Text style={{ color: colors.discard }}> ⚠</Text> : null}
+          {isNewCard ? <Text style={{ color: colors.accent, fontWeight: '800' }}> · nuevo</Text> : null}
         </Text>
         {tags.length > 0 && (
           <View style={styles.textTags}>
@@ -1464,7 +1475,7 @@ function useRowTint(owned: number | undefined, needed: number, wanted: boolean) 
   return null;
 }
 
-function CardRow({ card, actions, issues, crown, owned, drag, wanted, info, layout }: CardProps) {
+function CardRow({ card, actions, issues, crown, owned, drag, wanted, info, layout, isNewCard }: CardProps) {
   const tint = useRowTint(owned, card.quantity, !!wanted);
   return (
     <View style={[styles.row, tint, issues && styles.invalid, crown && !!card.isCommander && styles.commander]}>
@@ -1475,11 +1486,18 @@ function CardRow({ card, actions, issues, crown, owned, drag, wanted, info, layo
           </Pressable>
         </Draggable>
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={styles.name}>
-            {crown && card.isCommander ? '👑 ' : ''}
-            {displayName(card)}
-            {card.quantity > 1 ? <Text style={styles.nameQty}>{`  ×${card.quantity}`}</Text> : ''}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={[styles.name, { flexShrink: 1 }]}>
+              {crown && card.isCommander ? '👑 ' : ''}
+              {displayName(card)}
+              {card.quantity > 1 ? <Text style={styles.nameQty}>{`  ×${card.quantity}`}</Text> : ''}
+            </Text>
+            {isNewCard && (
+              <View style={styles.newTag}>
+                <Text style={styles.newTagText}>nuevo</Text>
+              </View>
+            )}
+          </View>
           {info && layout && <RowLines layout={layout} info={info} />}
         </View>
       </View>
@@ -1500,7 +1518,7 @@ function CardRow({ card, actions, issues, crown, owned, drag, wanted, info, layo
 }
 
 /** "Grande" view: the card at full width (like the swipe stack) with its controls below. */
-function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag, wanted }: CardProps) {
+function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag, wanted, isNewCard }: CardProps) {
   const tint = useRowTint(owned, card.quantity, !!wanted);
   return (
     <View style={[styles.big, tint, issues && styles.invalid, crown && !!card.isCommander && styles.commander]}>
@@ -1522,6 +1540,11 @@ function BigCard({ card, actions, issues, crown, owned, details, showPrice, drag
             {crown && card.isCommander ? '👑 ' : ''}x{card.quantity}
             {showPrice && details?.eur != null ? ` · ${formatEur(details.eur)}` : ''}
           </Text>
+          {isNewCard && (
+            <View style={[styles.newTag, { position: 'absolute', top: 8, right: 8 }]}>
+              <Text style={styles.newTagText}>nuevo</Text>
+            </View>
+          )}
         </Pressable>
       </Draggable>
       <OwnedLine
@@ -1679,6 +1702,7 @@ function GalleryTile({
   layout,
   invalid,
   crown,
+  isNewCard,
   onPress,
 }: {
   card: DeckCard;
@@ -1687,6 +1711,7 @@ function GalleryTile({
   layout: GalleryLayout;
   invalid: boolean;
   crown: boolean;
+  isNewCard?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -1706,6 +1731,11 @@ function GalleryTile({
           <Text style={styles.galleryQtyText}>
             {crown && card.isCommander ? '👑 ' : ''}×{card.quantity}
           </Text>
+        </View>
+      )}
+      {isNewCard && (
+        <View style={[styles.newTag, { position: 'absolute', top: 4, right: 4 }]} pointerEvents="none">
+          <Text style={styles.newTagText}>nuevo</Text>
         </View>
       )}
     </Pressable>
@@ -2152,6 +2182,8 @@ const styles = StyleSheet.create({
   galleryQty: { position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.78)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
   galleryQtyText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   nameQty: { color: colors.accent, fontWeight: '800' },
+  newTag: { backgroundColor: colors.accent, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 },
+  newTagText: { color: colors.onAccent, fontSize: 9, fontWeight: '800', textTransform: 'uppercase' },
   galleryImage: { flex: 1, borderRadius: 8 },
   badge: {
     position: 'absolute',

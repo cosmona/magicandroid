@@ -7,6 +7,7 @@ import { FilterPanel } from '@/components/filters/FilterPanel';
 import { SwipeArea } from '@/components/SwipeArea';
 import { TopBar } from '@/components/TopBar';
 import { useAppState } from '@/context/AppState';
+import { markSeen } from '@/hooks/useSeen';
 import { colors } from '@/theme';
 
 /**
@@ -16,7 +17,7 @@ import { colors } from '@/theme';
  * mounted so the card stack keeps its position.
  */
 export default function MainScreen() {
-  const { filters, setFilters } = useAppState();
+  const { filters, setFilters, activeDeck } = useAppState();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [deckOpen, setDeckOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -52,7 +53,14 @@ export default function MainScreen() {
         />
       </BottomSheet>
 
-      <BottomSheet visible={deckOpen} onClose={() => setDeckOpen(false)} fullScreen>
+      <BottomSheet
+        visible={deckOpen}
+        onClose={() => {
+          if (activeDeck) markSeen(`deckcards:${activeDeck.uid}`, Date.now());
+          setDeckOpen(false);
+        }}
+        fullScreen
+      >
         <DeckSheet />
       </BottomSheet>
     </View>

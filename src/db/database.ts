@@ -849,13 +849,15 @@ export interface CollectionCard {
   setCode: string;
   lang: string;
   quantity: number;
+  /** When it was added to the collection (ms); for the «nuevo» badge. */
+  addedAt?: number;
 }
 
 export const getCollection = (db: SQLiteDatabase, place: Place) =>
   db.getAllAsync<CollectionCard>(
     `SELECT scryfall_id AS scryfallId, oracle_id AS oracleId, name, printed_name AS printedName,
             type_line AS typeLine, mana_cost AS manaCost, image_url AS imageUrl, rarity,
-            set_code AS setCode, lang, quantity
+            set_code AS setCode, lang, quantity, added_at AS addedAt
      FROM collection_cards WHERE place = ? ORDER BY COALESCE(printed_name, name)`,
     place,
   );
