@@ -89,7 +89,7 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
         <li>Desliza a la <b>derecha</b> para añadir al mazo y a la <b>izquierda</b> para descartar; flechas para pasar sin decidir.</li>
         <li><b>Buscador completo</b>: nombre en español o inglés, texto de reglas, colores, tipos, coste, rareza, habilidades, formato, edición y solo cartas de MTG Arena.</li>
         <li><b>Historial</b> de todo lo visto para volver a cualquier carta.</li>
-        <li>Cada carta en tu <b>idioma</b>, con sus <b>artes alternativos</b> y el botón <b>La tengo</b> para tu colección.</li>
+        <li>Cada carta en tu <b>idioma</b>, con sus <b>artes alternativos</b> y contadores para añadirla al <b>mazo</b>, a <b>Posibles</b> o a tu <b>colección</b> (La tengo) sin salir del swipe.</li>
       </ul>
     </td>
   </tr>
@@ -100,6 +100,8 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
       <ul>
         <li>Vistas <b>lista</b>, <b>galería</b>, <b>grande</b> y <b>texto</b> (como la imagen para compartir, con el comandante en grande), <b>agrupadas</b> por tipo, coste, color, rareza, edición o etiqueta.</li>
         <li><b>Etiquetas</b> en los mazos («Para torneo», «Casual»…), las mismas que las de las cartas.</li>
+        <li>Etiqueta <b>«nuevo»</b> en las cartas añadidas al mazo (o a la colección) desde la última vez que lo abriste.</li>
+        <li><b>Búsquedas guardadas</b>: guarda unos filtros con un nombre y vuelve a buscar con un toque (se sincronizan con el PC).</li>
         <li><b>Validación</b> en tiempo real según el formato: tamaño, copias, legalidad, comandante e identidad de color.</li>
         <li><b>Banquillo</b> y <b>Posibles</b> en cada mazo, con un botón o arrastrando las cartas.</li>
         <li>Arte, idioma y portada de cada carta; comandante; deshacer al quitar, vaciar o borrar.</li>
@@ -126,7 +128,7 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
       <ul>
         <li><b>Recomendaciones para tu comandante</b> según cientos de miles de mazos de <a href="https://edhrec.com">EDHREC</a>: en lista, en galería o pasándolas una a una, y añadidas con un toque.</li>
         <li><b>Combos</b> de <a href="https://commanderspellbook.com">Commander Spellbook</a>: los que tu mazo ya tiene y los que están <b>a una carta</b>, con la pieza que falta lista para añadir.</li>
-        <li>En la ficha de cada carta: con qué comandantes se juega, qué cartas la acompañan y sus combos.</li>
+        <li>En la ficha de cada carta: con qué comandantes se juega, qué cartas la acompañan y sus combos; toca una carta de la lista y <b>pásalas deslizando ←/→</b> como una mano, igual que en el PC.</li>
       </ul>
     </td>
   </tr>
@@ -136,7 +138,7 @@ La app se organiza en tres pestañas: **Construir**, **Colección** y **Vidas**.
       <h4>Cada carta, al detalle</h4>
       <ul>
         <li><b>Ficha completa</b> con todo lo que Scryfall sabe de la carta y la explicación de cada dato.</li>
-        <li>Al tocar una carta se abre su <b>ficha a pantalla completa</b>, como en el PC: imagen (tócala para verla sola; las de dos caras se giran), idioma, otras artes, Cardmarket y compartir, La tengo / La quiero, «− ＋ al mazo» y «a Posibles», <b>en qué mazos está</b>, su texto con los símbolos, datos y legalidad; ‹ › para pasar a la siguiente.</li>
+        <li>Al tocar una carta se abre su <b>ficha a pantalla completa</b>, como en el PC: imagen (tócala para verla sola; las de dos caras se giran), idioma, otras artes, Cardmarket y compartir, La tengo / La quiero, «− ＋ al mazo» y «a Posibles», <b>en qué mazos está</b>, su texto con los símbolos, datos y legalidad; ‹ › para pasar a la siguiente. Los botones <b>«al mazo»</b> y <b>«a Posibles»</b> llevan un <b>▾</b> para añadir a otro mazo (pasa a ser el activo si quieres).</li>
         <li><b>Precio</b> en Cardmarket por carta y por mazo, y la lista de lo que te falta para comprarlo de una vez.</li>
       </ul>
     </td>
@@ -188,7 +190,7 @@ Con el móvil en un **soporte** mirando tu mano en abanico, la cámara **lee los
 texto en el propio móvil) y apunta **lo que robas y lo que juegas**, comparando con las cartas del mazo activo. Se activa
 en **Ajustes → Mano (beta)** y la primera vez enseña una **guía con dibujos** de cómo colocar la cámara y las cartas.
 
-En toda la app: **código de colores** coherente, **ayuda** al mantener pulsado cualquier botón y **ajustes** de idioma,
+En toda la app: **temas de apariencia** (10 temas y, si quieres, cada color por separado, en Ajustes → Apariencia), **código de colores** coherente, **ayuda** al mantener pulsado cualquier botón y **ajustes** de idioma,
 vistas, etiquetas, vibración y precios. **Sincronizar con Magic Swipe para PC** por la Wi-Fi: escanea el QR del PC, revisa en la pantalla del PC todo lo que es
 distinto (mazos, colección, «La quiero» y etiquetas) con la opción sugerida ya marcada, y al aplicar los dos quedan
 iguales; antes se guarda una copia que puedes restaurar. También se puede copiar o mover todo de uno a otro. **Posibles** en cada mazo para apartar cartas que te estás pensando y

@@ -2,7 +2,7 @@
 
 > Este manual crece con la app: cada vez que algo cambia, se actualiza aquí.
 > Las capturas son de un Android con las cartas en español y un mazo de ejemplo.
-> Versión de la app: **1.0.0** · Última revisión: noviembre de 2026.
+> Versión de la app: **1.18.0** · Última revisión: noviembre de 2026.
 
 Magic Swipe sirve para construir mazos de *Magic: The Gathering* como si tuvieras un puñado de cartas en la mano: las vas
 pasando una a una y decides cuáles se quedan. También lleva la cuenta de las cartas que tienes de verdad (tu colección),
@@ -115,9 +115,9 @@ o al usar uno. La pestaña está un poco separada del borde para no activar el g
 
 Debajo de la carta, en una línea (se desliza si no cabe):
 
-- **− ＋ 🃏 N** (mazo) y **− ＋ ? N** (Posibles), como en el PC: añade o quita copias de la carta en el mazo activo o en
-  Posibles sin pasarla (se rellenan de color cuando ya la llevas).
-- **⚠ No legal / Prohibida** en el formato del mazo activo.
+- **− ＋ 🃏 N** (mazo), **− ＋ ? N** (Posibles) y **− ＋ 📚 N** (Tengo): añade o quita copias de la carta en el mazo activo,
+  en Posibles o en tu **colección** sin pasarla (se rellenan de color cuando ya la llevas).
+- Si la carta **no es legal** en el formato del mazo activo, sale un aviso pequeño **sobre la carta**.
 
 ### Los botones de abajo
 
@@ -217,7 +217,8 @@ hacia abajo (desde cualquier punto de la parte de arriba, incluidos los botones)
 ### Cada carta del mazo
 
 En las vistas lista y grande, cada carta muestra sus datos (coste con símbolos, rareza, tipos, fuerza/resistencia o
-lealtad, precio, cuántas tienes en tu colección y sus problemas de validación) y estos botones:
+lealtad, precio, cuántas tienes en tu colección y sus problemas de validación) y estos botones. Las cartas **añadidas
+desde la última vez que abriste el mazo** salen marcadas con **«nuevo»** (también en galería; se quita al volver a abrirlo):
 
 | Botón | Qué hace |
 |---|---|
@@ -315,6 +316,9 @@ Al abrir una carta desde el mazo, la colección o Construir, **desliza a la izqu
 siguiente o la anterior de la lista: la otra carta entra siguiendo tu dedo, con su imagen y todos sus datos. El nombre, el coste de maná y el texto de reglas ya salen en la propia imagen de la carta, así que no se repiten debajo. Si sueltas
 pasado un tercio de la pantalla (o con un golpe rápido) cambia; si no, vuelve. También con ‹ › de la cabecera.
 
+En esta ficha, los botones **«al mazo»** y **«a Posibles»** llevan un **▾** para añadir la carta a **otro mazo** (te pregunta
+si lo pones como mazo activo). También hay un botón de **Sinergias** para ver con qué combina esta carta.
+
 ## 5. Ficha completa de una carta
 
 <table><tr><td align="center"><img src="img/ficha.jpg" width="240" alt="Ficha completa (ⓘ)"><br><sub>Ficha completa (ⓘ)</sub></td></tr></table>
@@ -406,6 +410,9 @@ Si la carta está en algún mazo verás «En algún mazo» en verde. La vista **
 
 Botón ⚙ de la cabecera:
 
+- **Apariencia:** elige entre **10 temas** de color (morado, claro, neutro, bosque, océano, carmesí, medianoche, pergamino,
+  menta y alto contraste) y, si quieres, **cambia cada color por separado** (los mismos colores y variables que el PC). El
+  tema y los colores se aplican al **reabrir la app**.
 - **Idioma de las cartas:** las cartas se muestran en ese idioma cuando existen.
 - **Cartas y listas → Elegir datos e iconos** (como en el PC), para el mazo y la colección:
   - **Lista:** qué datos salen en cada línea de la fila de cada carta (coste, tipo, tipos, subtipos, texto, F/R, edición,
@@ -467,6 +474,9 @@ Scryfall no sabe qué cartas funcionan bien juntas, así que la app lo consulta 
 
 - **[EDHREC](https://edhrec.com):** analiza cientos de miles de mazos de Commander publicados en internet.
 - **[Commander Spellbook](https://commanderspellbook.com):** la base de datos de combos conocidos.
+
+> Al tocar una carta de cualquiera de estas listas se abre su ficha, y puedes **deslizar ←/→ para pasar por esa misma lista**
+> (como una mano de cartas), igual que en el PC. Desde esa ficha puedes ver también **sus** sinergias.
 
 ### En la ficha de una carta (ⓘ)
 
